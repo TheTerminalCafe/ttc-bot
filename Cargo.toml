@@ -1,0 +1,11 @@
+[package]
+name = "ttc-bot"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serenity = { version = "0.10", features = ["client", "gateway", "rustls_backend", "model", "framework", "standard_framework", "collector"] }
+clap = "2.33.3"
+tokio = { version = "1.14", features = ["macros", "rt-multi-thread"]}
