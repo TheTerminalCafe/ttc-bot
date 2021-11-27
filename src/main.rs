@@ -38,6 +38,10 @@ impl TypeMapKey for Threads {
 struct General;
 
 #[group]
+#[prefixes("admin")]
+struct Admin;
+
+#[group]
 #[prefixes("support")]
 #[description("Support related commands")]
 #[commands(new, close)]
@@ -133,7 +137,8 @@ async fn main() {
         .help(&HELP)
         .unrecognised_command(unknown_command)
         .group(&GENERAL_GROUP)
-        .group(&SUPPORT_GROUP);
+        .group(&SUPPORT_GROUP)
+        .group(&ADMIN_GROUP);
 
     let mut client = Client::builder(token)
         .event_handler(Handler)
@@ -149,6 +154,8 @@ async fn main() {
     if let Err(why) = client.start().await {
         println!("An error occurred: {}", why);
     }
+
+    println!("goodbye");
 }
 
 // ----------------------
@@ -162,6 +169,10 @@ async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 
     Ok(())
 }
+
+// --------------------
+// Admin group commands
+// --------------------
 
 // ----------------------
 // Support group commands
@@ -212,6 +223,7 @@ async fn new(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         }
     };
 
+    // The content_safe makes sure there are no pings or stuff like that in the text
     let description = description_msg.content_safe(ctx).await;
     let system_info = system_info_msg.content_safe(ctx).await;
 
