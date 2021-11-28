@@ -1,4 +1,7 @@
+use std::time::Instant;
+
 use crate::{helper_functions::*, PostgresClientType, ThreadNameRegexType};
+use chrono::{NaiveDateTime, Utc};
 use serenity::{
     client::Context,
     framework::standard::{
@@ -164,7 +167,21 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         .await?
         .id;
 
-    let postgres_client = data.get_mut::<PostgresClientType>();
+    let postgres_client = data.get_mut::<PostgresClientType>().unwrap();
+
+    postgres_client
+        .query(
+            "INSERT INTO ttc_support_tickets VALUES($1, $2, $3, $4, $5, $6)",
+            &[
+                &0,
+                &(thread_id.0 as i64),
+                &Utc::now(),
+                "active",
+                &msg.author.id,
+                &thread_name,
+            ],
+        )
+        .awai??;
 
     Ok(())
 }

@@ -28,7 +28,6 @@ use serenity::{
     utils::Color,
 };
 use std::{collections::HashSet, fs::File, sync::Arc};
-use tokio_postgres::NoTls;
 
 // --------------------------------------
 // Data types to be stored within the bot
