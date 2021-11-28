@@ -2,51 +2,61 @@
 // Imports from libraries
 // ----------------------
 
+mod admin;
+mod general;
+mod helper_functions;
+mod support;
+
 use clap::{App, Arg};
+use helper_functions::embed_msg;
+use regex::Regex;
+use serde_yaml::Value;
 use serenity::{
     async_trait,
-    client::{Client, Context, EventHandler},
+    client::{bridge::gateway::ShardManager, Client, Context, EventHandler},
     framework::standard::{
         help_commands,
-        macros::{command, group, help, hook},
-        Args, CommandError, CommandGroup, CommandResult, HelpOptions, StandardFramework,
+        macros::{help, hook},
+        Args, CommandGroup, CommandResult, HelpOptions, StandardFramework,
     },
     model::{
         channel::Message,
         id::{ChannelId, UserId},
         prelude::{Activity, Ready},
     },
-    prelude::TypeMapKey,
+    prelude::{Mutex, TypeMapKey},
     utils::Color,
 };
-use std::{collections::HashSet, time::Duration};
+use std::{collections::HashSet, fs::File, sync::Arc};
+use tokio_postgres::NoTls;
 
 // --------------------------------------
 // Data types to be stored within the bot
 // --------------------------------------
 
-struct Threads;
-impl TypeMapKey for Threads {
-    type Value = Vec<ChannelId>;
+struct ShardManagerType;
+impl TypeMapKey for ShardManagerType {
+    type Value = Arc<Mutex<ShardManager>>;
 }
+
+struct ThreadNameRegexType;
+impl TypeMapKey for ThreadNameRegexType {
+    type Value = Regex;
+}
+
+struct UsersCurrentlyQuestionedType;
+impl TypeMapKey for UsersCurrentlyQuestionedType {
+    type Value = Vec<UserId>;
+}
+
+struct PostgresClientType;
+impl TypeMapKey for PostgresClientType {
+    type Value = tokio_postgres::Client;
+}
+
 // --------------
 // Command groups
 // --------------
-
-#[group]
-#[commands(ping)]
-struct General;
-
-#[group]
-#[prefixes("admin")]
-struct Admin;
-
-#[group]
-#[prefixes("support")]
-#[description("Support related commands")]
-#[commands(new, close)]
-struct Support;
-
 // ------------
 // Help message
 // ------------
@@ -63,20 +73,6 @@ async fn help(
     owners: HashSet<UserId>,
 ) -> CommandResult {
     help_commands::with_embeds(ctx, msg, args, help_options, groups, owners).await;
-    Ok(())
-}
-
-// ----------------
-// Helper functions
-// ----------------
-
-async fn embed_msg(ctx: &Context, msg: &Message, text: &str, color: Color) -> CommandResult {
-    msg.channel_id
-        .send_message(ctx, |m| {
-            m.embed(|e| e.description(text).color(color));
-            m
-        })
-        .await?;
     Ok(())
 }
 
@@ -121,24 +117,37 @@ async fn unknown_command(ctx: &Context, msg: &Message, cmd_name: &str) {
 async fn main() {
     let matches = App::new("TTCBot")
         .arg(
-            Arg::with_name("token")
+            Arg::with_name("config")
                 .takes_value(true)
                 .required(true)
-                .help("Token to login to discord with")
-                .short("t")
-                .long("token"),
+                .short("c")
+                .long("config"),
         )
         .get_matches();
 
-    let token = matches.value_of("token").unwrap();
+    let config_file = File::open(matches.value_of("config").unwrap()).unwrap();
+    let config: Value = serde_yaml::from_reader(config_file).unwrap();
+
+    let token = config["token"].as_str().unwrap();
+    let posgres_config = config["posgres_config"].as_str().unwrap();
+
+    let (postgres_client, postgres_connection) = tokio_postgres::connect(posgres_config, NoTls)
+        .await
+        .unwrap();
+
+    tokio::spawn(async move {
+        if let Err(why) = postgres_connection.await {
+            eprintln!("Connection error: {}", why);
+        }
+    });
 
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("ttc!"))
         .help(&HELP)
         .unrecognised_command(unknown_command)
-        .group(&GENERAL_GROUP)
-        .group(&SUPPORT_GROUP)
-        .group(&ADMIN_GROUP);
+        .group(&general::GENERAL_GROUP)
+        .group(&support::SUPPORT_GROUP)
+        .group(&admin::ADMIN_GROUP);
 
     let mut client = Client::builder(token)
         .event_handler(Handler)
@@ -146,9 +155,13 @@ async fn main() {
         .await
         .expect("Error creating client");
 
+    // Initial data for the bot
     {
         let mut data = client.data.write().await;
-        data.insert::<Threads>(Vec::new());
+        data.insert::<ShardManagerType>(client.shard_manager.clone());
+        data.insert::<ThreadNameRegexType>(Regex::new("[^a-zA-Z0-9 ]").unwrap());
+        data.insert::<UsersCurrentlyQuestionedType>(Vec::new());
+        data.insert::<PostgresClientType>(postgres_client);
     }
 
     if let Err(why) = client.start().await {
@@ -156,119 +169,4 @@ async fn main() {
     }
 
     println!("goodbye");
-}
-
-// ----------------------
-// General group commands
-// ----------------------
-
-#[command]
-#[description("Ping!")]
-async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.reply_ping(ctx, "pong").await?;
-
-    Ok(())
-}
-
-// --------------------
-// Admin group commands
-// --------------------
-
-// ----------------------
-// Support group commands
-// ----------------------
-
-#[command]
-#[description("Create a new support thread")]
-#[only_in(guilds)]
-#[min_args(1)]
-async fn new(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
-    let thread_name = args.rest();
-
-    embed_msg(ctx, msg, "**Description of issue?**", Color::BLUE).await?;
-
-    let description_msg = match msg
-        .author
-        .await_reply(ctx)
-        .timeout(Duration::from_secs(60))
-        .await
-    {
-        Some(msg) => msg,
-        None => {
-            embed_msg(ctx, msg, "No reply sent in 60 seconds", Color::RED).await?;
-            return Err(CommandError::from(
-                "No reply received for problem description",
-            ));
-        }
-    };
-
-    embed_msg(
-        ctx,
-        msg,
-        "**System information (OS, OS version, hardware info, other info relevant to issue)**",
-        Color::BLUE,
-    )
-    .await?;
-
-    let system_info_msg = match msg
-        .author
-        .await_reply(ctx)
-        .timeout(Duration::from_secs(60))
-        .await
-    {
-        Some(msg) => msg,
-        None => {
-            embed_msg(ctx, msg, "No reply sent in 60 seconds", Color::RED).await?;
-            return Err(CommandError::from("No reply received for system info"));
-        }
-    };
-
-    // The content_safe makes sure there are no pings or stuff like that in the text
-    let description = description_msg.content_safe(ctx).await;
-    let system_info = system_info_msg.content_safe(ctx).await;
-
-    let thread_msg = msg
-        .channel_id
-        .send_message(ctx, |m| {
-            m.embed(|e| {
-                e.title(thread_name)
-                    .field("Description of issue:", description, false)
-                    .field("System info:", system_info, false)
-            })
-        })
-        .await?;
-
-    let thread_id = msg
-        .channel_id
-        .create_public_thread(ctx, thread_msg.id, |ct| ct.name(thread_name))
-        .await?
-        .id;
-
-    let mut data = ctx.data.write().await;
-    let threads = match data.get_mut::<Threads>() {
-        Some(threads) => threads,
-        None => return Err(CommandError::from("No threads vector!")),
-    };
-    threads.push(thread_id);
-
-    Ok(())
-}
-
-#[command]
-#[description("Close the current support thread")]
-#[only_in(guilds)]
-async fn close(ctx: &Context, msg: &Message) -> CommandResult {
-    let mut data = ctx.data.write().await;
-    let threads = match data.get_mut::<Threads>() {
-        Some(threads) => threads,
-        None => return Err(CommandError::from("No threads vector!")),
-    };
-
-    if threads.contains(&msg.channel_id) {
-        msg.channel_id.delete(ctx).await?;
-    } else {
-        embed_msg(ctx, msg, "**Error**: Not in a support thread!", Color::RED).await?;
-    }
-
-    Ok(())
 }
