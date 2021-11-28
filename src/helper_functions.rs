@@ -1,3 +1,4 @@
+use crate::support::SupportThread;
 use serenity::{
     client::Context,
     framework::standard::{CommandError, CommandResult},
@@ -39,4 +40,30 @@ pub async fn wait_for_message(ctx: &Context, msg: &Message) -> CommandResult<Arc
     };
 
     Ok(message)
+}
+
+pub async fn support_ticket_msg(
+    ctx: &Context,
+    msg: &Message,
+    thread: &SupportThread,
+) -> CommandResult {
+    msg.channel_id
+        .send_message(ctx, |m| {
+            m.embed(|e| {
+                e.title(format!("Support ticket [{}]", thread.incident_id))
+                    .field("Title:", thread.incident_title.clone(), false)
+                    .field(
+                        "Status:",
+                        format!(
+                            "Solved: {}, Archived: {}",
+                            thread.incident_solved, thread.thread_archived
+                        ),
+                        false,
+                    )
+                    .field("Timestamp:", thread.incident_time, false)
+                    .field("Thread:", format!("<#{}>", thread.thread_id), false)
+            })
+        })
+        .await?;
+    Ok(())
 }
