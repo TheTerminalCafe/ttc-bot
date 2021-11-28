@@ -167,18 +167,20 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         .await?
         .id;
 
-    let pool = data.get_mut::<PgPoolType>().unwrap();
+    let pool = data.get::<PgPoolType>().unwrap();
 
     sqlx::query!(
         r#"INSERT INTO ttc_support_tickets VALUES($1, $2, $3, $4, $5, $6)"#,
         0,
-        thread_id,
+        thread_id.0 as i64,
         Utc::now(),
         "active",
-        msg.user.id,
+        msg.author.id.0 as i64,
         thread_name,
-        "os"
-    );
+    )
+    .execute(pool)
+    .await
+    .unwrap();
 
     Ok(())
 }

@@ -125,6 +125,8 @@ async fn main() {
         )
         .get_matches();
 
+    dotenv::dotenv().ok();
+
     let config_file = File::open(matches.value_of("config").unwrap()).unwrap();
     let config: Value = serde_yaml::from_reader(config_file).unwrap();
 
