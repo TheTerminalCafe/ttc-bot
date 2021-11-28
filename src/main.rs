@@ -17,7 +17,7 @@ use serenity::{
     framework::standard::{
         help_commands,
         macros::{help, hook},
-        Args, CommandGroup, CommandResult, HelpOptions, StandardFramework,
+        Args, CommandGroup, CommandResult, DispatchError, HelpOptions, StandardFramework,
     },
     model::{
         channel::Message,
@@ -107,6 +107,11 @@ async fn unknown_command(ctx: &Context, msg: &Message, cmd_name: &str) {
     {
         println!("An error occurred: {}", why);
     }
+}
+
+#[hook]
+async fn dispatch_error(ctx: &Context, msg: &Message, error: DispatchError) {
+    println!("An error occurred: {:?}", error);
 }
 
 // ---------------------------------

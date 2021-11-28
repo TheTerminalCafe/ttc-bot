@@ -6,11 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serenity = { version = "0.10", features = ["client", "gateway", "rustls_backend", "model", "framework", "standard_framework", "collector"] }
+serenity = { git = "https://github.com/serenity-rs/serenity", branch = "current", features = ["client", "gateway", "rustls_backend", "model", "framework", "standard_framework", "collector"] }
 clap = "2.33.3"
 tokio = { version = "1.14", features = ["macros", "rt-multi-thread"]}
 regex = "1.5.4"
-sqlx = { version = "0.5.9", features = ["runtime-tokio-rustls", "postgres", "chrono"] }
+sqlx = { version = "0.5.9", features = ["runtime-tokio-rustls", "postgres", "chrono", "macros"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
 chrono = "0.4"
