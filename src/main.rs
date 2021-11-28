@@ -27,6 +27,7 @@ use serenity::{
     prelude::{Mutex, TypeMapKey},
     utils::Color,
 };
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::{collections::HashSet, fs::File, sync::Arc};
 
 // --------------------------------------
@@ -48,9 +49,9 @@ impl TypeMapKey for UsersCurrentlyQuestionedType {
     type Value = Vec<UserId>;
 }
 
-struct PostgresClientType;
-impl TypeMapKey for PostgresClientType {
-    type Value = tokio_postgres::Client;
+struct PgPoolType;
+impl TypeMapKey for PgPoolType {
+    type Value = PgPool;
 }
 
 // --------------
@@ -128,17 +129,13 @@ async fn main() {
     let config: Value = serde_yaml::from_reader(config_file).unwrap();
 
     let token = config["token"].as_str().unwrap();
-    let posgres_config = config["posgres_config"].as_str().unwrap();
+    let sqlx_config = config["sqlx_config"].as_str().unwrap();
 
-    let (postgres_client, postgres_connection) = tokio_postgres::connect(posgres_config, NoTls)
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(sqlx_config)
         .await
         .unwrap();
-
-    tokio::spawn(async move {
-        if let Err(why) = postgres_connection.await {
-            eprintln!("Connection error: {}", why);
-        }
-    });
 
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("ttc!"))
@@ -160,7 +157,7 @@ async fn main() {
         data.insert::<ShardManagerType>(client.shard_manager.clone());
         data.insert::<ThreadNameRegexType>(Regex::new("[^a-zA-Z0-9 ]").unwrap());
         data.insert::<UsersCurrentlyQuestionedType>(Vec::new());
-        data.insert::<PostgresClientType>(postgres_client);
+        data.insert::<PgPoolType>(pool);
     }
 
     if let Err(why) = client.start().await {
