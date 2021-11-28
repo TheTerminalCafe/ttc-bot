@@ -1,0 +1,3 @@
+---
+  token: "OTE0MTgyODU0MDk3ODk5NjU0.YaJVIQ.wj4I0tbYEu9lHFgVXIsA4eDVK2s"
+  sqlx_config: "postgres://postgres:ttcbot-test@localhost/postgres"
