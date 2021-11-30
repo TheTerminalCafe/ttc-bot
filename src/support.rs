@@ -50,6 +50,7 @@ impl PartialEq for ThreadId {
 #[only_in(guilds)]
 #[description("Support related commands")]
 #[commands(new, solve, search)]
+#[default_command(new)]
 struct Support;
 
 // ----------------------
@@ -295,7 +296,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
-#[description("Close the current support thread")]
+#[description("Solve the current support thread")]
 #[checks(is_in_support_thread)]
 async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     // Get a reference to the database
@@ -351,12 +352,13 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
 
 #[command]
 #[sub_commands(id, title)]
+#[usage("<id|title>")]
 #[checks(is_in_either)]
 async fn search(ctx: &Context, msg: &Message) -> CommandResult {
     embed_msg(
         ctx,
         msg,
-        "Use search with one of the subcommands.",
+        "Use search with one of the subcommands. (id, title)",
         Color::RED,
     )
     .await?;
@@ -365,6 +367,7 @@ async fn search(ctx: &Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
+#[usage("<list of strings to search for>")]
 #[checks(is_in_either)]
 async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     args.quoted();
@@ -373,6 +376,11 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let pool = data.get::<PgPoolType>().unwrap();
 
     let mut was_found = false;
+
+    if args.len() == 0 {
+        embed_msg(ctx, msg, "**Error**: No arguments given", Color::RED).await?;
+        return Err(CommandError::from("No arguments given to title search"));
+    }
 
     for _ in 0..args.len() {
         let arg = match args.single::<String>() {
@@ -410,8 +418,14 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 }
 
 #[command]
+#[usage("<id of support ticket>")]
 #[checks(is_in_either)]
 async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    if args.len() == 0 {
+        embed_msg(ctx, msg, "**Error**: No arguments given", Color::RED).await?;
+        return Err(CommandError::from("No arguments given to id search"));
+    }
+
     let id = match args.single::<u32>() {
         Ok(id) => id,
         Err(why) => {
@@ -463,6 +477,7 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
 // Check for making sure command originated from the set support channel
 #[check]
+#[display_in_help(false)]
 async fn is_in_support_channel(ctx: &Context, msg: &Message) -> Result<(), Reason> {
     let data = ctx.data.read().await;
     let support_chanel_id = data.get::<SupportChannelType>().unwrap();
@@ -479,6 +494,7 @@ async fn is_in_support_channel(ctx: &Context, msg: &Message) -> Result<(), Reaso
 
 // Check for making sure command originated from one of the known support threads in the database
 #[check]
+#[display_in_help(false)]
 async fn is_in_support_thread(ctx: &Context, msg: &Message) -> Result<(), Reason> {
     let data = ctx.data.read().await;
     let pool = data.get::<PgPoolType>().unwrap();
@@ -507,6 +523,7 @@ async fn is_in_support_thread(ctx: &Context, msg: &Message) -> Result<(), Reason
 }
 
 #[check]
+#[display_in_help(false)]
 async fn is_in_either(
     ctx: &Context,
     msg: &Message,

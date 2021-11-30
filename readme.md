@@ -16,9 +16,8 @@ Need to be updated by  **KIRO**
 
 If you want to install TTC support bot in your own system these following dependencies are required 
 ```
-rust 
+rust toolchain 
 postgresql
-cargo 
 ```
 
 ## Contribute 
