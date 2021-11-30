@@ -9,15 +9,15 @@ While creating this bot we tried to use efficient and modern technologies .
 We based the main logic on **Rust** and the main database is handled by **PostgreSQL**.
 
 The rust libraries in use are listed here:
-> `serenity-rs`: The main discord bot library.
-> `sqlx`: A library for accessing the sql database.
-> `tokio`: A fast asynchronous runtime.
-> `serde`: Data serialization and deserialization for the config file.
-> `serde_yaml`: Serde implementation for YAML.
-> `clap`: Launch argument parsing.
-> `regex`: Regex for input sanitazion.
-> `chrono`: Timestamps for the database.
-> `dotenv`: `.env` file reading for easier environment variables during compile time.
+- `serenity-rs`: The main discord bot library.
+- `sqlx`: A library for accessing the sql database.
+- `tokio`: A fast asynchronous runtime.
+- `serde`: Data serialization and deserialization for the config file.
+- `serde_yaml`: Serde implementation for YAML.
+- `clap`: Launch argument parsing.
+- `regex`: Regex for input sanitazion.
+- `chrono`: Timestamps for the database.
+- `dotenv`: `.env` file reading for easier environment variables during compile time.
 
 ## Running
 
@@ -37,8 +37,8 @@ Running is done with `cargo run -- -c <path/to/config/file>`.
 
 If you want to install TTC support bot in your own system these following dependencies are required 
 
-> Latest rust toolchain is preferable
-> PostgreSQL database 
+- Latest rust toolchain is preferable
+- PostgreSQL database 
 
 ## Contribute 
 
