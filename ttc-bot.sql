@@ -1,5 +1,5 @@
 create table ttc_support_tickets(
-	incident_id	int,						--> This holdes the incident ID , it can be reffered later , must be unique
+	incident_id	SERIAL,						--> This holdes the incident ID , it can be reffered later , must be unique
 	thread_id bigint unique not null,				--> This holdes the thread ID that the convo is taking place
 	user_id bigint not null,				--> user who made the incident . Example 12345678909875
 	incident_time timestamp not null,		--> Time stamp when the incident was opened 
