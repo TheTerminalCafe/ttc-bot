@@ -11,6 +11,7 @@ use serenity::{
 
 #[group]
 #[prefixes("admin")]
+#[owners_only]
 #[commands(shutdown)]
 struct Admin;
 

@@ -21,7 +21,7 @@ use serenity::{
     },
     model::{
         channel::Message,
-        id::{ChannelId, UserId},
+        id::UserId,
         prelude::{Activity, Ready},
     },
     prelude::{Mutex, TypeMapKey},
@@ -52,6 +52,11 @@ impl TypeMapKey for UsersCurrentlyQuestionedType {
 struct PgPoolType;
 impl TypeMapKey for PgPoolType {
     type Value = PgPool;
+}
+
+struct SupportChannelType;
+impl TypeMapKey for SupportChannelType {
+    type Value = u64;
 }
 
 // --------------
@@ -89,6 +94,14 @@ impl EventHandler for Handler {
         ctx.set_activity(Activity::listening("Kirottu's screaming"))
             .await;
     }
+
+    async fn message(&self, ctx: Context, msg: Message) {
+        if msg.content.contains("bots will take over the world") {
+            if let Err(why) = msg.channel_id.say(ctx, "*hides*").await {
+                println!("Error sending message: {}", why);
+            }
+        }
+    }
 }
 
 // -----
@@ -110,7 +123,7 @@ async fn unknown_command(ctx: &Context, msg: &Message, cmd_name: &str) {
 }
 
 #[hook]
-async fn dispatch_error(ctx: &Context, msg: &Message, error: DispatchError) {
+async fn dispatch_error(_: &Context, _: &Message, error: DispatchError) {
     println!("An error occurred: {:?}", error);
 }
 
@@ -130,28 +143,41 @@ async fn main() {
         )
         .get_matches();
 
+    // Get environment values from .env for ease of use
     dotenv::dotenv().ok();
 
+    // Load the config file
     let config_file = File::open(matches.value_of("config").unwrap()).unwrap();
     let config: Value = serde_yaml::from_reader(config_file).unwrap();
 
+    // Load all the values from the config
     let token = config["token"].as_str().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
+    let support_chanel_id = config["support_channel"].as_u64().unwrap();
+    let mut owners = HashSet::new();
 
+    for owner in config["owners"].as_sequence().unwrap() {
+        owners.insert(UserId(owner.as_u64().unwrap()));
+    }
+
+    // Create the connection to the database
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(sqlx_config)
         .await
         .unwrap();
 
+    // Create the framework of the bot
     let framework = StandardFramework::new()
-        .configure(|c| c.prefix("ttc!"))
+        .configure(|c| c.prefix("ttc!").owners(owners))
         .help(&HELP)
         .unrecognised_command(unknown_command)
+        .on_dispatch_error(dispatch_error)
         .group(&general::GENERAL_GROUP)
         .group(&support::SUPPORT_GROUP)
         .group(&admin::ADMIN_GROUP);
 
+    // Create the bot client
     let mut client = Client::builder(token)
         .event_handler(Handler)
         .framework(framework)
@@ -165,6 +191,7 @@ async fn main() {
         data.insert::<ThreadNameRegexType>(Regex::new("[^a-zA-Z0-9 ]").unwrap());
         data.insert::<UsersCurrentlyQuestionedType>(Vec::new());
         data.insert::<PgPoolType>(pool);
+        data.insert::<SupportChannelType>(support_chanel_id);
     }
 
     if let Err(why) = client.start().await {
