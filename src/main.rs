@@ -1,11 +1,15 @@
-// ----------------------
-// Imports from libraries
-// ----------------------
+// -------------------
+// Module declarations
+// -------------------
 
 mod admin;
 mod general;
 mod helper_functions;
 mod support;
+
+// ----------------------
+// Imports from libraries
+// ----------------------
 
 use clap::{App, Arg};
 use helper_functions::embed_msg;
