@@ -63,13 +63,18 @@ struct Support;
 #[description("Create a new support thread")]
 #[checks(is_in_support_channel)]
 async fn new(ctx: &Context, msg: &Message) -> CommandResult {
-    let mut data = ctx.data.write().await;
-    let users_currently_questioned = data.get_mut::<UsersCurrentlyQuestionedType>().unwrap();
+    let mut data = ctx.data.write().await; // Get a writeable reference to the data
 
-    if users_currently_questioned.contains(&msg.author.id) {
+    if data
+        .get_mut::<UsersCurrentlyQuestionedType>()
+        .unwrap()
+        .contains(&msg.author.id)
+    {
         return Err(CommandError::from("User already being questioned!"));
     }
-    users_currently_questioned.push(msg.author.id);
+    data.get_mut::<UsersCurrentlyQuestionedType>()
+        .unwrap()
+        .push(msg.author.id);
 
     let info_msg = msg.channel_id.send_message(ctx, |m| {
         m.embed(|e| { e.title("Support ticket creation")
@@ -86,10 +91,13 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     let info_reply_msg = match wait_for_message(ctx, msg).await {
         Ok(msg) => msg,
         Err(_) => {
-            users_currently_questioned.retain(|uid| uid != &msg.author.id);
+            data.get_mut::<UsersCurrentlyQuestionedType>()
+                .unwrap()
+                .retain(|uid| uid != &msg.author.id);
             return Err(CommandError::from("User took too long to respond"));
         }
     };
+    info_reply_msg.delete(ctx).await?;
 
     // Ask for the details of the issue
     // The loops are for making sure there is at least some text content in the message
@@ -106,7 +114,9 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         let new_msg = match wait_for_message(ctx, msg).await {
             Ok(msg) => msg,
             Err(_) => {
-                users_currently_questioned.retain(|uid| uid != &msg.author.id);
+                data.get_mut::<UsersCurrentlyQuestionedType>()
+                    .unwrap()
+                    .retain(|uid| uid != &msg.author.id);
                 return Err(CommandError::from("User took too long to respond"));
             }
         };
@@ -124,7 +134,12 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         .await?;
     };
     let thread_name = thread_name_msg.content_safe(ctx).await;
-    let mut thread_name_safe = re.replace_all(&thread_name, "").to_string(); // Parse the thread name with the regex to avoid special characters in thread name
+    let mut thread_name_safe = data
+        .get::<ThreadNameRegexType>()
+        .unwrap()
+        .replace_all(&thread_name, "")
+        .to_string(); // Parse the thread name with the regex to avoid special characters in thread name
+
     thread_name_msg.delete(ctx).await.unwrap();
     title_msg.delete(ctx).await.unwrap();
 
@@ -141,7 +156,9 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         let new_msg = match wait_for_message(ctx, msg).await {
             Ok(msg) => msg,
             Err(_) => {
-                users_currently_questioned.retain(|uid| uid != &msg.author.id);
+                data.get_mut::<UsersCurrentlyQuestionedType>()
+                    .unwrap()
+                    .retain(|uid| uid != &msg.author.id);
                 return Err(CommandError::from("User took too long to respond"));
             }
         };
@@ -159,6 +176,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         .await?;
     };
     let mut description = description_msg.content_safe(ctx).await;
+
     description_msg.delete(ctx).await.unwrap();
     desc_msg.delete(ctx).await.unwrap();
 
@@ -175,42 +193,9 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         let new_msg = match wait_for_message(ctx, msg).await {
             Ok(msg) => msg,
             Err(_) => {
-                users_currently_questioned.retain(|uid| uid != &msg.author.id);
-                return Err(CommandError::from("User took too long to respond"));
-            }
-        };
-        if new_msg.content != "" {
-            break new_msg;
-        }
-        embed_msg(
-            ctx,
-            msg,
-            "Please send a message with text content.",
-            Color::RED,
-            true,
-            Duration::from_secs(3),
-        )
-        .await?;
-    };
-    let mut system_info = system_info_msg.content_safe(ctx).await;
-    incident_msg.delete(ctx).await.unwrap();
-    inc_msg.delete(ctx).await.unwrap();
-
-    let sysinfo_msg = embed_msg(
-        ctx,
-        msg,
-        "**System info?** (Max 1024 characters)",
-        Color::BLUE,
-        false,
-        Duration::from_secs(0),
-    )
-    .await?;
-
-    let system_info_msg = loop {
-        let new_msg = match wait_for_message(ctx, msg).await {
-            Ok(msg) => msg,
-            Err(_) => {
-                users_currently_questioned.retain(|uid| uid != &msg.author.id);
+                data.get_mut::<UsersCurrentlyQuestionedType>()
+                    .unwrap()
+                    .retain(|uid| uid != &msg.author.id);
                 return Err(CommandError::from("User took too long to respond"));
             }
         };
@@ -228,6 +213,45 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         .await?;
     };
     let mut incident = incident_msg.content_safe(ctx).await;
+
+    incident_msg.delete(ctx).await.unwrap();
+    inc_msg.delete(ctx).await.unwrap();
+
+    let sysinfo_msg = embed_msg(
+        ctx,
+        msg,
+        "**System info?** (Max 1024 characters)",
+        Color::BLUE,
+        false,
+        Duration::from_secs(0),
+    )
+    .await?;
+
+    let system_info_msg = loop {
+        let new_msg = match wait_for_message(ctx, msg).await {
+            Ok(msg) => msg,
+            Err(_) => {
+                data.get_mut::<UsersCurrentlyQuestionedType>()
+                    .unwrap()
+                    .retain(|uid| uid != &msg.author.id);
+                return Err(CommandError::from("User took too long to respond"));
+            }
+        };
+        if new_msg.content != "" {
+            break new_msg;
+        }
+        embed_msg(
+            ctx,
+            msg,
+            "Please send a message with text content.",
+            Color::RED,
+            true,
+            Duration::from_secs(3),
+        )
+        .await?;
+    };
+    let mut system_info = system_info_msg.content_safe(ctx).await;
+
     system_info_msg.delete(ctx).await.unwrap();
     sysinfo_msg.delete(ctx).await.unwrap();
 
@@ -242,23 +266,6 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     .await?;
 
     let attachments_msg = wait_for_message(ctx, msg).await?;
-
-    users_currently_questioned.retain(|uid| uid != &msg.author.id);
-
-    // Get the precompiled regex from data
-    let re = match data.get::<ThreadNameRegexType>() {
-        Some(re) => re,
-        None => return Err(CommandError::from("No thread name regex!")),
-    };
-
-    // The content_safe makes sure there are no pings or stuff like that in the text
-
-    // Truncate the strings to match the character limits of the embed
-    thread_name_safe.truncate(128);
-    description.truncate(1024);
-    system_info.truncate(1024);
-    incident.truncate(1024);
-
     // Make sure all attachments with image types get added as images to the embed
     let mut image_attachments = attachments_msg.attachments.clone();
     image_attachments.retain(|a| {
@@ -280,6 +287,21 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     if attachments_str == "" {
         attachments_str = "None".to_string();
     }
+
+    attachments_msg.delete(ctx).await?;
+    att_msg.delete(ctx).await?;
+
+    data.get_mut::<UsersCurrentlyQuestionedType>()
+        .unwrap()
+        .retain(|uid| uid != &msg.author.id);
+
+    // The content_safe makes sure there are no pings or stuff like that in the text
+
+    // Truncate the strings to match the character limits of the embed
+    thread_name_safe.truncate(128);
+    description.truncate(1024);
+    system_info.truncate(1024);
+    incident.truncate(1024);
 
     // Get the author name to use on the embed
     let author_name = msg
@@ -313,6 +335,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         })
         .await?;
 
+    let pool = data.get::<PgPoolType>().unwrap();
     let boost_level = data.get::<BoostLevelType>().unwrap();
 
     let thread_id = msg
@@ -328,8 +351,6 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         })
         .await?
         .id;
-
-    let pool = data.get::<PgPoolType>().unwrap();
 
     let thread = sqlx::query_as!(
         SupportThread,
@@ -353,9 +374,6 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 
     // Clear out messages to avoid unnecessary chat spam
     info_msg.delete(ctx).await?;
-    info_reply_msg.delete(ctx).await?;
-    attachments_msg.delete(ctx).await?;
-    att_msg.delete(ctx).await?;
 
     Ok(())
 }
@@ -404,7 +422,14 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
         .await?;
     }
 
-    embed_msg(ctx, msg, "**Great!**\n\nNow that the issue is solved it is time to give back to the society. Send the details of the solution after this message.", Color::FOOYOO, false, Duration::from_secs(0)).await?;
+    msg.channel_id.send_message(ctx, |m| {
+        m.embed(|e| {
+            e.title("Great!")
+                .color(Color::FOOYOO)
+                .description("Now that the issue is solved, you can give back to society and send the solution after this message.")
+        })
+    })
+    .await?;
 
     wait_for_message(ctx, msg).await?;
 
