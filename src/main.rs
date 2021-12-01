@@ -32,7 +32,7 @@ use serenity::{
     utils::Color,
 };
 use sqlx::{postgres::PgPoolOptions, PgPool};
-use std::{collections::HashSet, fs::File, sync::Arc};
+use std::{collections::HashSet, fs::File, sync::Arc, time::Duration};
 
 // --------------------------------------
 // Data types to be stored within the bot
@@ -63,9 +63,11 @@ impl TypeMapKey for SupportChannelType {
     type Value = u64;
 }
 
-// --------------
-// Command groups
-// --------------
+struct BoostLevelType;
+impl TypeMapKey for BoostLevelType {
+    type Value = u64;
+}
+
 // ------------
 // Help message
 // ------------
@@ -119,6 +121,8 @@ async fn unknown_command(ctx: &Context, msg: &Message, cmd_name: &str) {
         msg,
         &format!("**Error**: No command named: {}", cmd_name),
         Color::RED,
+        false,
+        Duration::from_secs(0),
     )
     .await
     {
@@ -158,6 +162,7 @@ async fn main() {
     let token = config["token"].as_str().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
     let support_chanel_id = config["support_channel"].as_u64().unwrap();
+    let boost_level = config["boost_level"].as_u64().unwrap(); // For selecting default archival period
     let mut owners = HashSet::new();
 
     for owner in config["owners"].as_sequence().unwrap() {
@@ -196,6 +201,7 @@ async fn main() {
         data.insert::<UsersCurrentlyQuestionedType>(Vec::new());
         data.insert::<PgPoolType>(pool);
         data.insert::<SupportChannelType>(support_chanel_id);
+        data.insert::<BoostLevelType>(boost_level);
     }
 
     if let Err(why) = client.start().await {

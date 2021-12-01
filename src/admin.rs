@@ -8,6 +8,7 @@ use serenity::{
     model::channel::Message,
     utils::Color,
 };
+use std::time::Duration;
 
 #[group]
 #[prefixes("admin")]
@@ -25,11 +26,27 @@ async fn shutdown(ctx: &Context, msg: &Message) -> CommandResult {
     let shard_manager = match data.get_mut::<ShardManagerType>() {
         Some(shard_manager) => shard_manager.lock(),
         None => {
-            embed_msg(ctx, msg, "**Error**: Shutdown failed", Color::RED).await?;
+            embed_msg(
+                ctx,
+                msg,
+                "**Error**: Shutdown failed",
+                Color::RED,
+                false,
+                Duration::from_secs(0),
+            )
+            .await?;
             return Err(CommandError::from("No shard manager in data!"));
         }
     };
-    embed_msg(ctx, msg, "**Goodbye!**", Color::PURPLE).await?;
+    embed_msg(
+        ctx,
+        msg,
+        "**Goodbye!**",
+        Color::PURPLE,
+        false,
+        Duration::from_secs(0),
+    )
+    .await?;
     shard_manager.await.shutdown_all().await;
     Ok(())
 }

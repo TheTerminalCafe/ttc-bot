@@ -1,5 +1,7 @@
+use std::time::Duration;
+
 use crate::{
-    helper_functions::*, PgPoolType, SupportChannelType, ThreadNameRegexType,
+    helper_functions::*, BoostLevelType, PgPoolType, SupportChannelType, ThreadNameRegexType,
     UsersCurrentlyQuestionedType,
 };
 use chrono::{DateTime, Utc};
@@ -69,7 +71,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     }
     users_currently_questioned.push(msg.author.id);
 
-    msg.channel_id.send_message(ctx, |m| {
+    let info_msg = msg.channel_id.send_message(ctx, |m| {
         m.embed(|e| { e.title("Support ticket creation")
             .description("You will be asked for the following fields after you send anything after this message.")
             .field("Title:", "The title for this issue.", false)
@@ -81,14 +83,25 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     }).await?;
 
     // Wait for acknowledgement message
-    if let Err(_) = wait_for_message(ctx, msg).await {
-        users_currently_questioned.retain(|uid| uid != &msg.author.id);
-        return Err(CommandError::from("User took too long to respond"));
-    }
+    let info_reply_msg = match wait_for_message(ctx, msg).await {
+        Ok(msg) => msg,
+        Err(_) => {
+            users_currently_questioned.retain(|uid| uid != &msg.author.id);
+            return Err(CommandError::from("User took too long to respond"));
+        }
+    };
 
     // Ask for the details of the issue
     // The loops are for making sure there is at least some text content in the message
-    embed_msg(ctx, msg, "**Title?** (Max 128 characters)", Color::BLUE).await?;
+    let title_msg = embed_msg(
+        ctx,
+        msg,
+        "**Title?** (Max 128 characters)",
+        Color::BLUE,
+        false,
+        Duration::from_secs(0),
+    )
+    .await?;
     let thread_name_msg = loop {
         let new_msg = match wait_for_message(ctx, msg).await {
             Ok(msg) => msg,
@@ -105,15 +118,23 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
             msg,
             "Please send a message with text content.",
             Color::RED,
+            true,
+            Duration::from_secs(3),
         )
         .await?;
     };
+    let thread_name = thread_name_msg.content_safe(ctx).await;
+    let mut thread_name_safe = re.replace_all(&thread_name, "").to_string(); // Parse the thread name with the regex to avoid special characters in thread name
+    thread_name_msg.delete(ctx).await.unwrap();
+    title_msg.delete(ctx).await.unwrap();
 
-    embed_msg(
+    let desc_msg = embed_msg(
         ctx,
         msg,
         "**Description?** (Max 1024 characters)",
         Color::BLUE,
+        false,
+        Duration::from_secs(0),
     )
     .await?;
     let description_msg = loop {
@@ -132,11 +153,24 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
             msg,
             "Please send a message with text content.",
             Color::RED,
+            true,
+            Duration::from_secs(3),
         )
         .await?;
     };
+    let mut description = description_msg.content_safe(ctx).await;
+    description_msg.delete(ctx).await.unwrap();
+    desc_msg.delete(ctx).await.unwrap();
 
-    embed_msg(ctx, msg, "**Incident?** (Max 1024 characters)", Color::BLUE).await?;
+    let inc_msg = embed_msg(
+        ctx,
+        msg,
+        "**Incident?** (Max 1024 characters)",
+        Color::BLUE,
+        false,
+        Duration::from_secs(0),
+    )
+    .await?;
     let incident_msg = loop {
         let new_msg = match wait_for_message(ctx, msg).await {
             Ok(msg) => msg,
@@ -153,15 +187,22 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
             msg,
             "Please send a message with text content.",
             Color::RED,
+            true,
+            Duration::from_secs(3),
         )
         .await?;
     };
+    let mut system_info = system_info_msg.content_safe(ctx).await;
+    incident_msg.delete(ctx).await.unwrap();
+    inc_msg.delete(ctx).await.unwrap();
 
-    embed_msg(
+    let sysinfo_msg = embed_msg(
         ctx,
         msg,
         "**System info?** (Max 1024 characters)",
         Color::BLUE,
+        false,
+        Duration::from_secs(0),
     )
     .await?;
 
@@ -181,11 +222,24 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
             msg,
             "Please send a message with text content.",
             Color::RED,
+            true,
+            Duration::from_secs(3),
         )
         .await?;
     };
+    let mut incident = incident_msg.content_safe(ctx).await;
+    system_info_msg.delete(ctx).await.unwrap();
+    sysinfo_msg.delete(ctx).await.unwrap();
 
-    embed_msg(ctx, msg, "**Attachments?**", Color::BLUE).await?;
+    let att_msg = embed_msg(
+        ctx,
+        msg,
+        "**Attachments?**",
+        Color::BLUE,
+        false,
+        Duration::from_secs(0),
+    )
+    .await?;
 
     let attachments_msg = wait_for_message(ctx, msg).await?;
 
@@ -198,11 +252,6 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     };
 
     // The content_safe makes sure there are no pings or stuff like that in the text
-    let thread_name = thread_name_msg.content_safe(ctx).await;
-    let mut thread_name_safe = re.replace_all(&thread_name, "").to_string(); // Parse the thread name with the regex to avoid special characters in thread name
-    let mut description = description_msg.content_safe(ctx).await;
-    let mut system_info = system_info_msg.content_safe(ctx).await;
-    let mut incident = incident_msg.content_safe(ctx).await;
 
     // Truncate the strings to match the character limits of the embed
     thread_name_safe.truncate(128);
@@ -264,9 +313,19 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         })
         .await?;
 
+    let boost_level = data.get::<BoostLevelType>().unwrap();
+
     let thread_id = msg
         .channel_id
-        .create_public_thread(ctx, thread_msg.id, |ct| ct.name(thread_name_safe))
+        .create_public_thread(ctx, thread_msg.id, |ct| {
+            ct.name(thread_name_safe);
+            match boost_level {
+                0 => ct.auto_archive_duration(1440),
+                1 => ct.auto_archive_duration(4320),
+                2 => ct.auto_archive_duration(10080),
+                _ => ct.auto_archive_duration(10080),
+            }
+        })
         .await?
         .id;
 
@@ -292,6 +351,12 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         .edit_thread(ctx, |t| t.name(&new_thread_name))
         .await?;
 
+    // Clear out messages to avoid unnecessary chat spam
+    info_msg.delete(ctx).await?;
+    info_reply_msg.delete(ctx).await?;
+    attachments_msg.delete(ctx).await?;
+    att_msg.delete(ctx).await?;
+
     Ok(())
 }
 
@@ -314,16 +379,32 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     {
         Ok(thread) => thread,
         Err(why) => {
-            embed_msg(ctx, msg, "**Error**: Not in a support thread", Color::RED).await?;
+            embed_msg(
+                ctx,
+                msg,
+                "**Error**: Not in a support thread",
+                Color::RED,
+                false,
+                Duration::from_secs(0),
+            )
+            .await?;
             return Err(CommandError::from(why));
         }
     };
 
     if thread.incident_solved {
-        embed_msg(ctx, msg, "**Error**: Thread already solved", Color::RED).await?;
+        embed_msg(
+            ctx,
+            msg,
+            "**Error**: Thread already solved",
+            Color::RED,
+            false,
+            Duration::from_secs(0),
+        )
+        .await?;
     }
 
-    embed_msg(ctx, msg, "**Great!**\n\nNow that the issue is solved it is time to give back to the society. Send the details of the solution after this message.", Color::FOOYOO).await?;
+    embed_msg(ctx, msg, "**Great!**\n\nNow that the issue is solved it is time to give back to the society. Send the details of the solution after this message.", Color::FOOYOO, false, Duration::from_secs(0)).await?;
 
     wait_for_message(ctx, msg).await?;
 
@@ -360,6 +441,8 @@ async fn search(ctx: &Context, msg: &Message) -> CommandResult {
         msg,
         "Use search with one of the subcommands. (id, title)",
         Color::RED,
+        false,
+        Duration::from_secs(0),
     )
     .await?;
 
@@ -378,7 +461,15 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let mut was_found = false;
 
     if args.len() == 0 {
-        embed_msg(ctx, msg, "**Error**: No arguments given", Color::RED).await?;
+        embed_msg(
+            ctx,
+            msg,
+            "**Error**: No arguments given",
+            Color::RED,
+            false,
+            Duration::from_secs(0),
+        )
+        .await?;
         return Err(CommandError::from("No arguments given to title search"));
     }
 
@@ -391,6 +482,8 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                     msg,
                     &format!("Unable to parse argument: {}", why),
                     Color::RED,
+                    false,
+                    Duration::from_secs(0),
                 )
                 .await?;
                 continue;
@@ -411,7 +504,15 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     }
 
     if !was_found {
-        embed_msg(ctx, msg, "No support ticket found.", Color::RED).await?;
+        embed_msg(
+            ctx,
+            msg,
+            "No support ticket found.",
+            Color::RED,
+            false,
+            Duration::from_secs(0),
+        )
+        .await?;
     }
 
     Ok(())
@@ -422,7 +523,15 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 #[checks(is_in_either)]
 async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     if args.len() == 0 {
-        embed_msg(ctx, msg, "**Error**: No arguments given", Color::RED).await?;
+        embed_msg(
+            ctx,
+            msg,
+            "**Error**: No arguments given",
+            Color::RED,
+            false,
+            Duration::from_secs(0),
+        )
+        .await?;
         return Err(CommandError::from("No arguments given to id search"));
     }
 
@@ -434,6 +543,8 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                 msg,
                 &format!("**Error**: Unable to parse provided ID: {}", why),
                 Color::RED,
+                false,
+                Duration::from_secs(0),
             )
             .await?;
             return Err(CommandError::from("Unable to parse provided ID"));
@@ -458,6 +569,8 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                 msg,
                 &format!("No support ticket found for id [{}]", id),
                 Color::RED,
+                false,
+                Duration::from_secs(0),
             )
             .await?;
             return Err(CommandError::from(
