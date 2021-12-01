@@ -1,14 +1,12 @@
-use crate::support::SupportThread;
+use crate::{support::SupportThread, UsersCurrentlyQuestionedType};
 use serenity::{
+    builder::CreateMessage,
     client::Context,
     framework::standard::{CommandError, CommandResult},
     model::channel::Message,
     utils::Color,
 };
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::{sync::Arc, time::Duration};
 
 // ----------------
 // Helper functions
@@ -67,6 +65,7 @@ pub async fn wait_for_message(ctx: &Context, msg: &Message) -> CommandResult<Arc
     Ok(message)
 }
 
+// Function to send a message with info of a ticket
 pub async fn support_ticket_msg(
     ctx: &Context,
     msg: &Message,
@@ -91,4 +90,54 @@ pub async fn support_ticket_msg(
         })
         .await?;
     Ok(())
+}
+
+// Helper function for asking for user input after a message from the bot
+pub async fn get_message_reply<'a, F>(
+    ctx: &Context,
+    msg: &Message,
+    question_msg_f: F,
+) -> CommandResult<String>
+where
+    for<'b> F: FnOnce(&'b mut CreateMessage<'a>) -> &'b mut CreateMessage<'a>,
+{
+    // Ask the user first
+    let question_msg = msg.channel_id.send_message(ctx, question_msg_f).await?;
+
+    // Get the reply message
+    // The loops are for making sure there is at least some text content in the message
+    let msg = loop {
+        let new_msg = match wait_for_message(ctx, msg).await {
+            Ok(msg) => msg,
+            Err(_) => {
+                let mut data = ctx.data.write().await;
+                data.get_mut::<UsersCurrentlyQuestionedType>()
+                    .unwrap()
+                    .retain(|uid| uid != &msg.author.id);
+                return Err(CommandError::from("User took too long to respond"));
+            }
+        };
+        if new_msg.content != "" {
+            break new_msg;
+        }
+        embed_msg(
+            ctx,
+            msg,
+            "Please send a message with text content.",
+            Color::RED,
+            true,
+            Duration::from_secs(3),
+        )
+        .await?;
+    };
+
+    // Get the message content
+    let content = msg.content_safe(ctx).await;
+
+    // Clean up messages
+    msg.delete(ctx).await?;
+    question_msg.delete(ctx).await?;
+
+    // Return content
+    Ok(content)
 }
