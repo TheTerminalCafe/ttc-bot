@@ -6,12 +6,12 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use serenity::{
-    client::Context,
+    client::{Context, EventHandler},
     framework::standard::{
         macros::{check, command, group},
         Args, CommandError, CommandOptions, CommandResult, Reason,
     },
-    model::channel::Message,
+    model::channel::{GuildChannel, Message},
     utils::Color,
 };
 
@@ -103,7 +103,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     // The loops are for making sure there is at least some text content in the message
     let title_msg = embed_msg(
         ctx,
-        msg,
+        &msg.channel_id,
         "**Title?** (Max 128 characters)",
         Color::BLUE,
         false,
@@ -125,7 +125,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         }
         embed_msg(
             ctx,
-            msg,
+            &msg.channel_id,
             "Please send a message with text content.",
             Color::RED,
             true,
@@ -145,7 +145,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 
     let desc_msg = embed_msg(
         ctx,
-        msg,
+        &msg.channel_id,
         "**Description?** (Max 1024 characters)",
         Color::BLUE,
         false,
@@ -167,7 +167,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         }
         embed_msg(
             ctx,
-            msg,
+            &msg.channel_id,
             "Please send a message with text content.",
             Color::RED,
             true,
@@ -182,7 +182,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 
     let inc_msg = embed_msg(
         ctx,
-        msg,
+        &msg.channel_id,
         "**Incident?** (Max 1024 characters)",
         Color::BLUE,
         false,
@@ -204,7 +204,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         }
         embed_msg(
             ctx,
-            msg,
+            &msg.channel_id,
             "Please send a message with text content.",
             Color::RED,
             true,
@@ -219,7 +219,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 
     let sysinfo_msg = embed_msg(
         ctx,
-        msg,
+        &msg.channel_id,
         "**System info?** (Max 1024 characters)",
         Color::BLUE,
         false,
@@ -242,7 +242,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         }
         embed_msg(
             ctx,
-            msg,
+            &msg.channel_id,
             "Please send a message with text content.",
             Color::RED,
             true,
@@ -257,7 +257,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 
     let att_msg = embed_msg(
         ctx,
-        msg,
+        &msg.channel_id,
         "**Attachments?**",
         Color::BLUE,
         false,
@@ -399,7 +399,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
         Err(why) => {
             embed_msg(
                 ctx,
-                msg,
+                &msg.channel_id,
                 "**Error**: Not in a support thread",
                 Color::RED,
                 false,
@@ -413,7 +413,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     if thread.incident_solved {
         embed_msg(
             ctx,
-            msg,
+            &msg.channel_id,
             "**Error**: Thread already solved",
             Color::RED,
             false,
@@ -463,7 +463,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
 async fn search(ctx: &Context, msg: &Message) -> CommandResult {
     embed_msg(
         ctx,
-        msg,
+        &msg.channel_id,
         "Use search with one of the subcommands. (id, title)",
         Color::RED,
         false,
@@ -488,7 +488,7 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     if args.len() == 0 {
         embed_msg(
             ctx,
-            msg,
+            &msg.channel_id,
             "**Error**: No arguments given",
             Color::RED,
             false,
@@ -504,7 +504,7 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             Err(why) => {
                 embed_msg(
                     ctx,
-                    msg,
+                    &msg.channel_id,
                     &format!("Unable to parse argument: {}", why),
                     Color::RED,
                     false,
@@ -523,7 +523,7 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         .await?;
 
         for thread in &threads {
-            support_ticket_msg(ctx, msg, thread).await?;
+            support_ticket_msg(ctx, &msg.channel_id, thread).await?;
             was_found = true;
         }
     }
@@ -531,7 +531,7 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     if !was_found {
         embed_msg(
             ctx,
-            msg,
+            &msg.channel_id,
             "No support ticket found.",
             Color::RED,
             false,
@@ -550,7 +550,7 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     if args.len() == 0 {
         embed_msg(
             ctx,
-            msg,
+            &msg.channel_id,
             "**Error**: No arguments given",
             Color::RED,
             false,
@@ -565,7 +565,7 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         Err(why) => {
             embed_msg(
                 ctx,
-                msg,
+                &msg.channel_id,
                 &format!("**Error**: Unable to parse provided ID: {}", why),
                 Color::RED,
                 false,
@@ -591,7 +591,7 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         Err(_) => {
             embed_msg(
                 ctx,
-                msg,
+                &msg.channel_id,
                 &format!("No support ticket found for id [{}]", id),
                 Color::RED,
                 false,
@@ -604,7 +604,7 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         }
     };
 
-    support_ticket_msg(ctx, msg, &thread).await?;
+    support_ticket_msg(ctx, &msg.channel_id, &thread).await?;
 
     Ok(())
 }

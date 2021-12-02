@@ -24,7 +24,7 @@ use serenity::{
         Args, CommandGroup, CommandResult, DispatchError, HelpOptions, StandardFramework,
     },
     model::{
-        channel::Message,
+        channel::{GuildChannel, Message},
         id::UserId,
         prelude::{Activity, Ready},
     },
@@ -33,6 +33,7 @@ use serenity::{
 };
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::{collections::HashSet, fs::File, sync::Arc, time::Duration};
+use support::SupportThread;
 
 // --------------------------------------
 // Data types to be stored within the bot
@@ -108,6 +109,51 @@ impl EventHandler for Handler {
             }
         }
     }
+
+    // Update thread status on the database when it is updated
+    async fn thread_update(&self, ctx: Context, thread: GuildChannel) {
+        // Make sure the updated data is the archived parameter
+        /*if thread.thread_metadata.unwrap().archived {
+            let data = ctx.data.read().await;
+            let pool = data.get::<PgPoolType>().unwrap();
+
+            // Make sure updated thread exists in the database
+            if let Err(why) = sqlx::query!(
+                r#"UPDATE ttc_support_tickets SET thread_archived = 't' WHERE thread_id = $1"#,
+                thread.id.0 as i64
+            )
+            .execute(pool)
+            .await
+            {
+                println!(
+                    "An error occurred when updating thread info in database: {}",
+                    why
+                );
+            }
+        }*/
+        if thread.thread_metadata.unwrap().archived {
+            let data = ctx.data.read().await;
+            let pool = data.get::<PgPoolType>().unwrap();
+
+            let db_thread = sqlx::query_as!(
+                SupportThread,
+                r#"SELECT * FROM ttc_support_tickets WHERE thread_id = $1"#,
+                thread.id.0 as i64
+            )
+            .fetch_one(pool)
+            .await
+            .unwrap();
+            if db_thread.incident_solved {
+                return;
+            }
+            if let Err(why) = thread.edit_thread(&ctx, |t| t.archived(false)).await {
+                println!("Thread unarchival failed: {}", why);
+            }
+            embed_msg(&ctx, &thread.id, &format!("Unarchived thread, if the issue has already been solved make sure to mark it as such with `ttc!support solve` <@{}>", db_thread.user_id), Color::ORANGE, false, Duration::from_secs(0))
+                .await
+                .unwrap();
+        }
+    }
 }
 
 // -----
@@ -118,7 +164,7 @@ impl EventHandler for Handler {
 async fn unknown_command(ctx: &Context, msg: &Message, cmd_name: &str) {
     if let Err(why) = embed_msg(
         ctx,
-        msg,
+        &msg.channel_id,
         &format!("**Error**: No command named: {}", cmd_name),
         Color::RED,
         false,

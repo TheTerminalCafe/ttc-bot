@@ -2,13 +2,10 @@ use crate::support::SupportThread;
 use serenity::{
     client::Context,
     framework::standard::{CommandError, CommandResult},
-    model::channel::Message,
+    model::{channel::Message, id::ChannelId},
     utils::Color,
 };
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::{sync::Arc, time::Duration};
 
 // ----------------
 // Helper functions
@@ -17,14 +14,13 @@ use std::{
 // Helper function for fast and easy embed messages
 pub async fn embed_msg(
     ctx: &Context,
-    msg: &Message,
+    channel_id: &ChannelId,
     text: &str,
     color: Color,
     autodelete: bool,
     autodelete_dur: Duration,
 ) -> CommandResult<Message> {
-    let msg = msg
-        .channel_id
+    let msg = channel_id
         .send_message(ctx, |m| {
             m.embed(|e| e.description(text).color(color));
             m
@@ -51,7 +47,7 @@ pub async fn wait_for_message(ctx: &Context, msg: &Message) -> CommandResult<Arc
         None => {
             embed_msg(
                 ctx,
-                msg,
+                &msg.channel_id,
                 "No reply sent in 60 seconds",
                 Color::RED,
                 false,
@@ -69,10 +65,10 @@ pub async fn wait_for_message(ctx: &Context, msg: &Message) -> CommandResult<Arc
 
 pub async fn support_ticket_msg(
     ctx: &Context,
-    msg: &Message,
+    channel_id: &ChannelId,
     thread: &SupportThread,
 ) -> CommandResult {
-    msg.channel_id
+    channel_id
         .send_message(ctx, |m| {
             m.embed(|e| {
                 e.title(format!("Support ticket [{}]", thread.incident_id))

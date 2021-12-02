@@ -28,7 +28,7 @@ async fn shutdown(ctx: &Context, msg: &Message) -> CommandResult {
         None => {
             embed_msg(
                 ctx,
-                msg,
+                &msg.channel_id,
                 "**Error**: Shutdown failed",
                 Color::RED,
                 false,
@@ -40,7 +40,7 @@ async fn shutdown(ctx: &Context, msg: &Message) -> CommandResult {
     };
     embed_msg(
         ctx,
-        msg,
+        &msg.channel_id,
         "**Goodbye!**",
         Color::PURPLE,
         false,
