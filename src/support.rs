@@ -67,17 +67,12 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     // the code to be a bit messier but concurrency has forced my hand
     {
         let mut data = ctx.data.write().await; // Get a writeable reference to the data
+        let users_currently_questioned = data.get_mut::<UsersCurrentlyQuestionedType>().unwrap();
 
-        if data
-            .get_mut::<UsersCurrentlyQuestionedType>()
-            .unwrap()
-            .contains(&msg.author.id)
-        {
+        if users_currently_questioned.contains(&msg.author.id) {
             return Err(CommandError::from("User already being questioned!"));
         }
-        data.get_mut::<UsersCurrentlyQuestionedType>()
-            .unwrap()
-            .push(msg.author.id);
+        users_currently_questioned.push(msg.author.id);
     }
 
     // Send a summary message
@@ -141,7 +136,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         "**Attachments?**",
         Color::BLUE,
         false,
-        Duration::from_secs(0),
+        Duration::default(),
     )
     .await?;
 
@@ -241,7 +236,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         .await?
         .id;
 
-    let thread = sqlx::query_as!(
+    let thread = match sqlx::query_as!(
         SupportThread,
         r#"INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, thread_archived, incident_solved) VALUES($1, $2, $3, $4, $5, $6) RETURNING *"#,
         thread_id.0 as i64,
@@ -252,8 +247,13 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         false,
     )
     .fetch_one(pool)
-    .await
-    .unwrap();
+    .await {
+        Ok(thread) => thread,
+        Err(why) => {
+            println!("Error writing into database! {}", why); 
+            return Err(CommandError::from(format!("{}", why)));
+        }
+    };
 
     let new_thread_name = format!("[{}] {}", thread.incident_id, thread_name);
 
@@ -292,7 +292,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
                 "**Error**: Not in a support thread",
                 Color::RED,
                 false,
-                Duration::from_secs(0),
+                Duration::default(),
             )
             .await?;
             return Err(CommandError::from(why));
@@ -306,19 +306,24 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
             "**Error**: Thread already solved",
             Color::RED,
             false,
-            Duration::from_secs(0),
+            Duration::default(),
         )
         .await?;
     }
 
     // Update the state to be archived
-    sqlx::query!(
+    match sqlx::query!(
         r#"UPDATE ttc_support_tickets SET thread_archived = 't', incident_solved = 't' WHERE thread_id = $1"#,
         msg.channel_id.0 as i64
     )
     .execute(pool)
-    .await
-    .unwrap();
+    .await {
+        Ok(_) => (),
+        Err(why) => {
+            println!("Error reading from database! {}", why);
+            return Err(CommandError::from(format!("{}", why)));
+        }
+    }
 
     msg.channel_id.send_message(ctx, |m| {
         m.embed(|e| {
@@ -356,7 +361,7 @@ async fn search(ctx: &Context, msg: &Message) -> CommandResult {
         "Use search with one of the subcommands. (id, title)",
         Color::RED,
         false,
-        Duration::from_secs(0),
+        Duration::default(),
     )
     .await?;
 
@@ -364,6 +369,7 @@ async fn search(ctx: &Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
+#[description("Search for titles containing specified strings from the database. Quotes allow for spaces in naming.")]
 #[usage("<list of strings to search for>")]
 #[checks(is_in_either)]
 async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
@@ -382,7 +388,7 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             "**Error**: No arguments given",
             Color::RED,
             false,
-            Duration::from_secs(0),
+            Duration::default(),
         )
         .await?;
         return Err(CommandError::from("No arguments given to title search"));
@@ -400,7 +406,7 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                     &format!("Unable to parse argument: {}", why),
                     Color::RED,
                     false,
-                    Duration::from_secs(0),
+                    Duration::default(),
                 )
                 .await?;
                 continue;
@@ -428,7 +434,7 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             "No support ticket found.",
             Color::RED,
             false,
-            Duration::from_secs(0),
+            Duration::default(),
         )
         .await?;
     }
@@ -437,6 +443,7 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 }
 
 #[command]
+#[description("Search for specific id from the database")]
 #[usage("<id of support ticket>")]
 #[checks(is_in_either)]
 async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
@@ -448,7 +455,7 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             "**Error**: No arguments given",
             Color::RED,
             false,
-            Duration::from_secs(0),
+            Duration::default(),
         )
         .await?;
         return Err(CommandError::from("No arguments given to id search"));
@@ -464,7 +471,7 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                 &format!("**Error**: Unable to parse provided ID: {}", why),
                 Color::RED,
                 false,
-                Duration::from_secs(0),
+                Duration::default(),
             )
             .await?;
             return Err(CommandError::from("Unable to parse provided ID"));
@@ -491,7 +498,7 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                 &format!("No support ticket found for id [{}]", id),
                 Color::RED,
                 false,
-                Duration::from_secs(0),
+                Duration::default(),
             )
             .await?;
             return Err(CommandError::from(
@@ -506,7 +513,10 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 }
 
 #[command]
+#[description("List tickets based on subcommand")]
+#[usage("<active>")]
 #[sub_commands(active)]
+#[checks(is_in_support_channel)]
 async fn list(ctx: &Context, msg: &Message) -> CommandResult {
     embed_msg(
         ctx,
@@ -514,7 +524,7 @@ async fn list(ctx: &Context, msg: &Message) -> CommandResult {
         "Use list with one of the subcommands. (active)",
         Color::RED,
         false,
-        Duration::from_secs(0),
+        Duration::default(),
     )
     .await?;
 
@@ -522,7 +532,50 @@ async fn list(ctx: &Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
+#[description("List all active tickets")]
+#[checks(is_in_support_channel)]
 async fn active(ctx: &Context, msg: &Message) -> CommandResult {
+    let data = ctx.data.read().await;
+    let pool = data.get::<PgPoolType>().unwrap();
+
+    let threads = match sqlx::query_as!(
+        SupportThread,
+        r#"SELECT * FROM ttc_support_tickets WHERE incident_solved = 'f'"#
+    )
+    .fetch_all(pool)
+    .await
+    {
+        Ok(threads) => threads,
+        Err(why) => {
+            embed_msg(
+                ctx,
+                &msg.channel_id,
+                &format!("**Error**: {}", why),
+                Color::RED,
+                false,
+                Duration::default(),
+            )
+            .await?;
+            return Err(CommandError::from(format!("{}", why)));
+        }
+    };
+
+    if threads.len() == 0 {
+        embed_msg(
+            ctx,
+            &msg.channel_id,
+            "No active issues found",
+            Color::BLUE,
+            false,
+            Duration::default(),
+        )
+        .await?;
+    } else {
+        for thread in threads {
+            support_ticket_msg(ctx, &msg.channel_id, &thread).await?;
+        }
+    }
+
     Ok(())
 }
 
