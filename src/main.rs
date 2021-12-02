@@ -26,6 +26,7 @@ use serenity::{
     model::{
         channel::{GuildChannel, Message},
         id::UserId,
+        misc::Mentionable,
         prelude::{Activity, Ready},
     },
     prelude::{Mutex, TypeMapKey},
@@ -135,23 +136,35 @@ impl EventHandler for Handler {
             let data = ctx.data.read().await;
             let pool = data.get::<PgPoolType>().unwrap();
 
-            let db_thread = sqlx::query_as!(
+            let db_thread = match sqlx::query_as!(
                 SupportThread,
                 r#"SELECT * FROM ttc_support_tickets WHERE thread_id = $1"#,
                 thread.id.0 as i64
             )
             .fetch_one(pool)
             .await
-            .unwrap();
-            if db_thread.incident_solved {
-                return;
+            {
+                Ok(thread) => thread,
+                Err(_) => return,
+            };
+
+            if !db_thread.incident_solved {
+                if let Err(why) = thread.edit_thread(&ctx, |t| t.archived(false)).await {
+                    println!("Thread unarchival failed: {}", why);
+                    return;
+                }
+                match thread
+                    .id
+                    .send_message(&ctx, |c| {
+                        c.content(format!("{}", UserId(db_thread.user_id as u64).mention())).embed(|e| {
+                            e.description("If the issue has already been solved make sure to mark it as such with `ttc!support solve`")
+                                .title("Thread unarchived")})
+                    })
+                    .await {
+                    Ok(_) => (),
+                    Err(why) => println!("Failed to send message: {}", why),
+                }
             }
-            if let Err(why) = thread.edit_thread(&ctx, |t| t.archived(false)).await {
-                println!("Thread unarchival failed: {}", why);
-            }
-            embed_msg(&ctx, &thread.id, &format!("Unarchived thread, if the issue has already been solved make sure to mark it as such with `ttc!support solve` <@{}>", db_thread.user_id), Color::ORANGE, false, Duration::from_secs(0))
-                .await
-                .unwrap();
         }
     }
 }
