@@ -3,7 +3,7 @@ use serenity::{
     builder::CreateMessage,
     client::Context,
     framework::standard::{CommandError, CommandResult},
-    model::channel::Message,
+    model::{channel::Message, id::ChannelId},
     utils::Color,
 };
 use std::{sync::Arc, time::Duration};
@@ -15,14 +15,13 @@ use std::{sync::Arc, time::Duration};
 // Helper function for fast and easy embed messages
 pub async fn embed_msg(
     ctx: &Context,
-    msg: &Message,
+    channel_id: &ChannelId,
     text: &str,
     color: Color,
     autodelete: bool,
     autodelete_dur: Duration,
 ) -> CommandResult<Message> {
-    let msg = msg
-        .channel_id
+    let msg = channel_id
         .send_message(ctx, |m| {
             m.embed(|e| e.description(text).color(color));
             m
@@ -38,19 +37,22 @@ pub async fn embed_msg(
 }
 
 // Function for waiting for the author of msg to send a message
-pub async fn wait_for_message(ctx: &Context, msg: &Message) -> CommandResult<Arc<Message>> {
-    let message = match msg
-        .author
-        .await_reply(ctx)
-        .timeout(Duration::from_secs(60))
-        .await
-    {
+pub async fn wait_for_message(
+    ctx: &Context,
+    msg: &Message,
+    timeout: Duration,
+) -> CommandResult<Arc<Message>> {
+    let message = match msg.author.await_reply(ctx).timeout(timeout).await {
         Some(msg) => msg,
         None => {
             embed_msg(
                 ctx,
-                msg,
-                "No reply sent in 60 seconds",
+                &msg.channel_id,
+                &format!(
+                    "No reply sent in {} minutes and {} seconds",
+                    timeout.as_secs() / 60,
+                    timeout.as_secs()
+                ),
                 Color::RED,
                 false,
                 Duration::from_secs(0),
@@ -68,20 +70,17 @@ pub async fn wait_for_message(ctx: &Context, msg: &Message) -> CommandResult<Arc
 // Function to send a message with info of a ticket
 pub async fn support_ticket_msg(
     ctx: &Context,
-    msg: &Message,
+    channel_id: &ChannelId,
     thread: &SupportThread,
 ) -> CommandResult {
-    msg.channel_id
+    channel_id
         .send_message(ctx, |m| {
             m.embed(|e| {
                 e.title(format!("Support ticket [{}]", thread.incident_id))
                     .field("Title:", thread.incident_title.clone(), false)
                     .field(
                         "Status:",
-                        format!(
-                            "Solved: {}, Archived: {}",
-                            thread.incident_solved, thread.thread_archived
-                        ),
+                        format!("Solved: {}", thread.incident_solved,),
                         false,
                     )
                     .field("Timestamp:", thread.incident_time, false)
@@ -97,6 +96,7 @@ pub async fn get_message_reply<'a, F>(
     ctx: &Context,
     msg: &Message,
     question_msg_f: F,
+    timeout: Duration,
 ) -> CommandResult<String>
 where
     for<'b> F: FnOnce(&'b mut CreateMessage<'a>) -> &'b mut CreateMessage<'a>,
@@ -107,7 +107,7 @@ where
     // Get the reply message
     // The loops are for making sure there is at least some text content in the message
     let msg = loop {
-        let new_msg = match wait_for_message(ctx, msg).await {
+        let new_msg = match wait_for_message(ctx, msg, timeout).await {
             Ok(msg) => msg,
             Err(_) => {
                 let mut data = ctx.data.write().await;
@@ -122,7 +122,7 @@ where
         }
         embed_msg(
             ctx,
-            msg,
+            &msg.channel_id,
             "Please send a message with text content.",
             Color::RED,
             true,
@@ -135,8 +135,14 @@ where
     let content = msg.content_safe(ctx).await;
 
     // Clean up messages
-    msg.delete(ctx).await?;
-    question_msg.delete(ctx).await?;
+    match msg
+        .channel_id
+        .delete_messages(ctx, vec![question_msg.id, msg.id])
+        .await
+    {
+        Ok(_) => (),
+        Err(why) => println!("Error deleting messages: {}", why),
+    }
 
     // Return content
     Ok(content)
