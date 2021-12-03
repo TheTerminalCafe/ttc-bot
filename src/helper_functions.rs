@@ -37,19 +37,22 @@ pub async fn embed_msg(
 }
 
 // Function for waiting for the author of msg to send a message
-pub async fn wait_for_message(ctx: &Context, msg: &Message) -> CommandResult<Arc<Message>> {
-    let message = match msg
-        .author
-        .await_reply(ctx)
-        .timeout(Duration::from_secs(60))
-        .await
-    {
+pub async fn wait_for_message(
+    ctx: &Context,
+    msg: &Message,
+    timeout: Duration,
+) -> CommandResult<Arc<Message>> {
+    let message = match msg.author.await_reply(ctx).timeout(timeout).await {
         Some(msg) => msg,
         None => {
             embed_msg(
                 ctx,
                 &msg.channel_id,
-                "No reply sent in 60 seconds",
+                &format!(
+                    "No reply sent in {} minutes and {} seconds",
+                    timeout.as_secs() / 60,
+                    timeout.as_secs()
+                ),
                 Color::RED,
                 false,
                 Duration::from_secs(0),
@@ -77,10 +80,7 @@ pub async fn support_ticket_msg(
                     .field("Title:", thread.incident_title.clone(), false)
                     .field(
                         "Status:",
-                        format!(
-                            "Solved: {}, Archived: {}",
-                            thread.incident_solved, thread.thread_archived
-                        ),
+                        format!("Solved: {}", thread.incident_solved,),
                         false,
                     )
                     .field("Timestamp:", thread.incident_time, false)
@@ -96,6 +96,7 @@ pub async fn get_message_reply<'a, F>(
     ctx: &Context,
     msg: &Message,
     question_msg_f: F,
+    timeout: Duration,
 ) -> CommandResult<String>
 where
     for<'b> F: FnOnce(&'b mut CreateMessage<'a>) -> &'b mut CreateMessage<'a>,
@@ -106,7 +107,7 @@ where
     // Get the reply message
     // The loops are for making sure there is at least some text content in the message
     let msg = loop {
-        let new_msg = match wait_for_message(ctx, msg).await {
+        let new_msg = match wait_for_message(ctx, msg, timeout).await {
             Ok(msg) => msg,
             Err(_) => {
                 let mut data = ctx.data.write().await;
@@ -134,8 +135,14 @@ where
     let content = msg.content_safe(ctx).await;
 
     // Clean up messages
-    msg.delete(ctx).await?;
-    question_msg.delete(ctx).await?;
+    match msg
+        .channel_id
+        .delete_messages(ctx, vec![question_msg.id, msg.id])
+        .await
+    {
+        Ok(_) => (),
+        Err(why) => println!("Error deleting messages: {}", why),
+    }
 
     // Return content
     Ok(content)

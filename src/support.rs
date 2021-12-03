@@ -26,7 +26,6 @@ pub struct SupportThread {
     pub user_id: i64,
     pub incident_time: DateTime<Utc>,
     pub incident_title: String,
-    pub thread_archived: bool,
     pub incident_solved: bool,
 }
 
@@ -88,7 +87,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     }).await?;
 
     // Wait for acknowledgement message
-    let info_reply_msg = match wait_for_message(ctx, msg).await {
+    let info_reply_msg = match wait_for_message(ctx, msg, Duration::from_secs(60)).await {
         Ok(msg) => msg,
         Err(_) => {
             let mut data = ctx.data.write().await;
@@ -101,9 +100,17 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     info_reply_msg.delete(ctx).await?;
 
     // Ask for the details of the issue
-    let thread_name = get_message_reply(ctx, msg, |m| {
-        m.embed(|e| e.description("**Title?**").color(Color::BLUE))
-    })
+    let thread_name = get_message_reply(
+        ctx,
+        msg,
+        |m| {
+            m.embed(|e| {
+                e.description("**Title?** (60 seconds time limit)")
+                    .color(Color::BLUE)
+            })
+        },
+        Duration::from_secs(60),
+    )
     .await?;
 
     // Parse the thread name with the regex to avoid special characters in thread name
@@ -115,34 +122,58 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
             .to_string()
     };
 
-    let mut description = get_message_reply(ctx, msg, |m| {
-        m.embed(|e| e.description("**Description?**").color(Color::BLUE))
-    })
+    let mut description = get_message_reply(
+        ctx,
+        msg,
+        |m| {
+            m.embed(|e| {
+                e.description("**Description?** (300 seconds time limit)")
+                    .color(Color::BLUE)
+            })
+        },
+        Duration::from_secs(300),
+    )
     .await?;
 
-    let mut incident = get_message_reply(ctx, msg, |m| {
-        m.embed(|e| e.description("**Incident?**").color(Color::BLUE))
-    })
+    let mut incident = get_message_reply(
+        ctx,
+        msg,
+        |m| {
+            m.embed(|e| {
+                e.description("**Incident?** (300 seconds time limit)")
+                    .color(Color::BLUE)
+            })
+        },
+        Duration::from_secs(300),
+    )
     .await?;
 
-    let mut system_info = get_message_reply(ctx, msg, |m| {
-        m.embed(|e| e.description("**System info?**").color(Color::BLUE))
-    })
+    let mut system_info = get_message_reply(
+        ctx,
+        msg,
+        |m| {
+            m.embed(|e| {
+                e.description("**System info?** (300 seconds time limit)")
+                    .color(Color::BLUE)
+            })
+        },
+        Duration::from_secs(300),
+    )
     .await?;
 
     let att_msg = embed_msg(
         ctx,
         &msg.channel_id,
-        "**Attachments?**",
+        "**Attachments?** (300 seconds time limit)",
         Color::BLUE,
         false,
         Duration::default(),
     )
     .await?;
 
-    // The helperr function cant really be used for the attachment messages due to much of the
+    // The helper function cant really be used for the attachment messages due to much of the
     // checking it does
-    let attachments_msg = wait_for_message(ctx, msg).await?;
+    let attachments_msg = wait_for_message(ctx, msg, Duration::from_secs(300)).await?;
     // Make sure all attachments with image types get added as images to the embed
     let mut image_attachments = attachments_msg.attachments.clone();
     image_attachments.retain(|a| {
@@ -166,8 +197,14 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         attachments_str = "None".to_string();
     }
 
-    attachments_msg.delete(ctx).await?;
-    att_msg.delete(ctx).await?;
+    match msg
+        .channel_id
+        .delete_messages(ctx, vec![attachments_msg.id, att_msg.id, info_msg.id])
+        .await
+    {
+        Ok(_) => (),
+        Err(why) => println!("Error deleting messages: {}", why),
+    }
 
     // Finally remove the user id from the currently questioned list to allow them to run
     // ttc!support new again
@@ -222,6 +259,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     let pool = data.get::<PgPoolType>().unwrap();
     let boost_level = data.get::<BoostLevelType>().unwrap();
 
+    // Select auto archive duration based on the server boost level
     let thread_id = msg
         .channel_id
         .create_public_thread(ctx, thread_msg.id, |ct| {
@@ -236,14 +274,15 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         .await?
         .id;
 
+    // Insert the gathered information into the database and return the newly created database
+    // entry for it's primary key to be added to the support thread title
     let thread = match sqlx::query_as!(
         SupportThread,
-        r#"INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, thread_archived, incident_solved) VALUES($1, $2, $3, $4, $5, $6) RETURNING *"#,
+        r#"INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved) VALUES($1, $2, $3, $4, $5) RETURNING *"#,
         thread_id.0 as i64,
         msg.author.id.0 as i64,
         Utc::now(),
         thread_name,
-        false,
         false,
     )
     .fetch_one(pool)
@@ -260,9 +299,6 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     thread_id
         .edit_thread(ctx, |t| t.name(&new_thread_name))
         .await?;
-
-    // Clear out messages to avoid unnecessary chat spam
-    info_msg.delete(ctx).await?;
 
     Ok(())
 }
@@ -313,11 +349,12 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
 
     // Update the state to be archived
     match sqlx::query!(
-        r#"UPDATE ttc_support_tickets SET thread_archived = 't', incident_solved = 't' WHERE thread_id = $1"#,
+        r#"UPDATE ttc_support_tickets SET incident_solved = 't' WHERE thread_id = $1"#,
         msg.channel_id.0 as i64
     )
     .execute(pool)
-    .await {
+    .await
+    {
         Ok(_) => (),
         Err(why) => {
             println!("Error reading from database! {}", why);
@@ -334,7 +371,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     })
     .await?;
 
-    wait_for_message(ctx, msg).await?;
+    wait_for_message(ctx, msg, Duration::from_secs(300)).await?;
 
     // Archive the thread after getting the solution
     msg.channel_id
