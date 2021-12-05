@@ -1,11 +1,15 @@
-// ----------------------
-// Imports from libraries
-// ----------------------
+// -------------------
+// Module declarations
+// -------------------
 
 mod admin;
 mod general;
 mod helper_functions;
 mod support;
+
+// ----------------------
+// Imports from libraries
+// ----------------------
 
 use clap::{App, Arg};
 use helper_functions::embed_msg;
@@ -20,15 +24,17 @@ use serenity::{
         Args, CommandGroup, CommandResult, DispatchError, HelpOptions, StandardFramework,
     },
     model::{
-        channel::Message,
+        channel::{GuildChannel, Message},
         id::UserId,
+        misc::Mentionable,
         prelude::{Activity, Ready},
     },
     prelude::{Mutex, TypeMapKey},
     utils::Color,
 };
 use sqlx::{postgres::PgPoolOptions, PgPool};
-use std::{collections::HashSet, fs::File, sync::Arc};
+use std::{collections::HashSet, fs::File, sync::Arc, time::Duration};
+use support::SupportThread;
 
 // --------------------------------------
 // Data types to be stored within the bot
@@ -59,9 +65,11 @@ impl TypeMapKey for SupportChannelType {
     type Value = u64;
 }
 
-// --------------
-// Command groups
-// --------------
+struct BoostLevelType;
+impl TypeMapKey for BoostLevelType {
+    type Value = u64;
+}
+
 // ------------
 // Help message
 // ------------
@@ -97,8 +105,54 @@ impl EventHandler for Handler {
 
     async fn message(&self, ctx: Context, msg: Message) {
         if msg.content.contains("bots will take over the world") {
-            if let Err(why) = msg.channel_id.say(ctx, "*hides*").await {
-                println!("Error sending message: {}", why);
+            match msg.channel_id.say(ctx, "*hides*").await {
+                Ok(_) => (),
+                Err(why) => println!("Error sending message: {}", why),
+            }
+        }
+    }
+
+    // Update thread status on the database when it is updated
+    async fn thread_update(&self, ctx: Context, thread: GuildChannel) {
+        // Make sure the updated part is the archived value
+        if thread.thread_metadata.unwrap().archived {
+            let data = ctx.data.read().await;
+            let pool = data.get::<PgPoolType>().unwrap();
+
+            // Get the current thread info from the database
+            let db_thread = match sqlx::query_as!(
+                SupportThread,
+                r#"SELECT * FROM ttc_support_tickets WHERE thread_id = $1"#,
+                thread.id.0 as i64
+            )
+            .fetch_one(pool)
+            .await
+            {
+                Ok(thread) => thread,
+                Err(_) => return,
+            };
+
+            // Make sure the thread isn't marked as solved
+            if !db_thread.incident_solved {
+                match thread.edit_thread(&ctx, |t| t.archived(false)).await {
+                    Ok(_) => (),
+                    Err(why) => {
+                        println!("Thread unarchival failed: {}", why);
+                        return;
+                    }
+                }
+                // Inform the author of the issue about the unarchival
+                match thread
+                    .id
+                    .send_message(&ctx, |c| {
+                        c.content(format!("{}", UserId(db_thread.user_id as u64).mention())).embed(|e| {
+                            e.description("If the issue has already been solved make sure to mark it as such with `ttc!support solve`")
+                                .title("Thread unarchived")})
+                    })
+                    .await {
+                    Ok(_) => (),
+                    Err(why) => println!("Failed to send message: {}", why),
+                }
             }
         }
     }
@@ -110,15 +164,18 @@ impl EventHandler for Handler {
 
 #[hook]
 async fn unknown_command(ctx: &Context, msg: &Message, cmd_name: &str) {
-    if let Err(why) = embed_msg(
+    match embed_msg(
         ctx,
-        msg,
+        &msg.channel_id,
         &format!("**Error**: No command named: {}", cmd_name),
         Color::RED,
+        false,
+        Duration::from_secs(0),
     )
     .await
     {
-        println!("An error occurred: {}", why);
+        Ok(_) => (),
+        Err(why) => println!("An error occurred: {}", why),
     }
 }
 
@@ -154,6 +211,7 @@ async fn main() {
     let token = config["token"].as_str().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
     let support_chanel_id = config["support_channel"].as_u64().unwrap();
+    let boost_level = config["boost_level"].as_u64().unwrap(); // For selecting default archival period
     let mut owners = HashSet::new();
 
     for owner in config["owners"].as_sequence().unwrap() {
@@ -192,10 +250,12 @@ async fn main() {
         data.insert::<UsersCurrentlyQuestionedType>(Vec::new());
         data.insert::<PgPoolType>(pool);
         data.insert::<SupportChannelType>(support_chanel_id);
+        data.insert::<BoostLevelType>(boost_level);
     }
 
-    if let Err(why) = client.start().await {
-        println!("An error occurred: {}", why);
+    match client.start().await {
+        Ok(_) => (),
+        Err(why) => println!("An error occurred: {}", why),
     }
 
     println!("goodbye");
