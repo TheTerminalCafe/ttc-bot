@@ -92,11 +92,11 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         msg,
         |m| {
             m.embed(|e| {
-                e.description("**Title?** (60 seconds time limit)")
+                e.description("**Title?** (300 seconds time limit)")
                     .color(Color::BLUE)
             })
         },
-        Duration::from_secs(60),
+        Duration::from_secs(300),
     )
     .await?;
 
