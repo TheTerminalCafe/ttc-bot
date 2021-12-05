@@ -77,7 +77,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     // Send a summary message
     let info_msg = msg.channel_id.send_message(ctx, |m| {
         m.embed(|e| { e.title("Support ticket creation")
-            .description("You will be asked for the following fields after you send anything after this message.")
+            .description("You will be asked for the following fields during the ticket creation.")
             .field("Title:", "The title for this issue.", false)
             .field("Description:", "A more in depth explanation of the issue.", false)
             .field("Incident:", "Anything that could have caused this issue in the first place.", false)
@@ -86,30 +86,17 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
             .color(Color::PURPLE)})
     }).await?;
 
-    // Wait for acknowledgement message
-    let info_reply_msg = match wait_for_message(ctx, msg, Duration::from_secs(60)).await {
-        Ok(msg) => msg,
-        Err(_) => {
-            let mut data = ctx.data.write().await;
-            data.get_mut::<UsersCurrentlyQuestionedType>()
-                .unwrap()
-                .retain(|uid| uid != &msg.author.id);
-            return Err(CommandError::from("User took too long to respond"));
-        }
-    };
-    info_reply_msg.delete(ctx).await?;
-
     // Ask for the details of the issue
     let thread_name = get_message_reply(
         ctx,
         msg,
         |m| {
             m.embed(|e| {
-                e.description("**Title?** (60 seconds time limit)")
+                e.description("**Title?** (300 seconds time limit)")
                     .color(Color::BLUE)
             })
         },
-        Duration::from_secs(60),
+        Duration::from_secs(300),
     )
     .await?;
 
