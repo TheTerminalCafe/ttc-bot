@@ -3,6 +3,7 @@
 // -------------------
 
 mod admin;
+mod conveyance;
 mod general;
 mod helper_functions;
 mod support;
@@ -62,6 +63,11 @@ impl TypeMapKey for PgPoolType {
 
 struct SupportChannelType;
 impl TypeMapKey for SupportChannelType {
+    type Value = u64;
+}
+
+struct ConveyanceChannelType;
+impl TypeMapKey for ConveyanceChannelType {
     type Value = u64;
 }
 
@@ -210,7 +216,8 @@ async fn main() {
     // Load all the values from the config
     let token = config["token"].as_str().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
-    let support_chanel_id = config["support_channel"].as_u64().unwrap();
+    let support_channel_id = config["support_channel"].as_u64().unwrap();
+    let conveyance_channel_id = config["conveyance_channel"].as_u64().unwrap();
     let boost_level = config["boost_level"].as_u64().unwrap(); // For selecting default archival period
     let mut owners = HashSet::new();
 
@@ -249,7 +256,8 @@ async fn main() {
         data.insert::<ThreadNameRegexType>(Regex::new("[^a-zA-Z0-9 ]").unwrap());
         data.insert::<UsersCurrentlyQuestionedType>(Vec::new());
         data.insert::<PgPoolType>(pool);
-        data.insert::<SupportChannelType>(support_chanel_id);
+        data.insert::<SupportChannelType>(support_channel_id);
+        data.insert::<ConveyanceChannelType>(conveyance_channel_id);
         data.insert::<BoostLevelType>(boost_level);
     }
 
