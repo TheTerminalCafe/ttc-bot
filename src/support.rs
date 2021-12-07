@@ -92,7 +92,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         msg,
         |m| {
             m.embed(|e| {
-                e.description("**Title?** (300 seconds time limit)")
+                e.description("**Title?** (300 seconds time limit, 128 character limit)")
                     .color(Color::BLUE)
             })
         },
@@ -114,7 +114,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         msg,
         |m| {
             m.embed(|e| {
-                e.description("**Description?** (300 seconds time limit)")
+                e.description("**Description?** (300 seconds time limit, 1024 character limit)")
                     .color(Color::BLUE)
             })
         },
@@ -127,7 +127,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         msg,
         |m| {
             m.embed(|e| {
-                e.description("**Incident?** (300 seconds time limit)")
+                e.description("**Incident?** (300 seconds time limit, 1024 character limit)")
                     .color(Color::BLUE)
             })
         },
@@ -140,7 +140,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         msg,
         |m| {
             m.embed(|e| {
-                e.description("**System info?** (300 seconds time limit)")
+                e.description("**System info?** (300 seconds time limit, 1024 character limit)")
                     .color(Color::BLUE)
             })
         },
@@ -206,6 +206,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     description.truncate(1024);
     system_info.truncate(1024);
     incident.truncate(1024);
+    attachments_str.truncate(1024);
 
     // Get the author name to use on the embed
     let author_name = msg
@@ -281,7 +282,8 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         }
     };
 
-    let new_thread_name = format!("[{}] {}", thread.incident_id, thread_name);
+    let mut new_thread_name = format!("[{}] {}", thread.incident_id, thread_name);
+    new_thread_name.truncate(128);
 
     thread_id
         .edit_thread(ctx, |t| t.name(&new_thread_name))
