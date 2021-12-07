@@ -26,7 +26,8 @@ use serenity::{
     },
     model::{
         channel::{GuildChannel, Message},
-        id::UserId,
+        event::MessageUpdateEvent,
+        id::{ChannelId, GuildId, MessageId, UserId},
         misc::Mentionable,
         prelude::{Activity, Ready},
     },
@@ -162,6 +163,25 @@ impl EventHandler for Handler {
             }
         }
     }
+    async fn message_delete(
+        &self,
+        ctx: Context,
+        channel_id: ChannelId,
+        deleted_message_id: MessageId,
+        _: Option<GuildId>,
+    ) {
+        conveyance::message_delete(&ctx, &channel_id, &deleted_message_id).await;
+    }
+
+    async fn message_update(
+        &self,
+        ctx: Context,
+        old_if_available: Option<Message>,
+        new: Option<Message>,
+        event: MessageUpdateEvent,
+    ) {
+        conveyance::message_update(&ctx, old_if_available, &event).await;
+    }
 }
 
 // -----
@@ -245,6 +265,7 @@ async fn main() {
     // Create the bot client
     let mut client = Client::builder(token)
         .event_handler(Handler)
+        .cache_settings(|c| c.max_messages(50))
         .framework(framework)
         .await
         .expect("Error creating client");
