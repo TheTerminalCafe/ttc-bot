@@ -1,8 +1,11 @@
 use std::time::Duration;
 
 use crate::{
-    helper_functions::*, BoostLevelType, PgPoolType, SupportChannelType, ThreadNameRegexType,
-    UsersCurrentlyQuestionedType,
+    data::types::{
+        BoostLevelType, PgPoolType, SupportChannelType, ThreadNameRegexType,
+        UsersCurrentlyQuestionedType,
+    },
+    utils::helper_functions::*,
 };
 use chrono::{DateTime, Utc};
 use serenity::{
@@ -11,7 +14,11 @@ use serenity::{
         macros::{check, command, group},
         Args, CommandError, CommandOptions, CommandResult, Reason,
     },
-    model::channel::Message,
+    model::{
+        channel::{GuildChannel, Message},
+        id::UserId,
+    },
+    prelude::Mentionable,
     utils::Color,
 };
 
@@ -674,4 +681,51 @@ async fn is_in_either(
         "{} called outside wither a support thread or the support channel",
         msg.content
     )))
+}
+
+// ------------------------------------
+// Support group related event handling
+// ------------------------------------
+pub async fn thread_update(ctx: &Context, thread: &GuildChannel) {
+    // Make sure the updated part is the archived value
+    if thread.thread_metadata.unwrap().archived {
+        let data = ctx.data.read().await;
+        let pool = data.get::<PgPoolType>().unwrap();
+
+        // Get the current thread info from the database
+        let db_thread = match sqlx::query_as!(
+            SupportThread,
+            r#"SELECT * FROM ttc_support_tickets WHERE thread_id = $1"#,
+            thread.id.0 as i64
+        )
+        .fetch_one(pool)
+        .await
+        {
+            Ok(thread) => thread,
+            Err(_) => return,
+        };
+
+        // Make sure the thread isn't marked as solved
+        if !db_thread.incident_solved {
+            match thread.edit_thread(&ctx, |t| t.archived(false)).await {
+                Ok(_) => (),
+                Err(why) => {
+                    println!("Thread unarchival failed: {}", why);
+                    return;
+                }
+            }
+            // Inform the author of the issue about the unarchival
+            match thread
+                .id
+                .send_message(&ctx, |c| {
+                    c.content(format!("{}", UserId(db_thread.user_id as u64).mention())).embed(|e| {
+                        e.description("If the issue has already been solved make sure to mark it as such with `ttc!support solve`")
+                            .title("Thread unarchived")})
+                })
+                .await {
+                Ok(_) => (),
+                Err(why) => println!("Failed to send message: {}", why),
+            }
+        }
+    }
 }

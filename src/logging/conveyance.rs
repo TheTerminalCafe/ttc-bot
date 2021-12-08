@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serenity::{
     builder::CreateEmbed,
     client::Context,
@@ -10,11 +10,40 @@ use serenity::{
     utils::{content_safe, ContentSafeOptions},
 };
 
-use crate::ConveyanceChannelType;
+use crate::{data::types::PgPoolType, ConveyanceChannelType};
+
+// Types for fetching/writing data from/to SQL database
+struct CurrentIndex {
+    current_id: i16,
+}
+
+struct CachedMessage {
+    id: i32,
+    message_id: i64,
+    channel_id: i64,
+    user_id: i64,
+    message_time: DateTime<Utc>,
+    content: String,
+    attachments: String,
+}
 
 // --------------------------------
 // Functions for conveyance logging
 // --------------------------------
+
+// TODO Finish this function to enable message logging
+pub async fn message(ctx: &Context, msg: &Message) {
+    let data = ctx.data.read().await;
+    let pool = data.get::<PgPoolType>().unwrap();
+
+    let id = sqlx::query_as!(
+        CurrentIndex,
+        r#"SELECT current_id FROM ttc_conveyance_state WHERE id = 1"#
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap();
+}
 
 // FIXME Currently non-functional, needs a message cache database to be functional
 pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_message_id: &MessageId) {

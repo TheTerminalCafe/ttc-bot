@@ -2,23 +2,32 @@
 // Module declarations
 // -------------------
 
-mod admin;
-mod conveyance;
-mod general;
-mod helper_functions;
-mod support;
+mod data {
+    pub mod types;
+}
+mod groups {
+    pub mod admin;
+    pub mod general;
+    pub mod support;
+}
+mod utils {
+    pub mod helper_functions;
+}
+mod logging {
+    pub mod conveyance;
+}
 
 // ----------------------
 // Imports from libraries
 // ----------------------
 
 use clap::{App, Arg};
-use helper_functions::embed_msg;
+use data::types::*;
 use regex::Regex;
 use serde_yaml::Value;
 use serenity::{
     async_trait,
-    client::{bridge::gateway::ShardManager, Client, Context, EventHandler},
+    client::{Client, Context, EventHandler},
     framework::standard::{
         help_commands,
         macros::{help, hook},
@@ -28,54 +37,13 @@ use serenity::{
         channel::{GuildChannel, Message},
         event::MessageUpdateEvent,
         id::{ChannelId, GuildId, MessageId, UserId},
-        misc::Mentionable,
         prelude::{Activity, Ready},
     },
-    prelude::{Mutex, TypeMapKey},
     utils::Color,
 };
-use sqlx::{postgres::PgPoolOptions, PgPool};
-use std::{collections::HashSet, fs::File, sync::Arc, time::Duration};
-use support::SupportThread;
-
-// --------------------------------------
-// Data types to be stored within the bot
-// --------------------------------------
-
-struct ShardManagerType;
-impl TypeMapKey for ShardManagerType {
-    type Value = Arc<Mutex<ShardManager>>;
-}
-
-struct ThreadNameRegexType;
-impl TypeMapKey for ThreadNameRegexType {
-    type Value = Regex;
-}
-
-struct UsersCurrentlyQuestionedType;
-impl TypeMapKey for UsersCurrentlyQuestionedType {
-    type Value = Vec<UserId>;
-}
-
-struct PgPoolType;
-impl TypeMapKey for PgPoolType {
-    type Value = PgPool;
-}
-
-struct SupportChannelType;
-impl TypeMapKey for SupportChannelType {
-    type Value = u64;
-}
-
-struct ConveyanceChannelType;
-impl TypeMapKey for ConveyanceChannelType {
-    type Value = u64;
-}
-
-struct BoostLevelType;
-impl TypeMapKey for BoostLevelType {
-    type Value = u64;
-}
+use sqlx::postgres::PgPoolOptions;
+use std::{collections::HashSet, fs::File, time::Duration};
+use utils::helper_functions::embed_msg;
 
 // ------------
 // Help message
@@ -111,6 +79,8 @@ impl EventHandler for Handler {
     }
 
     async fn message(&self, ctx: Context, msg: Message) {
+        logging::conveyance::message(&ctx, &msg).await;
+
         if msg.content.contains("bots will take over the world") {
             match msg.channel_id.say(ctx, "*hides*").await {
                 Ok(_) => (),
@@ -121,48 +91,10 @@ impl EventHandler for Handler {
 
     // Update thread status on the database when it is updated
     async fn thread_update(&self, ctx: Context, thread: GuildChannel) {
-        // Make sure the updated part is the archived value
-        if thread.thread_metadata.unwrap().archived {
-            let data = ctx.data.read().await;
-            let pool = data.get::<PgPoolType>().unwrap();
-
-            // Get the current thread info from the database
-            let db_thread = match sqlx::query_as!(
-                SupportThread,
-                r#"SELECT * FROM ttc_support_tickets WHERE thread_id = $1"#,
-                thread.id.0 as i64
-            )
-            .fetch_one(pool)
-            .await
-            {
-                Ok(thread) => thread,
-                Err(_) => return,
-            };
-
-            // Make sure the thread isn't marked as solved
-            if !db_thread.incident_solved {
-                match thread.edit_thread(&ctx, |t| t.archived(false)).await {
-                    Ok(_) => (),
-                    Err(why) => {
-                        println!("Thread unarchival failed: {}", why);
-                        return;
-                    }
-                }
-                // Inform the author of the issue about the unarchival
-                match thread
-                    .id
-                    .send_message(&ctx, |c| {
-                        c.content(format!("{}", UserId(db_thread.user_id as u64).mention())).embed(|e| {
-                            e.description("If the issue has already been solved make sure to mark it as such with `ttc!support solve`")
-                                .title("Thread unarchived")})
-                    })
-                    .await {
-                    Ok(_) => (),
-                    Err(why) => println!("Failed to send message: {}", why),
-                }
-            }
-        }
+        groups::support::thread_update(&ctx, &thread).await;
     }
+
+    // For conveyance
     async fn message_delete(
         &self,
         ctx: Context,
@@ -170,9 +102,10 @@ impl EventHandler for Handler {
         deleted_message_id: MessageId,
         _: Option<GuildId>,
     ) {
-        conveyance::message_delete(&ctx, &channel_id, &deleted_message_id).await;
+        logging::conveyance::message_delete(&ctx, &channel_id, &deleted_message_id).await;
     }
 
+    // For conveyance
     async fn message_update(
         &self,
         ctx: Context,
@@ -180,7 +113,7 @@ impl EventHandler for Handler {
         new: Option<Message>,
         event: MessageUpdateEvent,
     ) {
-        conveyance::message_update(&ctx, old_if_available, &event).await;
+        logging::conveyance::message_update(&ctx, old_if_available, &event).await;
     }
 }
 
@@ -258,9 +191,9 @@ async fn main() {
         .help(&HELP)
         .unrecognised_command(unknown_command)
         .on_dispatch_error(dispatch_error)
-        .group(&general::GENERAL_GROUP)
-        .group(&support::SUPPORT_GROUP)
-        .group(&admin::ADMIN_GROUP);
+        .group(&groups::general::GENERAL_GROUP)
+        .group(&groups::support::SUPPORT_GROUP)
+        .group(&groups::admin::ADMIN_GROUP);
 
     // Create the bot client
     let mut client = Client::builder(token)
