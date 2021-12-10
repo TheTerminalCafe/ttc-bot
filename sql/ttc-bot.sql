@@ -12,14 +12,25 @@ CREATE TABLE ttc_support_tickets(
 DROP TABLE IF EXISTS ttc_message_cache;
 CREATE TABLE ttc_message_cache(
 	id SERIAL,
-	message_id BIGINT UNIQUE NOT NULL,
-	channel_id BIGINT UNIQUE NOT NULL,
-	user_id BIGINT UNIQUE NOT NULL,
-	message_time TIMESTAMPTZ NOT NULL,
+	message_id BIGINT UNIQUE,
+	channel_id BIGINT UNIQUE,
+	user_id BIGINT,
+	message_time TIMESTAMPTZ,
 	content VARCHAR(4000),
 	attachments VARCHAR(2000),
 	PRIMARY KEY(id)
 );
+
+DO $$
+DECLARE
+   counter INT := 0;
+BEGIN
+	WHILE counter < 500 LOOP
+		counter := counter + 1;
+		INSERT INTO ttc_message_cache (content) VALUES('placeholder');
+	END LOOP;
+END$$;
+
 
 DROP TABLE IF EXISTS ttc_conveyance_state;
 CREATE TABLE ttc_conveyance_state(
