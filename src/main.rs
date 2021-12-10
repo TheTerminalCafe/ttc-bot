@@ -27,7 +27,7 @@ use regex::Regex;
 use serde_yaml::Value;
 use serenity::{
     async_trait,
-    client::{Client, Context, EventHandler},
+    client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
     framework::standard::{
         help_commands,
         macros::{help, hook},
@@ -36,8 +36,9 @@ use serenity::{
     model::{
         channel::{GuildChannel, Message},
         event::MessageUpdateEvent,
+        guild::Member,
         id::{ChannelId, GuildId, MessageId, UserId},
-        prelude::{Activity, Ready},
+        prelude::{Activity, Ready, User},
     },
     utils::Color,
 };
@@ -110,10 +111,25 @@ impl EventHandler for Handler {
         &self,
         ctx: Context,
         old_if_available: Option<Message>,
-        new: Option<Message>,
+        _: Option<Message>,
         event: MessageUpdateEvent,
     ) {
         logging::conveyance::message_update(&ctx, old_if_available, &event).await;
+    }
+
+    // Greeting messages and user join logging
+    async fn guild_member_addition(&self, ctx: Context, _: GuildId, new_member: Member) {
+        logging::conveyance::guild_member_addition(&ctx, &new_member).await;
+    }
+
+    async fn guild_member_removal(
+        &self,
+        ctx: Context,
+        _: GuildId,
+        user: User,
+        member: Option<Member>,
+    ) {
+        logging::conveyance::guild_member_removal(&ctx, &user, member).await;
     }
 }
 
@@ -171,6 +187,13 @@ async fn main() {
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
     let support_channel_id = config["support_channel"].as_u64().unwrap();
     let conveyance_channel_id = config["conveyance_channel"].as_u64().unwrap();
+    let welcome_channel_id = config["welcome_channel"].as_u64().unwrap();
+    let welcome_messages = config["welcome_messages"]
+        .as_sequence()
+        .unwrap()
+        .iter()
+        .map(|val| val.as_str().unwrap().to_string())
+        .collect::<Vec<String>>();
     let boost_level = config["boost_level"].as_u64().unwrap(); // For selecting default archival period
     let mut owners = HashSet::new();
 
@@ -200,6 +223,7 @@ async fn main() {
         .event_handler(Handler)
         .cache_settings(|c| c.max_messages(50))
         .framework(framework)
+        .intents(GatewayIntents::non_privileged() | GatewayIntents::GUILD_MEMBERS)
         .await
         .expect("Error creating client");
 
@@ -212,6 +236,8 @@ async fn main() {
         data.insert::<PgPoolType>(pool);
         data.insert::<SupportChannelType>(support_channel_id);
         data.insert::<ConveyanceChannelType>(conveyance_channel_id);
+        data.insert::<WelcomeChannelType>(welcome_channel_id);
+        data.insert::<WelcomeMessagesType>(welcome_messages);
         data.insert::<BoostLevelType>(boost_level);
     }
 

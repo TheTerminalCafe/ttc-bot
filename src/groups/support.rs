@@ -227,13 +227,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         .send_message(ctx, |m| {
             m.embed(|e| {
                 e.title(thread_name_safe.clone())
-                    .author(|a| {
-                        a.name(author_name).icon_url(
-                            msg.author
-                                .avatar_url()
-                                .unwrap_or(msg.author.default_avatar_url()),
-                        )
-                    })
+                    .author(|a| a.name(author_name).icon_url(msg.author.face()))
                     .field("Description:", description, false)
                     .field("Incident:", incident, false)
                     .field("System info:", system_info, false)

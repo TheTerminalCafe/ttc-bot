@@ -43,3 +43,13 @@ pub struct ConveyanceChannelType;
 impl TypeMapKey for ConveyanceChannelType {
     type Value = u64;
 }
+
+pub struct WelcomeChannelType;
+impl TypeMapKey for WelcomeChannelType {
+    type Value = u64;
+}
+
+pub struct WelcomeMessagesType;
+impl TypeMapKey for WelcomeMessagesType {
+    type Value = Vec<String>;
+}

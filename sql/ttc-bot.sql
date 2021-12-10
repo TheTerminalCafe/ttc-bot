@@ -12,8 +12,8 @@ CREATE TABLE ttc_support_tickets(
 DROP TABLE IF EXISTS ttc_message_cache;
 CREATE TABLE ttc_message_cache(
 	id SERIAL,
-	message_id BIGINT UNIQUE,
-	channel_id BIGINT UNIQUE,
+	message_id BIGINT,
+	channel_id BIGINT,
 	user_id BIGINT,
 	message_time TIMESTAMPTZ,
 	content VARCHAR(4000),
@@ -27,7 +27,7 @@ DECLARE
 BEGIN
 	WHILE counter < 500 LOOP
 		counter := counter + 1;
-		INSERT INTO ttc_message_cache (content) VALUES('placeholder');
+		INSERT INTO ttc_message_cache DEFAULT VALUES;
 	END LOOP;
 END$$;
 
@@ -35,8 +35,8 @@ END$$;
 DROP TABLE IF EXISTS ttc_conveyance_state;
 CREATE TABLE ttc_conveyance_state(
 	id SERIAL,
-	current_id SMALLINT NOT NULL,
+	current_id INT NOT NULL,
 	PRIMARY KEY(id)
 );
 
-INSERT INTO ttc_conveyance_state (current_id) VALUES(1);
+INSERT INTO ttc_conveyance_state (current_id) VALUES(0);
