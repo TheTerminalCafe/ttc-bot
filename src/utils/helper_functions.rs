@@ -1,4 +1,4 @@
-use crate::{support::SupportThread, UsersCurrentlyQuestionedType};
+use crate::{groups::support::SupportThread, UsersCurrentlyQuestionedType};
 use serenity::{
     builder::CreateMessage,
     client::Context,

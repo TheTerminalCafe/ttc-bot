@@ -27,7 +27,11 @@ The bot requires a postgresql database with a table based on the schema in `sql/
   token: <The bot token you wish to use>
   sqlx_config: <A string for sqlx to connect to the database, postgres://username:password@host:port/database_name>
   support_channel: <Discord channel id for the support channel>
+  conveyance_channel: <Discord channel id for the conveyance channel>
+  welcome_channel: <Discord channel id for channel to send user welcome messages in>
+  welcome_messages: <Array of welcome messages, "%user%" is substituted for the joined members mention, ["*%user% joined*", ...]>
   owners: <Array of owner user ids, [<user_id>, <user_id>...]>
+  boost_level: <The boost level of the server>
 ```
 
 You need to set the `DATABASE_URL` variable in `.env` to the same value as `sqlx_config` in the config file to allow for compile time checking of database calls.
