@@ -23,6 +23,7 @@ mod logging {
 
 use clap::{App, Arg};
 use data::types::*;
+use flexi_logger::Logger;
 use regex::Regex;
 use serde_yaml::Value;
 use serenity::{
@@ -31,7 +32,8 @@ use serenity::{
     framework::standard::{
         help_commands,
         macros::{help, hook},
-        Args, CommandGroup, CommandResult, DispatchError, HelpOptions, StandardFramework,
+        Args, CommandError, CommandGroup, CommandResult, DispatchError, HelpOptions,
+        StandardFramework,
     },
     model::{
         channel::{GuildChannel, Message},
@@ -85,7 +87,7 @@ impl EventHandler for Handler {
         if msg.content.contains("bots will take over the world") {
             match msg.channel_id.say(ctx, "*hides*").await {
                 Ok(_) => (),
-                Err(why) => println!("Error sending message: {}", why),
+                Err(why) => log::error!("Error sending message: {}", why),
             }
         }
     }
@@ -111,10 +113,10 @@ impl EventHandler for Handler {
         &self,
         ctx: Context,
         old_if_available: Option<Message>,
-        _: Option<Message>,
+        new: Option<Message>,
         event: MessageUpdateEvent,
     ) {
-        logging::conveyance::message_update(&ctx, old_if_available, &event).await;
+        logging::conveyance::message_update(&ctx, old_if_available, new, &event).await;
     }
 
     // Greeting messages and user join logging
@@ -150,13 +152,80 @@ async fn unknown_command(ctx: &Context, msg: &Message, cmd_name: &str) {
     .await
     {
         Ok(_) => (),
-        Err(why) => println!("An error occurred: {}", why),
+        Err(why) => log::error!("Error sending message: {}", why),
     }
 }
 
 #[hook]
-async fn dispatch_error(_: &Context, _: &Message, error: DispatchError) {
-    println!("An error occurred: {:?}", error);
+async fn dispatch_error(ctx: &Context, msg: &Message, error: DispatchError) {
+    match error {
+        DispatchError::NotEnoughArguments { min, given } => {
+            match msg
+                .channel_id
+                .send_message(ctx, |m| {
+                    m.embed(|e| {
+                        e.title("Not enough arguments")
+                            .description(format!(
+                                "A minimum of *{}* arguments is required, {} was provided.",
+                                min, given
+                            ))
+                            .color(Color::RED)
+                    })
+                })
+                .await
+            {
+                Ok(_) => (),
+                Err(why) => log::error!("Error sending message: {}", why),
+            }
+        }
+        DispatchError::TooManyArguments { max, given } => {
+            match msg
+                .channel_id
+                .send_message(ctx, |m| {
+                    m.embed(|e| {
+                        e.title("Too many arguments")
+                            .description(format!(
+                                "A maximum of *{}* arguments is required, {} was provided.",
+                                max, given
+                            ))
+                            .color(Color::RED)
+                    })
+                })
+                .await
+            {
+                Ok(_) => (),
+                Err(why) => log::error!("Error sending message: {}", why),
+            }
+        }
+        _ => log::warn!("An unhandled dispatch error occurred: {:?}", error),
+    }
+}
+
+#[hook]
+async fn after(ctx: &Context, msg: &Message, cmd_name: &str, error: Result<(), CommandError>) {
+    match error {
+        Ok(_) => (),
+        Err(why) => {
+            log::warn!("Command {} returned with an Err value: {}", cmd_name, why);
+            match msg
+                .channel_id
+                .send_message(ctx, |m| {
+                    m.embed(|e| {
+                        e.title("An error occurred")
+                            .description(why)
+                            .color(Color::RED)
+                    })
+                })
+                .await
+            {
+                Ok(_) => (),
+                Err(why) => {
+                    log::error!("Failed to send message: {}", why);
+                    return;
+                }
+            }
+        }
+    }
 }
 
 // ---------------------------------
@@ -177,6 +246,13 @@ async fn main() {
 
     // Get environment values from .env for ease of use
     dotenv::dotenv().ok();
+
+    Logger::try_with_env_or_str("warn")
+        .unwrap()
+        .use_utc()
+        .format(flexi_logger::colored_opt_format)
+        .start()
+        .unwrap();
 
     // Load the config file
     let config_file = File::open(matches.value_of("config").unwrap()).unwrap();
@@ -214,6 +290,7 @@ async fn main() {
         .help(&HELP)
         .unrecognised_command(unknown_command)
         .on_dispatch_error(dispatch_error)
+        .after(after)
         .group(&groups::general::GENERAL_GROUP)
         .group(&groups::support::SUPPORT_GROUP)
         .group(&groups::admin::ADMIN_GROUP);
@@ -240,11 +317,8 @@ async fn main() {
         data.insert::<WelcomeMessagesType>(welcome_messages);
         data.insert::<BoostLevelType>(boost_level);
     }
-
     match client.start().await {
         Ok(_) => (),
-        Err(why) => println!("An error occurred: {}", why),
+        Err(why) => log::error!("An error occurred when starting the client: {}", why),
     }
-
-    println!("goodbye");
 }

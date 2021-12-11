@@ -399,6 +399,7 @@ async fn search(ctx: &Context, msg: &Message) -> CommandResult {
 #[description("Search for titles containing specified strings from the database. Quotes allow for spaces in naming.")]
 #[usage("<list of strings to search for>")]
 #[checks(is_in_either)]
+#[min_args(1)]
 async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     args.quoted(); // Parse the arguments respecting quoted strings
 
@@ -473,9 +474,10 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 #[description("Search for specific id from the database")]
 #[usage("<id of support ticket>")]
 #[checks(is_in_either)]
+#[min_args(1)]
 async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     // Make sure an argument is given
-    if args.len() == 0 {
+    /*if args.len() == 0 {
         embed_msg(
             ctx,
             &msg.channel_id,
@@ -486,10 +488,11 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         )
         .await?;
         return Err(CommandError::from("No arguments given to id search"));
-    }
+    }*/
 
     // Try to parse the provided argument to a u32
-    let id = match args.single::<u32>() {
+
+    /*let id = match args.single::<u32>() {
         Ok(id) => id,
         Err(why) => {
             embed_msg(
@@ -503,39 +506,60 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             .await?;
             return Err(CommandError::from("Unable to parse provided ID"));
         }
-    };
+    };*/
+    for arg in args.iter() {
+        let arg: String = match arg {
+            Ok(arg) => arg,
+            Err(why) => {
+                log::error!("Failure getting argument: {}", why);
+                continue;
+            }
+        };
+        let id = match arg.parse::<u32>() {
+            Ok(id) => id,
+            Err(why) => {
+                embed_msg(
+                    ctx,
+                    &msg.channel_id,
+                    &format!("Failure parsing id [{}]: {}", arg, why),
+                    Color::RED,
+                    false,
+                    Duration::from_secs(0),
+                )
+                .await?;
+                continue;
+            }
+        };
 
-    let data = ctx.data.read().await;
-    let pool = data.get::<PgPoolType>().unwrap();
+        let data = ctx.data.read().await;
+        let pool = data.get::<PgPoolType>().unwrap();
 
-    // Get the support ticket from the database
-    let thread = match sqlx::query_as!(
-        SupportThread,
-        r#"SELECT * FROM ttc_support_tickets WHERE incident_id = $1"#,
-        id as i32,
-    )
-    .fetch_one(pool)
-    .await
-    {
-        Ok(thread) => thread,
-        Err(_) => {
-            embed_msg(
-                ctx,
-                &msg.channel_id,
-                &format!("No support ticket found for id [{}]", id),
-                Color::RED,
-                false,
-                Duration::default(),
-            )
-            .await?;
-            return Err(CommandError::from(
-                "No support ticket found for specified id",
-            ));
-        }
-    };
+        // Get the support ticket from the database
+        let thread = match sqlx::query_as!(
+            SupportThread,
+            r#"SELECT * FROM ttc_support_tickets WHERE incident_id = $1"#,
+            id as i32,
+        )
+        .fetch_one(pool)
+        .await
+        {
+            Ok(thread) => thread,
+            Err(_) => {
+                embed_msg(
+                    ctx,
+                    &msg.channel_id,
+                    &format!("No support ticket found for id [{}].", id),
+                    Color::RED,
+                    false,
+                    Duration::default(),
+                )
+                .await?;
+                continue;
+            }
+        };
 
-    support_ticket_msg(ctx, &msg.channel_id, &thread).await?;
-
+        support_ticket_msg(ctx, &msg.channel_id, &thread).await?;
+    }
     Ok(())
 }
 

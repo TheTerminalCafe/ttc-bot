@@ -16,6 +16,8 @@ serde_yaml = "0.8"
 chrono = "0.4"
 dotenv = "0.15"
 rand = "0.8.4"
+flexi_logger = { version = "0.21", features = ["use_chrono_for_offset"] }
+log = { version = "0.4.14", features = ["std"] }
 
 [profile.release]
 lto = "fat"

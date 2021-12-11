@@ -54,7 +54,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
     {
         Ok(id) => id,
         Err(why) => {
-            println!("Reading from database failed: {}", why);
+            log::error!("Reading from database failed: {}", why);
             return;
         }
     };
@@ -81,7 +81,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
     .await {
         Ok(_) => (),
         Err(why) => {
-            println!("Writing to database failed: {}", why);
+            log::error!("Writing to database failed: {}", why);
             return;
         }
     }
@@ -95,7 +95,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
     {
         Ok(_) => (),
         Err(why) => {
-            println!("Writing to database failed: {}", why);
+            log::error!("Writing to database failed: {}", why);
             return;
         }
     }
@@ -119,7 +119,7 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
     {
         Ok(msg) => msg,
         Err(why) => {
-            println!("Error reading message from message cache database: {}", why);
+            log::error!("Error reading message from message cache database: {}", why);
             return;
         }
     };
@@ -128,7 +128,7 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
     let user = match UserId(msg.user_id.unwrap() as u64).to_user(ctx).await {
         Ok(user) => user,
         Err(why) => {
-            println!("Error getting user based on user id: {}", why);
+            log::error!("Error getting user based on user id: {}", why);
             return;
         }
     };
@@ -174,7 +174,12 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
 }
 
 // Send logging messages when a message is edited
-pub async fn message_update(ctx: &Context, old: Option<Message>, event: &MessageUpdateEvent) {
+pub async fn message_update(
+    ctx: &Context,
+    old: Option<Message>,
+    new: Option<Message>,
+    event: &MessageUpdateEvent,
+) {
     // Get the conveyance channel id from the data typemap
     let conveyance_channel_id = {
         let data = ctx.data.read().await;
