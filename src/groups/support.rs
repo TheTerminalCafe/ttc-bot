@@ -17,6 +17,7 @@ use serenity::{
     model::{
         channel::{GuildChannel, Message},
         id::UserId,
+        prelude::User,
     },
     prelude::Mentionable,
     utils::Color,
@@ -158,10 +159,10 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     let att_msg = embed_msg(
         ctx,
         &msg.channel_id,
-        "**Attachments?** (300 seconds time limit)",
-        Color::BLUE,
-        false,
-        Duration::default(),
+        Some("**Attachments?** (300 seconds time limit)"),
+        None,
+        Some(Color::BLUE),
+        None,
     )
     .await?;
 
@@ -312,16 +313,10 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     {
         Ok(thread) => thread,
         Err(why) => {
-            embed_msg(
-                ctx,
-                &msg.channel_id,
-                "**Error**: Not in a support thread",
-                Color::RED,
-                false,
-                Duration::default(),
-            )
-            .await?;
-            return Err(CommandError::from(why));
+            return Err(CommandError::from(format!(
+                "Unable to read from database: {}",
+                why
+            )));
         }
     };
 
@@ -329,10 +324,17 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
         embed_msg(
             ctx,
             &msg.channel_id,
-            "**Error**: Thread already solved",
-            Color::RED,
-            false,
-            Duration::default(),
+            Some("Thread already solved"),
+            Some(&format!(
+                "Thread already solved by {} at {}",
+                match UserId(thread.user_id as u64).to_user(ctx).await {
+                    Ok(user) => user.tag(),
+                    Err(_) => "Unknown".to_string(),
+                },
+                thread.incident_time
+            )),
+            Some(Color::RED),
+            None,
         )
         .await?;
     }
@@ -347,8 +349,10 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     {
         Ok(_) => (),
         Err(why) => {
-            println!("Error reading from database! {}", why);
-            return Err(CommandError::from(format!("{}", why)));
+            return Err(CommandError::from(format!(
+                "Error reading from database: {}",
+                why
+            )));
         }
     }
 
@@ -385,10 +389,10 @@ async fn search(ctx: &Context, msg: &Message) -> CommandResult {
     embed_msg(
         ctx,
         &msg.channel_id,
-        "Use search with one of the subcommands. (id, title)",
-        Color::RED,
-        false,
-        Duration::default(),
+        Some("Missing subcommand"),
+        Some("Use search with one of the subcommands. (id, title)"),
+        Some(Color::RED),
+        None,
     )
     .await?;
 
@@ -408,20 +412,6 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
     let mut was_found = false;
 
-    // Make sure arguments were actually provided
-    if args.len() == 0 {
-        embed_msg(
-            ctx,
-            &msg.channel_id,
-            "**Error**: No arguments given",
-            Color::RED,
-            false,
-            Duration::default(),
-        )
-        .await?;
-        return Err(CommandError::from("No arguments given to title search"));
-    }
-
     // Loop through the arguments and with each iteration search for them from the database, if
     // found send a message with the information about the ticket
     for _ in 0..args.len() {
@@ -431,10 +421,10 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                 embed_msg(
                     ctx,
                     &msg.channel_id,
-                    &format!("Unable to parse argument: {}", why),
-                    Color::RED,
-                    false,
-                    Duration::default(),
+                    Some("Parsing error"),
+                    Some(&format!("Unable to parse argument: {}", why)),
+                    Some(Color::RED),
+                    None,
                 )
                 .await?;
                 continue;
@@ -459,10 +449,10 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         embed_msg(
             ctx,
             &msg.channel_id,
-            "No support ticket found.",
-            Color::RED,
-            false,
-            Duration::default(),
+            Some("No support ticket found"),
+            Some("No support ticket found for provided arguments"),
+            Some(Color::RED),
+            None,
         )
         .await?;
     }
