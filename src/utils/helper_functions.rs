@@ -1,6 +1,6 @@
 use crate::{groups::support::SupportThread, UsersCurrentlyQuestionedType};
 use serenity::{
-    builder::CreateMessage,
+    builder::{CreateEmbed, CreateMessage},
     client::Context,
     framework::standard::{CommandError, CommandResult},
     model::{channel::Message, id::ChannelId},
@@ -16,17 +16,27 @@ use std::{sync::Arc, time::Duration};
 pub async fn embed_msg(
     ctx: &Context,
     channel_id: &ChannelId,
-    text: &str,
-    color: Color,
-    autodelete: bool,
-    autodelete_dur: Duration,
+    title: Option<&str>,
+    description: Option<&str>,
+    color: Option<Color>,
+    autodelete_dur: Option<Duration>,
 ) -> CommandResult<Message> {
-    let msg = channel_id
-        .send_message(ctx, |m| {
-            m.embed(|e| e.description(text).color(color));
-            m
-        })
-        .await?;
+    let mut embed = CreateEmbed::default();
+
+    match title {
+        Some(title) => embed.title(title),
+        None => (),
+    }
+    match description {
+        Some(description) => embed.description(description),
+        None => (),
+    }
+    match color {
+        Some(color) => embed.color(color),
+        None => (),
+    }
+
+    let msg = channel_id.send_message(ctx, |m| m.embed(embed)).await?;
 
     if autodelete {
         tokio::time::sleep(autodelete_dur).await;
