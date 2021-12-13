@@ -45,7 +45,7 @@ use serenity::{
     utils::Color,
 };
 use sqlx::postgres::PgPoolOptions;
-use std::{collections::HashSet, fs::File, time::Duration};
+use std::{collections::HashSet, fs::File};
 use utils::helper_functions::embed_msg;
 
 // ------------
@@ -144,10 +144,10 @@ async fn unknown_command(ctx: &Context, msg: &Message, cmd_name: &str) {
     match embed_msg(
         ctx,
         &msg.channel_id,
-        &format!("**Error**: No command named: {}", cmd_name),
-        Color::RED,
-        false,
-        Duration::from_secs(0),
+        Some("Not a valid command"),
+        Some(&format!("No command named {} was found", cmd_name)),
+        Some(Color::RED),
+        None,
     )
     .await
     {

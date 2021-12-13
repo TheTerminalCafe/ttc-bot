@@ -449,8 +449,8 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         embed_msg(
             ctx,
             &msg.channel_id,
-            Some("No support ticket found"),
-            Some("No support ticket found for provided arguments"),
+            Some("Nothing found"),
+            Some("No support ticket found for provided arguments."),
             Some(Color::RED),
             None,
         )
@@ -508,15 +508,19 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         let id = match arg.parse::<u32>() {
             Ok(id) => id,
             Err(why) => {
-                embed_msg(
+                match embed_msg(
                     ctx,
                     &msg.channel_id,
-                    &format!("Failure parsing id [{}]: {}", arg, why),
-                    Color::RED,
-                    false,
-                    Duration::from_secs(0),
+                    Some("Parsing error"),
+                    Some(&format!("Failure parsing id [{}]: {}", arg, why)),
+                    Some(Color::RED),
+                    None,
                 )
-                .await?;
+                .await
+                {
+                    Ok(_) => (),
+                    Err(why) => log::error!("Error sending message: {}", why),
+                }
                 continue;
             }
         };
@@ -538,10 +542,10 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                 embed_msg(
                     ctx,
                     &msg.channel_id,
-                    &format!("No support ticket found for id [{}].", id),
-                    Color::RED,
-                    false,
-                    Duration::default(),
+                    Some("Nothing found"),
+                    Some(&format!("No support ticket found for id [{}].", id)),
+                    Some(Color::RED),
+                    None,
                 )
                 .await?;
                 continue;
@@ -562,10 +566,10 @@ async fn list(ctx: &Context, msg: &Message) -> CommandResult {
     embed_msg(
         ctx,
         &msg.channel_id,
-        "Use list with one of the subcommands. (active)",
-        Color::RED,
-        false,
-        Duration::default(),
+        Some("Missing subcommand"),
+        Some("Use list with one of the subcommands. (active)"),
+        Some(Color::RED),
+        None,
     )
     .await?;
 
@@ -579,36 +583,21 @@ async fn active(ctx: &Context, msg: &Message) -> CommandResult {
     let data = ctx.data.read().await;
     let pool = data.get::<PgPoolType>().unwrap();
 
-    let threads = match sqlx::query_as!(
+    let threads = sqlx::query_as!(
         SupportThread,
         r#"SELECT * FROM ttc_support_tickets WHERE incident_solved = 'f'"#
     )
     .fetch_all(pool)
-    .await
-    {
-        Ok(threads) => threads,
-        Err(why) => {
-            embed_msg(
-                ctx,
-                &msg.channel_id,
-                &format!("**Error**: {}", why),
-                Color::RED,
-                false,
-                Duration::default(),
-            )
-            .await?;
-            return Err(CommandError::from(format!("{}", why)));
-        }
-    };
+    .await?;
 
     if threads.len() == 0 {
         embed_msg(
             ctx,
             &msg.channel_id,
-            "No active issues found",
-            Color::BLUE,
-            false,
-            Duration::default(),
+            Some("Nothing found"),
+            Some("No active issues found"),
+            Some(Color::BLUE),
+            None,
         )
         .await?;
     } else {
