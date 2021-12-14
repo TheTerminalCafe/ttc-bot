@@ -1,6 +1,6 @@
 use crate::{groups::support::SupportThread, UsersCurrentlyQuestionedType};
 use serenity::{
-    builder::CreateMessage,
+    builder::{CreateEmbed, CreateMessage},
     client::Context,
     framework::standard::{CommandError, CommandResult},
     model::{channel::Message, id::ChannelId},
@@ -16,21 +16,40 @@ use std::{sync::Arc, time::Duration};
 pub async fn embed_msg(
     ctx: &Context,
     channel_id: &ChannelId,
-    text: &str,
-    color: Color,
-    autodelete: bool,
-    autodelete_dur: Duration,
+    title: Option<&str>,
+    description: Option<&str>,
+    color: Option<Color>,
+    autodelete: Option<Duration>,
 ) -> CommandResult<Message> {
-    let msg = channel_id
-        .send_message(ctx, |m| {
-            m.embed(|e| e.description(text).color(color));
-            m
-        })
-        .await?;
+    let mut embed = CreateEmbed::default();
 
-    if autodelete {
-        tokio::time::sleep(autodelete_dur).await;
-        msg.delete(ctx).await?;
+    match title {
+        Some(title) => {
+            embed.title(title);
+        }
+        None => (),
+    }
+    match description {
+        Some(description) => {
+            embed.description(description);
+        }
+        None => (),
+    }
+    match color {
+        Some(color) => {
+            embed.color(color);
+        }
+        None => (),
+    }
+
+    let msg = channel_id.send_message(ctx, |m| m.set_embed(embed)).await?;
+
+    match autodelete {
+        Some(duration) => {
+            tokio::time::sleep(duration).await;
+            msg.delete(ctx).await?;
+        }
+        None => (),
     }
 
     Ok(msg)
@@ -48,14 +67,14 @@ pub async fn wait_for_message(
             embed_msg(
                 ctx,
                 &msg.channel_id,
-                &format!(
+                Some("Timeout!"),
+                Some(&format!(
                     "No reply sent in {} minutes and {} seconds",
                     timeout.as_secs() / 60,
-                    timeout.as_secs()
-                ),
-                Color::RED,
-                false,
-                Duration::from_secs(0),
+                    timeout.as_secs() % 60,
+                )),
+                Some(Color::RED),
+                None,
             )
             .await?;
             return Err(CommandError::from(
@@ -109,12 +128,15 @@ where
     let msg = loop {
         let new_msg = match wait_for_message(ctx, msg, timeout).await {
             Ok(msg) => msg,
-            Err(_) => {
+            Err(why) => {
                 let mut data = ctx.data.write().await;
                 data.get_mut::<UsersCurrentlyQuestionedType>()
                     .unwrap()
                     .retain(|uid| uid != &msg.author.id);
-                return Err(CommandError::from("User took too long to respond"));
+                return Err(CommandError::from(format!(
+                    "User took too long to respond: {}",
+                    why
+                )));
             }
         };
         if new_msg.content != "" {
@@ -123,10 +145,10 @@ where
         embed_msg(
             ctx,
             &msg.channel_id,
-            "Please send a message with text content.",
-            Color::RED,
-            true,
-            Duration::from_secs(3),
+            None,
+            Some("Please send a message with text content."),
+            Some(Color::RED),
+            Some(Duration::from_secs(3)),
         )
         .await?;
     };
@@ -141,7 +163,7 @@ where
         .await
     {
         Ok(_) => (),
-        Err(why) => println!("Error deleting messages: {}", why),
+        Err(why) => log::error!("Error deleting messages: {}", why),
     }
 
     // Return content

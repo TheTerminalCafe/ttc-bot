@@ -53,3 +53,8 @@ pub struct WelcomeMessagesType;
 impl TypeMapKey for WelcomeMessagesType {
     type Value = Vec<String>;
 }
+
+pub struct ConveyanceBlacklistedChannelsType;
+impl TypeMapKey for ConveyanceBlacklistedChannelsType {
+    type Value = Vec<u64>;
+}
