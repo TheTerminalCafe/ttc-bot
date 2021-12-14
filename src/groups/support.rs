@@ -198,7 +198,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         .await
     {
         Ok(_) => (),
-        Err(why) => println!("Error deleting messages: {}", why),
+        Err(why) => log::error!("Error deleting messages: {}", why),
     }
 
     // Finally remove the user id from the currently questioned list to allow them to run

@@ -250,7 +250,7 @@ pub async fn message_update(
     {
         Ok(_) => (),
         Err(why) => {
-            println!("Error sending message: {}", why);
+            log::error!("Error sending message: {}", why);
             return;
         }
     }
@@ -275,7 +275,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
     {
         Ok(_) => (),
         Err(why) => {
-            println!("Error sending message: {}", why);
+            log::error!("Error sending message: {}", why);
             return;
         }
     }
@@ -294,7 +294,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
     {
         Ok(_) => (),
         Err(why) => {
-            println!("Error sending message: {}", why);
+            log::error!("Error sending message: {}", why);
             return;
         }
     }
@@ -327,7 +327,7 @@ pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Mem
         .await
     {
         Ok(_) => (),
-        Err(why) => println!("Error sending message: {}", why),
+        Err(why) => log::error!("Error sending message: {}", why),
     }
 }
 
