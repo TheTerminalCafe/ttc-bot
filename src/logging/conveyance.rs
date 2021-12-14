@@ -129,7 +129,7 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
         Ok(user) => user,
         Err(why) => {
             log::error!("Error getting user based on user id: {}", why);
-            return;
+            User::default()
         }
     };
     // Make sure both content and attachment strings are not empty as being empty would cause
@@ -167,7 +167,7 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
     {
         Ok(_) => (),
         Err(why) => {
-            println!("Failed to send message: {}", why);
+            log::error!("Failed to send message: {}", why);
             return;
         }
     }

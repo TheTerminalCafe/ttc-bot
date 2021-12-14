@@ -68,6 +68,7 @@ struct Support;
 #[command]
 #[description("Create a new support thread")]
 #[checks(is_in_support_channel)]
+#[num_args(0)]
 async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     // Make sure the write lock to data isn't held for the entirety of this command. This causes
     // the code to be a bit messier but concurrency has forced my hand
@@ -158,8 +159,8 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     let att_msg = embed_msg(
         ctx,
         &msg.channel_id,
-        Some("**Attachments?** (300 seconds time limit)"),
         None,
+        Some("**Attachments?** (300 seconds time limit)"),
         Some(Color::BLUE),
         None,
     )
@@ -227,6 +228,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         .send_message(ctx, |m| {
             m.embed(|e| {
                 e.title(thread_name_safe.clone())
+                    .description("Once the issue has been solved, please use the command `ttc!support solve` to mark the thread as such.")
                     .author(|a| a.name(author_name).icon_url(msg.author.face()))
                     .field("Description:", description, false)
                     .field("Incident:", incident, false)
@@ -295,6 +297,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[description("Solve the current support thread")]
 #[checks(is_in_support_thread)]
+#[num_args(0)]
 async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     // Get a reference to the database
     let data = ctx.data.read().await;
@@ -355,14 +358,15 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
         }
     }
 
-    msg.channel_id.send_message(ctx, |m| {
-        m.embed(|e| {
-            e.title("Great!")
-                .color(Color::FOOYOO)
-                .description("Now that the issue is solved, you can give back to society and send the solution after this message.")
-        })
-    })
-    .await?;
+    embed_msg(
+        ctx, 
+        &msg.channel_id, 
+        Some("Great!"), 
+        Some("Now that the issue is solved, you can give back to society and send the solution after this message."), 
+        Some(Color::FOOYOO), 
+        None
+        )
+        .await?;
 
     wait_for_message(ctx, msg, Duration::from_secs(300)).await?;
 

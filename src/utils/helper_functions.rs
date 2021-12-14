@@ -163,7 +163,7 @@ where
         .await
     {
         Ok(_) => (),
-        Err(why) => println!("Error deleting messages: {}", why),
+        Err(why) => log::error!("Error deleting messages: {}", why),
     }
 
     // Return content
