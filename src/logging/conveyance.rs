@@ -14,7 +14,9 @@ use serenity::{
 };
 
 use crate::{
-    data::types::{PgPoolType, WelcomeChannelType, WelcomeMessagesType},
+    typemap::types::{
+        ConveyanceBlacklistedChannelsType, PgPoolType, WelcomeChannelType, WelcomeMessagesType,
+    },
     ConveyanceChannelType,
 };
 use rand::seq::SliceRandom;
@@ -54,7 +56,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
     {
         Ok(id) => id,
         Err(why) => {
-            println!("Reading from database failed: {}", why);
+            log::error!("Reading from database failed: {}", why);
             return;
         }
     };
@@ -81,7 +83,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
     .await {
         Ok(_) => (),
         Err(why) => {
-            println!("Writing to database failed: {}", why);
+            log::error!("Writing to database failed: {}", why);
             return;
         }
     }
@@ -95,7 +97,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
     {
         Ok(_) => (),
         Err(why) => {
-            println!("Writing to database failed: {}", why);
+            log::error!("Writing to database failed: {}", why);
             return;
         }
     }
@@ -119,7 +121,7 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
     {
         Ok(msg) => msg,
         Err(why) => {
-            println!("Error reading message from message cache database: {}", why);
+            log::error!("Error reading message from message cache database: {}", why);
             return;
         }
     };
@@ -128,8 +130,8 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
     let user = match UserId(msg.user_id.unwrap() as u64).to_user(ctx).await {
         Ok(user) => user,
         Err(why) => {
-            println!("Error getting user based on user id: {}", why);
-            return;
+            log::error!("Error getting user based on user id: {}", why);
+            User::default()
         }
     };
     // Make sure both content and attachment strings are not empty as being empty would cause
@@ -167,14 +169,25 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
     {
         Ok(_) => (),
         Err(why) => {
-            println!("Failed to send message: {}", why);
+            log::error!("Failed to send message: {}", why);
             return;
         }
     }
 }
 
 // Send logging messages when a message is edited
-pub async fn message_update(ctx: &Context, old: Option<Message>, event: &MessageUpdateEvent) {
+pub async fn message_update(
+    ctx: &Context,
+    old: Option<Message>,
+    _: Option<Message>,
+    event: &MessageUpdateEvent,
+) {
+    // Make sure the edit doesn't happen in a blacklisted channel
+    match is_in_blacklisted_channel(ctx, &event.channel_id).await {
+        Ok(_) => (),
+        Err(_) => return,
+    }
+
     // Get the conveyance channel id from the data typemap
     let conveyance_channel_id = {
         let data = ctx.data.read().await;
@@ -227,7 +240,7 @@ pub async fn message_update(ctx: &Context, old: Option<Message>, event: &Message
             message_embed.field("New", content_safe, false);
         }
         None => {
-            message_embed.field("New", "No new message content available", false);
+            return;
         }
     }
 
@@ -237,7 +250,7 @@ pub async fn message_update(ctx: &Context, old: Option<Message>, event: &Message
     {
         Ok(_) => (),
         Err(why) => {
-            println!("Error sending message: {}", why);
+            log::error!("Error sending message: {}", why);
             return;
         }
     }
@@ -262,7 +275,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
     {
         Ok(_) => (),
         Err(why) => {
-            println!("Error sending message: {}", why);
+            log::error!("Error sending message: {}", why);
             return;
         }
     }
@@ -281,7 +294,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
     {
         Ok(_) => (),
         Err(why) => {
-            println!("Error sending message: {}", why);
+            log::error!("Error sending message: {}", why);
             return;
         }
     }
@@ -314,6 +327,19 @@ pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Mem
         .await
     {
         Ok(_) => (),
-        Err(why) => println!("Error sending message: {}", why),
+        Err(why) => log::error!("Error sending message: {}", why),
     }
+}
+
+// Helper for making sure that the message is not in a conveyance blacklisted channel
+async fn is_in_blacklisted_channel(ctx: &Context, channel_id: &ChannelId) -> Result<(), ()> {
+    let data = ctx.data.read().await;
+    let conveyance_blacklisted_channel_ids =
+        data.get::<ConveyanceBlacklistedChannelsType>().unwrap();
+
+    if conveyance_blacklisted_channel_ids.contains(&channel_id.0) {
+        return Err(());
+    }
+
+    Ok(())
 }
