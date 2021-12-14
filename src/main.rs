@@ -16,6 +16,10 @@ mod utils {
 mod logging {
     pub mod conveyance;
 }
+mod client {
+    pub mod event_handler;
+    pub mod hooks;
+}
 
 // ----------------------
 // Imports from libraries
@@ -23,210 +27,19 @@ mod logging {
 
 use clap::{App, Arg};
 use data::types::*;
-use flexi_logger::Logger;
 use regex::Regex;
 use serde_yaml::Value;
 use serenity::{
-    async_trait,
-    client::{bridge::gateway::GatewayIntents, Client, Context, EventHandler},
-    framework::standard::{
-        help_commands,
-        macros::{help, hook},
-        Args, CommandError, CommandGroup, CommandResult, DispatchError, HelpOptions,
-        StandardFramework,
-    },
-    model::{
-        channel::{GuildChannel, Message},
-        event::MessageUpdateEvent,
-        guild::Member,
-        id::{ChannelId, GuildId, MessageId, UserId},
-        prelude::{Activity, Ready, User},
-    },
-    utils::Color,
+    client::{bridge::gateway::GatewayIntents, Client},
+    framework::standard::StandardFramework,
+    model::id::UserId,
 };
 use sqlx::postgres::PgPoolOptions;
 use std::{collections::HashSet, fs::File};
-use utils::helper_functions::embed_msg;
 
 // ------------
 // Help message
 // ------------
-
-#[help]
-#[embed_error_colour(RED)]
-#[embed_success_colour(FOOYOO)]
-async fn help(
-    ctx: &Context,
-    msg: &Message,
-    args: Args,
-    help_options: &'static HelpOptions,
-    groups: &[&'static CommandGroup],
-    owners: HashSet<UserId>,
-) -> CommandResult {
-    help_commands::with_embeds(ctx, msg, args, help_options, groups, owners).await;
-    Ok(())
-}
-
-// -------------------------------------
-// Event Handler and it's implementation
-// -------------------------------------
-
-// Custom handler for events
-struct Handler;
-
-#[async_trait]
-impl EventHandler for Handler {
-    async fn ready(&self, ctx: Context, _: Ready) {
-        ctx.set_activity(Activity::listening("Kirottu's screaming"))
-            .await;
-    }
-
-    async fn message(&self, ctx: Context, msg: Message) {
-        logging::conveyance::message(&ctx, &msg).await;
-
-        if msg.content.contains("bots will take over the world") {
-            match msg.channel_id.say(ctx, "*hides*").await {
-                Ok(_) => (),
-                Err(why) => log::error!("Error sending message: {}", why),
-            }
-        }
-    }
-
-    // Update thread status on the database when it is updated
-    async fn thread_update(&self, ctx: Context, thread: GuildChannel) {
-        groups::support::thread_update(&ctx, &thread).await;
-    }
-
-    // For conveyance
-    async fn message_delete(
-        &self,
-        ctx: Context,
-        channel_id: ChannelId,
-        deleted_message_id: MessageId,
-        _: Option<GuildId>,
-    ) {
-        logging::conveyance::message_delete(&ctx, &channel_id, &deleted_message_id).await;
-    }
-
-    // For conveyance
-    async fn message_update(
-        &self,
-        ctx: Context,
-        old_if_available: Option<Message>,
-        new: Option<Message>,
-        event: MessageUpdateEvent,
-    ) {
-        logging::conveyance::message_update(&ctx, old_if_available, new, &event).await;
-    }
-
-    // Greeting messages and user join logging
-    async fn guild_member_addition(&self, ctx: Context, _: GuildId, new_member: Member) {
-        logging::conveyance::guild_member_addition(&ctx, &new_member).await;
-    }
-
-    async fn guild_member_removal(
-        &self,
-        ctx: Context,
-        _: GuildId,
-        user: User,
-        member: Option<Member>,
-    ) {
-        logging::conveyance::guild_member_removal(&ctx, &user, member).await;
-    }
-}
-
-// -----
-// Hooks
-// -----
-
-#[hook]
-async fn unknown_command(ctx: &Context, msg: &Message, cmd_name: &str) {
-    match embed_msg(
-        ctx,
-        &msg.channel_id,
-        Some("Not a valid command"),
-        Some(&format!("No command named {} was found", cmd_name)),
-        Some(Color::RED),
-        None,
-    )
-    .await
-    {
-        Ok(_) => (),
-        Err(why) => log::error!("Error sending message: {}", why),
-    }
-}
-
-#[hook]
-async fn dispatch_error(ctx: &Context, msg: &Message, error: DispatchError) {
-    match error {
-        DispatchError::NotEnoughArguments { min, given } => {
-            match msg
-                .channel_id
-                .send_message(ctx, |m| {
-                    m.embed(|e| {
-                        e.title("Not enough arguments")
-                            .description(format!(
-                                "A minimum of *{}* arguments is required, {} was provided.",
-                                min, given
-                            ))
-                            .color(Color::RED)
-                    })
-                })
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => log::error!("Error sending message: {}", why),
-            }
-        }
-        DispatchError::TooManyArguments { max, given } => {
-            match msg
-                .channel_id
-                .send_message(ctx, |m| {
-                    m.embed(|e| {
-                        e.title("Too many arguments")
-                            .description(format!(
-                                "A maximum of *{}* arguments is required, {} was provided.",
-                                max, given
-                            ))
-                            .color(Color::RED)
-                    })
-                })
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => log::error!("Error sending message: {}", why),
-            }
-        }
-        _ => log::warn!("An unhandled dispatch error occurred: {:?}", error),
-    }
-}
-
-#[hook]
-async fn after(ctx: &Context, msg: &Message, cmd_name: &str, error: Result<(), CommandError>) {
-    match error {
-        Ok(_) => (),
-        Err(why) => {
-            log::warn!("Command {} returned with an Err value: {}", cmd_name, why);
-            match msg
-                .channel_id
-                .send_message(ctx, |m| {
-                    m.embed(|e| {
-                        e.title("An error occurred")
-                            .description(why)
-                            .color(Color::RED)
-                    })
-                })
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => {
-                    log::error!("Failed to send message: {}", why);
-                    return;
-                }
-            }
-        }
-    }
-}
 
 // ---------------------------------
 // Initialization code & Entry point
@@ -247,12 +60,14 @@ async fn main() {
     // Get environment values from .env for ease of use
     dotenv::dotenv().ok();
 
-    Logger::try_with_env_or_str("warn")
-        .unwrap()
-        .use_utc()
-        .format(flexi_logger::colored_opt_format)
-        .start()
-        .unwrap();
+    /*Logger::try_with_env_or_str("info,serenity=warn")
+    .unwrap()
+    .use_utc()
+    .format(flexi_logger::colored_opt_format)
+    .start()
+    .unwrap();*/
+
+    env_logger::init();
 
     // Load the config file
     let config_file = File::open(matches.value_of("config").unwrap()).unwrap();
@@ -287,17 +102,17 @@ async fn main() {
     // Create the framework of the bot
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("ttc!").owners(owners))
-        .help(&HELP)
-        .unrecognised_command(unknown_command)
-        .on_dispatch_error(dispatch_error)
-        .after(after)
+        .help(&client::hooks::HELP)
+        .unrecognised_command(client::hooks::unknown_command)
+        .on_dispatch_error(client::hooks::dispatch_error)
+        .after(client::hooks::after)
         .group(&groups::general::GENERAL_GROUP)
         .group(&groups::support::SUPPORT_GROUP)
         .group(&groups::admin::ADMIN_GROUP);
 
     // Create the bot client
     let mut client = Client::builder(token)
-        .event_handler(Handler)
+        .event_handler(client::event_handler::Handler)
         .cache_settings(|c| c.max_messages(50))
         .framework(framework)
         .intents(GatewayIntents::non_privileged() | GatewayIntents::GUILD_MEMBERS)

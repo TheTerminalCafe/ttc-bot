@@ -17,7 +17,6 @@ use serenity::{
     model::{
         channel::{GuildChannel, Message},
         id::UserId,
-        prelude::User,
     },
     prelude::Mentionable,
     utils::Color,
@@ -100,7 +99,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         msg,
         |m| {
             m.embed(|e| {
-                e.description("**Title?** (300 seconds time limit, 128 character limit)")
+                e.description("**Title?** (300 seconds time limit, ~100 character limit)")
                     .color(Color::BLUE)
             })
         },
@@ -210,7 +209,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
             .retain(|uid| uid != &msg.author.id);
     }
     // Truncate the strings to match the character limits of the embed
-    thread_name_safe.truncate(128);
+    thread_name_safe.truncate(100);
     description.truncate(1024);
     system_info.truncate(1024);
     incident.truncate(1024);
@@ -253,7 +252,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     let thread_id = msg
         .channel_id
         .create_public_thread(ctx, thread_msg.id, |ct| {
-            ct.name(thread_name_safe);
+            ct.name(thread_name_safe.clone());
             match boost_level {
                 0 => ct.auto_archive_duration(1440),
                 1 => ct.auto_archive_duration(4320),
@@ -272,20 +271,19 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         thread_id.0 as i64,
         msg.author.id.0 as i64,
         Utc::now(),
-        thread_name,
+        thread_name_safe,
         false,
     )
     .fetch_one(pool)
     .await {
         Ok(thread) => thread,
         Err(why) => {
-            println!("Error writing into database! {}", why); 
-            return Err(CommandError::from(format!("{}", why)));
+            return Err(CommandError::from(format!("Error writing into database: {}", why)));
         }
     };
 
-    let mut new_thread_name = format!("[{}] {}", thread.incident_id, thread_name);
-    new_thread_name.truncate(128);
+    let mut new_thread_name = format!("[{}] {}", thread.incident_id, thread_name_safe);
+    new_thread_name.truncate(100);
 
     thread_id
         .edit_thread(ctx, |t| t.name(&new_thread_name))
@@ -320,6 +318,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
         }
     };
 
+    // Make sure thread is not yet solved
     if thread.incident_solved {
         embed_msg(
             ctx,
@@ -339,7 +338,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
         .await?;
     }
 
-    // Update the state to be archived
+    // Update the state to be solved
     match sqlx::query!(
         r#"UPDATE ttc_support_tickets SET incident_solved = 't' WHERE thread_id = $1"#,
         msg.channel_id.0 as i64
@@ -367,15 +366,16 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
 
     wait_for_message(ctx, msg, Duration::from_secs(300)).await?;
 
+    let mut new_thread_name = format!(
+        "[SOLVED] [{}] {}",
+        thread.incident_id, thread.incident_title
+    );
+    // Make sure the channel name fits in discord channel name character limits
+    new_thread_name.truncate(100);
+
     // Archive the thread after getting the solution
     msg.channel_id
-        .edit_thread(ctx, |t| {
-            t.name(format!(
-                "[SOLVED] [{}] {}",
-                thread.incident_id, thread.incident_title
-            ))
-            .archived(true)
-        })
+        .edit_thread(ctx, |t| t.name(new_thread_name).archived(true))
         .await?;
 
     Ok(())
@@ -466,37 +466,7 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 #[checks(is_in_either)]
 #[min_args(1)]
 async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    // Make sure an argument is given
-    /*if args.len() == 0 {
-        embed_msg(
-            ctx,
-            &msg.channel_id,
-            "**Error**: No arguments given",
-            Color::RED,
-            false,
-            Duration::default(),
-        )
-        .await?;
-        return Err(CommandError::from("No arguments given to id search"));
-    }*/
-
-    // Try to parse the provided argument to a u32
-
-    /*let id = match args.single::<u32>() {
-        Ok(id) => id,
-        Err(why) => {
-            embed_msg(
-                ctx,
-                &msg.channel_id,
-                &format!("**Error**: Unable to parse provided ID: {}", why),
-                Color::RED,
-                false,
-                Duration::default(),
-            )
-            .await?;
-            return Err(CommandError::from("Unable to parse provided ID"));
-        }
-    };*/
+    // Loop through the arguments and search in each iteration
     for arg in args.iter() {
         let arg: String = match arg {
             Ok(arg) => arg,
@@ -508,7 +478,7 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         let id = match arg.parse::<u32>() {
             Ok(id) => id,
             Err(why) => {
-                match embed_msg(
+                embed_msg(
                     ctx,
                     &msg.channel_id,
                     Some("Parsing error"),
@@ -516,11 +486,7 @@ async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                     Some(Color::RED),
                     None,
                 )
-                .await
-                {
-                    Ok(_) => (),
-                    Err(why) => log::error!("Error sending message: {}", why),
-                }
+                .await?;
                 continue;
             }
         };

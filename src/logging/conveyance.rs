@@ -177,7 +177,7 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
 pub async fn message_update(
     ctx: &Context,
     old: Option<Message>,
-    new: Option<Message>,
+    _: Option<Message>,
     event: &MessageUpdateEvent,
 ) {
     // Get the conveyance channel id from the data typemap
@@ -232,7 +232,7 @@ pub async fn message_update(
             message_embed.field("New", content_safe, false);
         }
         None => {
-            message_embed.field("New", "No new message content available", false);
+            return;
         }
     }
 

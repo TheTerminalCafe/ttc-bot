@@ -21,7 +21,7 @@ struct Admin;
 
 #[command]
 async fn shutdown(ctx: &Context, msg: &Message) -> CommandResult {
-    let mut data = ctx.data.read().await;
+    let mut data = ctx.data.write().await;
     let shard_manager = data.get_mut::<ShardManagerType>().unwrap();
 
     embed_msg(
