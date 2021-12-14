@@ -1,4 +1,4 @@
-use crate::{data::types::ShardManagerType, utils::helper_functions::embed_msg};
+use crate::{typemap::types::ShardManagerType, utils::helper_functions::embed_msg};
 use serenity::{
     client::Context,
     framework::standard::{

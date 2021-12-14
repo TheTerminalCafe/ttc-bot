@@ -2,7 +2,7 @@
 // Module declarations
 // -------------------
 
-mod data {
+mod typemap {
     pub mod types;
 }
 mod groups {
@@ -26,7 +26,6 @@ mod client {
 // ----------------------
 
 use clap::{App, Arg};
-use data::types::*;
 use regex::Regex;
 use serde_yaml::Value;
 use serenity::{
@@ -36,6 +35,7 @@ use serenity::{
 };
 use sqlx::postgres::PgPoolOptions;
 use std::{collections::HashSet, fs::File};
+use typemap::types::*;
 
 // ------------
 // Help message
@@ -60,13 +60,6 @@ async fn main() {
     // Get environment values from .env for ease of use
     dotenv::dotenv().ok();
 
-    /*Logger::try_with_env_or_str("info,serenity=warn")
-    .unwrap()
-    .use_utc()
-    .format(flexi_logger::colored_opt_format)
-    .start()
-    .unwrap();*/
-
     env_logger::init();
 
     // Load the config file
@@ -78,6 +71,12 @@ async fn main() {
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
     let support_channel_id = config["support_channel"].as_u64().unwrap();
     let conveyance_channel_id = config["conveyance_channel"].as_u64().unwrap();
+    let conveyance_blacklisted_channel_ids = config["conveyance_blacklisted_channels"]
+        .as_sequence()
+        .unwrap()
+        .iter()
+        .map(|val| val.as_u64().unwrap())
+        .collect::<Vec<u64>>();
     let welcome_channel_id = config["welcome_channel"].as_u64().unwrap();
     let welcome_messages = config["welcome_messages"]
         .as_sequence()
@@ -128,6 +127,7 @@ async fn main() {
         data.insert::<PgPoolType>(pool);
         data.insert::<SupportChannelType>(support_channel_id);
         data.insert::<ConveyanceChannelType>(conveyance_channel_id);
+        data.insert::<ConveyanceBlacklistedChannelsType>(conveyance_blacklisted_channel_ids);
         data.insert::<WelcomeChannelType>(welcome_channel_id);
         data.insert::<WelcomeMessagesType>(welcome_messages);
         data.insert::<BoostLevelType>(boost_level);
@@ -136,4 +136,6 @@ async fn main() {
         Ok(_) => (),
         Err(why) => log::error!("An error occurred when starting the client: {}", why),
     }
+
+    log::info!("Bot shut down");
 }

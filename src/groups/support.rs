@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{
-    data::types::{
+    typemap::types::{
         BoostLevelType, PgPoolType, SupportChannelType, ThreadNameRegexType,
         UsersCurrentlyQuestionedType,
     },
@@ -18,7 +18,6 @@ use serenity::{
         channel::{GuildChannel, Message},
         id::UserId,
     },
-    prelude::Mentionable,
     utils::Color,
 };
 
@@ -34,6 +33,7 @@ pub struct SupportThread {
     pub incident_time: DateTime<Utc>,
     pub incident_title: String,
     pub incident_solved: bool,
+    pub unarchivals: i16,
 }
 
 #[derive(Debug)]
@@ -359,16 +359,29 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     }
 
     embed_msg(
-        ctx, 
-        &msg.channel_id, 
-        Some("Great!"), 
-        Some("Now that the issue is solved, you can give back to society and send the solution after this message."), 
-        Some(Color::FOOYOO), 
+        ctx,
+        &msg.channel_id,
+        Some("Great!"),
+        Some("Now that the issue is solved, you can give back to society and send the solution after this message."),
+        Some(Color::FOOYOO),
         None
         )
         .await?;
 
-    wait_for_message(ctx, msg, Duration::from_secs(300)).await?;
+    match wait_for_message(ctx, msg, Duration::from_secs(300)).await {
+        Ok(_) => (),
+        Err(_) => {
+            embed_msg(
+                ctx,
+                &msg.channel_id,
+                Some("Fine."),
+                Some("Closing the thread anyway."),
+                Some(Color::DARK_RED),
+                None,
+            )
+            .await?;
+        }
+    }
 
     let mut new_thread_name = format!(
         "[SOLVED] [{}] {}",
@@ -653,6 +666,7 @@ async fn is_in_either(
 // ------------------------------------
 // Support group related event handling
 // ------------------------------------
+
 pub async fn thread_update(ctx: &Context, thread: &GuildChannel) {
     // Make sure the updated part is the archived value
     if thread.thread_metadata.unwrap().archived {
@@ -677,21 +691,78 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel) {
             match thread.edit_thread(&ctx, |t| t.archived(false)).await {
                 Ok(_) => (),
                 Err(why) => {
-                    println!("Thread unarchival failed: {}", why);
+                    log::error!("Thread unarchival failed: {}", why);
                     return;
                 }
             }
+
+            // If the unarchival limit has been reached archive the thread for good
+            if db_thread.unarchivals >= 3 {
+                match embed_msg(
+                    ctx,
+                    &thread.id,
+                    Some("Closing thread"),
+                    Some("3 Unarchivals without solving the issue reached. Closing the thread."),
+                    Some(Color::DARK_RED),
+                    None,
+                )
+                .await
+                {
+                    Ok(_) => (),
+                    Err(why) => log::error!("Error sending message: {}", why),
+                }
+
+                // Mark the thread as solved on the database
+                match sqlx::query!(
+                    r#"UPDATE ttc_support_tickets SET incident_solved = 't' WHERE incident_id = $1"#, 
+                    db_thread.incident_id
+                )
+                .execute(pool)
+                .await
+                {
+                    Ok(_) => (),
+                    Err(why) => {
+                        log::error!("Error writing to database: {}", why);
+                        return;
+                    }
+                }
+
+                match thread.edit_thread(&ctx, |t| t.archived(true)).await {
+                    Ok(_) => (),
+                    Err(why) => {
+                        log::error!("Thread archival failed: {}", why);
+                        return;
+                    }
+                }
+                return;
+            }
+
             // Inform the author of the issue about the unarchival
-            match thread
-                .id
-                .send_message(&ctx, |c| {
-                    c.content(format!("{}", UserId(db_thread.user_id as u64).mention())).embed(|e| {
-                        e.description("If the issue has already been solved make sure to mark it as such with `ttc!support solve`")
-                            .title("Thread unarchived")})
-                })
-                .await {
+            match embed_msg(
+                ctx,
+                &thread.id,
+                Some("Thread unarchived"),
+                Some("If the issue has already been solved make sure to mark it as such with `ttc!support solve`"),
+                None,
+                None
+            )
+            .await
+            {
                 Ok(_) => (),
-                Err(why) => println!("Failed to send message: {}", why),
+                Err(why) => log::error!("Error sending message: {}", why),
+            }
+
+            // Update the unarchivals count
+            match sqlx::query!(
+                r#"UPDATE ttc_support_tickets SET unarchivals = $1 WHERE incident_id = $2"#,
+                db_thread.unarchivals,
+                db_thread.incident_id
+            )
+            .execute(pool)
+            .await
+            {
+                Ok(_) => (),
+                Err(why) => log::error!("Error writing to database: {}", why),
             }
         }
     }

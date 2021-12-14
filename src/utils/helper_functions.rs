@@ -71,7 +71,7 @@ pub async fn wait_for_message(
                 Some(&format!(
                     "No reply sent in {} minutes and {} seconds",
                     timeout.as_secs() / 60,
-                    timeout.as_secs()
+                    timeout.as_secs() % 60,
                 )),
                 Some(Color::RED),
                 None,

@@ -6,6 +6,7 @@ CREATE TABLE ttc_support_tickets(
 	incident_time TIMESTAMPTZ NOT NULL,		--> Time stamp when the incident was opened 
 	incident_title VARCHAR(128) NOT NULL,	--> title of the incident , this must be in limited words
 	incident_solved BOOL NOT NULL,			--> boolean for checking if ticket has been solved
+	unarchivals SMALLINT NOT NULL,
 	PRIMARY KEY(incident_id)				--> primary key is incident id , it cant be the same and its ta base of this table
 );
 

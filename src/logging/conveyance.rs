@@ -14,7 +14,9 @@ use serenity::{
 };
 
 use crate::{
-    data::types::{PgPoolType, WelcomeChannelType, WelcomeMessagesType},
+    typemap::types::{
+        ConveyanceBlacklistedChannelsType, PgPoolType, WelcomeChannelType, WelcomeMessagesType,
+    },
     ConveyanceChannelType,
 };
 use rand::seq::SliceRandom;
@@ -180,6 +182,12 @@ pub async fn message_update(
     _: Option<Message>,
     event: &MessageUpdateEvent,
 ) {
+    // Make sure the edit doesn't happen in a blacklisted channel
+    match is_in_blacklisted_channel(ctx, &event.channel_id).await {
+        Ok(_) => (),
+        Err(_) => return,
+    }
+
     // Get the conveyance channel id from the data typemap
     let conveyance_channel_id = {
         let data = ctx.data.read().await;
@@ -321,4 +329,17 @@ pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Mem
         Ok(_) => (),
         Err(why) => println!("Error sending message: {}", why),
     }
+}
+
+// Helper for making sure that the message is not in a conveyance blacklisted channel
+async fn is_in_blacklisted_channel(ctx: &Context, channel_id: &ChannelId) -> Result<(), ()> {
+    let data = ctx.data.read().await;
+    let conveyance_blacklisted_channel_ids =
+        data.get::<ConveyanceBlacklistedChannelsType>().unwrap();
+
+    if conveyance_blacklisted_channel_ids.contains(&channel_id.0) {
+        return Err(());
+    }
+
+    Ok(())
 }
