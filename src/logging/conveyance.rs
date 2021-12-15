@@ -179,7 +179,7 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
 pub async fn message_update(
     ctx: &Context,
     old: Option<Message>,
-    _: Option<Message>,
+    new: Option<Message>,
     event: &MessageUpdateEvent,
 ) {
     // Make sure the edit doesn't happen in a blacklisted channel
@@ -229,8 +229,23 @@ pub async fn message_update(
             message_embed.field("Old", "No old message content available", false);
         }
     }
+
+    // Make sure the event is about the content being edited
     match &event.content {
         Some(content) => {
+            // Check if the new message is available
+            match new {
+                Some(new) => {
+                    let mut content_safe = new.content_safe(ctx).await;
+                    content_safe.truncate(1024);
+                    if content_safe == "" {
+                        content_safe = "None".to_string();
+                    }
+                    message_embed.field("New", content_safe, false);
+                }
+                None => {}
+            }
+
             let mut content_safe =
                 content_safe(ctx, &content, &ContentSafeOptions::default()).await;
             content_safe.truncate(1024);
