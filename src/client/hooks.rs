@@ -44,7 +44,7 @@ pub async fn dispatch_error(ctx: &Context, msg: &Message, error: DispatchError) 
                     m.embed(|e| {
                         e.title("Not enough arguments")
                             .description(format!(
-                                "A minimum of *{}* arguments is required, {} was provided.",
+                                "A minimum of **{}** arguments is required, {} was provided.",
                                 min, given
                             ))
                             .color(Color::RED)

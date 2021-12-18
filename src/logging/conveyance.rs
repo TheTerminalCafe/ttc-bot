@@ -13,12 +13,7 @@ use serenity::{
     utils::{content_safe, Color, ContentSafeOptions},
 };
 
-use crate::{
-    typemap::types::{
-        ConveyanceBlacklistedChannelsType, PgPoolType, WelcomeChannelType, WelcomeMessagesType,
-    },
-    ConveyanceChannelType,
-};
+use crate::typemap::{config::Config, types::PgPoolType};
 use rand::seq::SliceRandom;
 
 // Types for fetching/writing data from/to SQL database
@@ -49,7 +44,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
 
     let mut id = match sqlx::query_as!(
         CurrentIndex,
-        r#"SELECT current_id FROM ttc_conveyance_state WHERE id = 1"#
+        r#"SELECT current_id FROM ttc_conveyance_state"#
     )
     .fetch_one(pool)
     .await
@@ -89,7 +84,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
     }
 
     match sqlx::query!(
-        r#"UPDATE ttc_conveyance_state SET current_id = $1 WHERE id = 1"#,
+        r#"UPDATE ttc_conveyance_state SET current_id = $1"#,
         id.current_id
     )
     .execute(pool)
@@ -106,8 +101,14 @@ pub async fn message(ctx: &Context, msg: &Message) {
 // Send logging messages when messages are deleted
 pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_message_id: &MessageId) {
     let data = ctx.data.read().await;
-    let conveyance_channel_id = ChannelId(*data.get::<ConveyanceChannelType>().unwrap());
     let pool = data.get::<PgPoolType>().unwrap();
+    let config = match Config::get_from_db(pool).await {
+        Ok(config) => config,
+        Err(why) => {
+            log::error!("Error getting config from database: {}", why);
+            return;
+        }
+    };
 
     // Get the cached message from the database
     let msg = match sqlx::query_as!(
@@ -150,7 +151,7 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
     content.truncate(1024);
     attachments.truncate(1024);
 
-    match conveyance_channel_id
+    match ChannelId(config.conveyance_channel as u64)
         .send_message(ctx, |m| {
             m.embed(|e| {
                 e.title("Message deleted")
@@ -182,17 +183,25 @@ pub async fn message_update(
     new: Option<Message>,
     event: &MessageUpdateEvent,
 ) {
-    // Make sure the edit doesn't happen in a blacklisted channel
-    match is_in_blacklisted_channel(ctx, &event.channel_id).await {
-        Ok(_) => (),
-        Err(_) => return,
-    }
-
-    // Get the conveyance channel id from the data typemap
-    let conveyance_channel_id = {
+    let config = {
         let data = ctx.data.read().await;
-        ChannelId(*data.get::<ConveyanceChannelType>().unwrap())
+        let pool = data.get::<PgPoolType>().unwrap();
+        match Config::get_from_db(pool).await {
+            Ok(config) => config,
+            Err(why) => {
+                log::error!("Error getting config from database: {}", why);
+                return;
+            }
+        }
     };
+
+    // Make sure the channel isn't blacklisted from conveyance
+    if config
+        .conveyance_blacklisted_channels
+        .contains(&(event.channel_id.0 as i64))
+    {
+        return;
+    }
 
     // Create the embed outside the closures to allow for async calls
     let mut message_embed = CreateEmbed::default();
@@ -236,6 +245,8 @@ pub async fn message_update(
             // Check if the new message is available
             match new {
                 Some(new) => {
+                    log::debug!("Edited message content got based on provided `new` argument");
+
                     let mut content_safe = new.content_safe(ctx).await;
                     content_safe.truncate(1024);
                     if content_safe == "" {
@@ -243,23 +254,40 @@ pub async fn message_update(
                     }
                     message_embed.field("New", content_safe, false);
                 }
-                None => {}
-            }
+                // Try to fetch the new message from the api
+                None => match event.channel_id.message(ctx, event.id).await {
+                    Ok(new) => {
+                        log::debug!("Edited message content got based on provided message got from the channel_id");
 
-            let mut content_safe =
-                content_safe(ctx, &content, &ContentSafeOptions::default()).await;
-            content_safe.truncate(1024);
-            if content_safe == "" {
-                content_safe = "None".to_string();
+                        let mut content_safe = new.content_safe(ctx).await;
+                        content_safe.truncate(1024);
+                        if content_safe == "" {
+                            content_safe = "None".to_string();
+                        }
+                        message_embed.field("New", content_safe, false);
+                    }
+                    // Fall back to the event in case all other methods fail
+                    Err(why) => {
+                        log::error!("Error getting message: {}", why);
+                        log::debug!("Edited message content got based on raw event");
+
+                        let mut content_safe =
+                            content_safe(ctx, &content, &ContentSafeOptions::default()).await;
+                        content_safe.truncate(1024);
+                        if content_safe == "" {
+                            content_safe = "None".to_string();
+                        }
+                        message_embed.field("New", content_safe, false);
+                    }
+                },
             }
-            message_embed.field("New", content_safe, false);
         }
         None => {
             return;
         }
     }
 
-    match conveyance_channel_id
+    match ChannelId(config.conveyance_channel as u64)
         .send_message(ctx, |m| m.set_embed(message_embed))
         .await
     {
@@ -272,19 +300,25 @@ pub async fn message_update(
 }
 
 pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
-    let (conveyance_channel_id, welcome_channel_id, welcome_messages) = {
+    let config = {
         let data = ctx.data.read().await;
-        (
-            ChannelId(*data.get::<ConveyanceChannelType>().unwrap()),
-            ChannelId(*data.get::<WelcomeChannelType>().unwrap()),
-            data.get::<WelcomeMessagesType>().unwrap().clone(),
-        )
+        let pool = data.get::<PgPoolType>().unwrap();
+        match Config::get_from_db(pool).await {
+            Ok(config) => config,
+            Err(why) => {
+                log::error!("Error getting config from database: {}", why);
+                return;
+            }
+        }
     };
 
-    let welcome_message = welcome_messages.choose(&mut rand::thread_rng()).unwrap();
+    let welcome_message = config
+        .welcome_messages
+        .choose(&mut rand::thread_rng())
+        .unwrap();
     let welcome_message = welcome_message.replace("%user%", &new_member.mention().to_string());
 
-    match welcome_channel_id
+    match ChannelId(config.welcome_channel as u64)
         .send_message(ctx, |m| m.content(welcome_message))
         .await
     {
@@ -295,7 +329,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
         }
     }
 
-    match conveyance_channel_id
+    match ChannelId(config.conveyance_channel as u64)
         .send_message(ctx, |m| {
             m.embed(|e| {
                 e.title("New member joined")
@@ -316,9 +350,16 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
 }
 
 pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Member>) {
-    let conveyance_channel_id = {
+    let config = {
         let data = ctx.data.read().await;
-        ChannelId(*data.get::<ConveyanceChannelType>().unwrap())
+        let pool = data.get::<PgPoolType>().unwrap();
+        match Config::get_from_db(pool).await {
+            Ok(config) => config,
+            Err(why) => {
+                log::error!("Error getting config from database: {}", why);
+                return;
+            }
+        }
     };
 
     let joined_at = match member {
@@ -329,7 +370,7 @@ pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Mem
         None => "Join date not available".to_string(),
     };
 
-    match conveyance_channel_id
+    match ChannelId(config.conveyance_channel as u64)
         .send_message(ctx, |m| {
             m.embed(|e| {
                 e.title("Member left")
@@ -344,17 +385,4 @@ pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Mem
         Ok(_) => (),
         Err(why) => log::error!("Error sending message: {}", why),
     }
-}
-
-// Helper for making sure that the message is not in a conveyance blacklisted channel
-async fn is_in_blacklisted_channel(ctx: &Context, channel_id: &ChannelId) -> Result<(), ()> {
-    let data = ctx.data.read().await;
-    let conveyance_blacklisted_channel_ids =
-        data.get::<ConveyanceBlacklistedChannelsType>().unwrap();
-
-    if conveyance_blacklisted_channel_ids.contains(&channel_id.0) {
-        return Err(());
-    }
-
-    Ok(())
 }

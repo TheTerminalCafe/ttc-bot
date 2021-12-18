@@ -35,9 +35,16 @@ END$$;
 
 DROP TABLE IF EXISTS ttc_conveyance_state;
 CREATE TABLE ttc_conveyance_state(
-	id SERIAL,
-	current_id INT NOT NULL,
-	PRIMARY KEY(id)
+	current_id INT NOT NULL
 );
 
 INSERT INTO ttc_conveyance_state (current_id) VALUES(0);
+
+DROP TABLE IF EXISTS ttc_config;
+CREATE TABLE ttc_config(
+	support_channel BIGINT NOT NULL,
+	conveyance_channel BIGINT NOT NULL,
+	conveyance_blacklisted_channels BIGINT[] NOT NULL,
+	welcome_channel BIGINT NOT NULL,
+	welcome_messages VARCHAR(100)[] NOT NULL
+);

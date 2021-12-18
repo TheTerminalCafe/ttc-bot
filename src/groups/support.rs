@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use crate::{
-    typemap::types::{
-        BoostLevelType, PgPoolType, SupportChannelType, ThreadNameRegexType,
-        UsersCurrentlyQuestionedType,
+    typemap::{
+        config::Config,
+        types::{PgPoolType, ThreadNameRegexType, UsersCurrentlyQuestionedType},
     },
     utils::helper_functions::*,
 };
@@ -248,20 +248,10 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     let data = ctx.data.read().await;
 
     let pool = data.get::<PgPoolType>().unwrap();
-    let boost_level = data.get::<BoostLevelType>().unwrap();
-
     // Select auto archive duration based on the server boost level
     let thread_id = msg
         .channel_id
-        .create_public_thread(ctx, thread_msg.id, |ct| {
-            ct.name(thread_name_safe.clone());
-            match boost_level {
-                0 => ct.auto_archive_duration(1440),
-                1 => ct.auto_archive_duration(4320),
-                2 => ct.auto_archive_duration(10080),
-                _ => ct.auto_archive_duration(10080),
-            }
-        })
+        .create_public_thread(ctx, thread_msg.id, |ct| ct.name(thread_name_safe.clone()))
         .await?
         .id;
 
@@ -431,8 +421,8 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
     // Loop through the arguments and with each iteration search for them from the database, if
     // found send a message with the information about the ticket
-    for _ in 0..args.len() {
-        let arg = match args.single::<String>() {
+    for arg in args.iter() {
+        let arg: String = match arg {
             Ok(arg) => arg,
             Err(why) => {
                 embed_msg(
@@ -601,9 +591,18 @@ async fn active(ctx: &Context, msg: &Message) -> CommandResult {
 #[display_in_help(false)]
 async fn is_in_support_channel(ctx: &Context, msg: &Message) -> Result<(), Reason> {
     let data = ctx.data.read().await;
-    let support_chanel_id = data.get::<SupportChannelType>().unwrap();
+    let pool = data.get::<PgPoolType>().unwrap();
+    let support_channel_id = match Config::get_from_db(pool).await {
+        Ok(config) => config.support_channel,
+        Err(why) => {
+            return Err(Reason::Log(format!(
+                "Getting config from database failed: {}",
+                why
+            )))
+        }
+    } as u64;
 
-    if *support_chanel_id != msg.channel_id.0 {
+    if support_channel_id != msg.channel_id.0 {
         return Err(Reason::Log(format!(
             "{} called outside support channel",
             msg.content
