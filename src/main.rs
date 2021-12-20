@@ -10,6 +10,7 @@ mod groups {
     pub mod admin;
     pub mod config;
     pub mod general;
+    pub mod moderation;
     pub mod support;
 }
 mod utils {
@@ -128,7 +129,8 @@ async fn main() {
         .group(&groups::general::GENERAL_GROUP)
         .group(&groups::support::SUPPORT_GROUP)
         .group(&groups::admin::ADMIN_GROUP)
-        .group(&groups::config::CONFIG_GROUP);
+        .group(&groups::config::CONFIG_GROUP)
+        .group(&groups::moderation::MODERATION_GROUP);
 
     // Create the bot client
     let mut client = Client::builder(token)
@@ -147,6 +149,7 @@ async fn main() {
         data.insert::<UsersCurrentlyQuestionedType>(Vec::new());
         data.insert::<PgPoolType>(pool);
     }
+
     match client.start().await {
         Ok(_) => (),
         Err(why) => log::error!("An error occurred when starting the client: {}", why),

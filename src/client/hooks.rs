@@ -84,7 +84,7 @@ pub async fn after(ctx: &Context, msg: &Message, cmd_name: &str, error: Result<(
     match error {
         Ok(_) => (),
         Err(why) => {
-            log::error!("Command {} returned with an Err value: {}", cmd_name, why);
+            log::warn!("Command {} returned with an Err value: {}", cmd_name, why);
             match msg
                 .channel_id
                 .send_message(ctx, |m| {
