@@ -122,7 +122,12 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
     {
         Ok(msg) => msg,
         Err(why) => {
-            log::error!("Error reading message from message cache database: {}", why);
+            match why {
+                sqlx::Error::RowNotFound => {
+                    log::info!("Could not locate deleted message in database");
+                }
+                _ => log::error!("Error reading message from message cache database: {}", why),
+            }
             return;
         }
     };

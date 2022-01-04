@@ -15,7 +15,7 @@ use crate::{
 
 #[group]
 #[owners_only]
-#[prefixes("config")]
+#[prefix("config")]
 #[commands(set, get)]
 struct Config;
 

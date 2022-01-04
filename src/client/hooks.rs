@@ -109,6 +109,7 @@ pub async fn after(ctx: &Context, msg: &Message, cmd_name: &str, error: Result<(
 // Not necessarily a hook but it is close enough so here it shall stay
 
 #[help]
+#[lacking_role(hide)]
 #[embed_error_colour(RED)]
 #[embed_success_colour(FOOYOO)]
 async fn help(

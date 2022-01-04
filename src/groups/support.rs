@@ -68,6 +68,7 @@ struct Support;
 #[command]
 #[description("Create a new support thread")]
 #[checks(is_in_support_channel)]
+#[checks(is_currently_questioned)]
 #[num_args(0)]
 async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     // Make sure the write lock to data isn't held for the entirety of this command. This causes
@@ -76,9 +77,6 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         let mut data = ctx.data.write().await; // Get a writeable reference to the data
         let users_currently_questioned = data.get_mut::<UsersCurrentlyQuestionedType>().unwrap();
 
-        if users_currently_questioned.contains(&msg.author.id) {
-            return Err(CommandError::from("User already being questioned!"));
-        }
         users_currently_questioned.push(msg.author.id);
     }
 
@@ -95,7 +93,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     }).await?;
 
     // Ask for the details of the issue
-    let thread_name = get_message_reply(
+    let thread_name = match get_message_reply(
         ctx,
         msg,
         |m| {
@@ -106,7 +104,17 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         },
         Duration::from_secs(300),
     )
-    .await?;
+    .await
+    {
+        Ok(content) => content,
+        Err(_) => {
+            let mut data = ctx.data.write().await;
+            data.get_mut::<UsersCurrentlyQuestionedType>()
+                .unwrap()
+                .retain(|val| *val != msg.author.id);
+            return Ok(());
+        }
+    };
 
     // Parse the thread name with the regex to avoid special characters in thread name
     let mut thread_name_safe = {
@@ -117,7 +125,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
             .to_string()
     };
 
-    let mut description = get_message_reply(
+    let mut description = match get_message_reply(
         ctx,
         msg,
         |m| {
@@ -128,9 +136,19 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         },
         Duration::from_secs(300),
     )
-    .await?;
+    .await
+    {
+        Ok(content) => content,
+        Err(_) => {
+            let mut data = ctx.data.write().await;
+            data.get_mut::<UsersCurrentlyQuestionedType>()
+                .unwrap()
+                .retain(|val| *val != msg.author.id);
+            return Ok(());
+        }
+    };
 
-    let mut incident = get_message_reply(
+    let mut incident = match get_message_reply(
         ctx,
         msg,
         |m| {
@@ -141,9 +159,19 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         },
         Duration::from_secs(300),
     )
-    .await?;
+    .await
+    {
+        Ok(content) => content,
+        Err(_) => {
+            let mut data = ctx.data.write().await;
+            data.get_mut::<UsersCurrentlyQuestionedType>()
+                .unwrap()
+                .retain(|val| *val != msg.author.id);
+            return Ok(());
+        }
+    };
 
-    let mut system_info = get_message_reply(
+    let mut system_info = match get_message_reply(
         ctx,
         msg,
         |m| {
@@ -154,7 +182,17 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         },
         Duration::from_secs(300),
     )
-    .await?;
+    .await
+    {
+        Ok(content) => content,
+        Err(_) => {
+            let mut data = ctx.data.write().await;
+            data.get_mut::<UsersCurrentlyQuestionedType>()
+                .unwrap()
+                .retain(|val| *val != msg.author.id);
+            return Ok(());
+        }
+    };
 
     let att_msg = embed_msg(
         ctx,
@@ -168,7 +206,17 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 
     // The helper function cant really be used for the attachment messages due to much of the
     // checking it does
-    let attachments_msg = wait_for_message(ctx, msg, Duration::from_secs(300)).await?;
+    let attachments_msg = match wait_for_message(ctx, msg, Duration::from_secs(300)).await {
+        Ok(msg) => msg,
+        Err(_) => {
+            let mut data = ctx.data.write().await;
+            data.get_mut::<UsersCurrentlyQuestionedType>()
+                .unwrap()
+                .retain(|val| *val != msg.author.id);
+            return Ok(());
+        }
+    };
+
     // Make sure all attachments with image types get added as images to the embed
     let mut image_attachments = attachments_msg.attachments.clone();
     image_attachments.retain(|a| {
@@ -660,6 +708,18 @@ async fn is_in_either(
         "{} called outside wither a support thread or the support channel",
         msg.content
     )))
+}
+
+#[check]
+#[display_in_help(false)]
+async fn is_currently_questioned(ctx: &Context, msg: &Message) -> Result<(), Reason> {
+    let data = ctx.data.read().await;
+    let users_currently_questioned = data.get::<UsersCurrentlyQuestionedType>().unwrap();
+
+    if users_currently_questioned.contains(&msg.author.id) {
+        return Err(Reason::Log("User tried to open a new support ticket while creation of another one was still ongoing".to_string()));
+    }
+    Ok(())
 }
 
 // ------------------------------------

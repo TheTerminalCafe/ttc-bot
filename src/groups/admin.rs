@@ -10,7 +10,7 @@ use serenity::{
 };
 
 #[group]
-#[prefixes("admin")]
+#[prefix("admin")]
 #[owners_only]
 #[commands(shutdown)]
 struct Admin;
