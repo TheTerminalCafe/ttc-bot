@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use crate::{
-    typemap::types::{
-        BoostLevelType, PgPoolType, SupportChannelType, ThreadNameRegexType,
-        UsersCurrentlyQuestionedType,
+    typemap::{
+        config::Config,
+        types::{PgPoolType, ThreadNameRegexType, UsersCurrentlyQuestionedType},
     },
     utils::helper_functions::*,
 };
@@ -68,6 +68,7 @@ struct Support;
 #[command]
 #[description("Create a new support thread")]
 #[checks(is_in_support_channel)]
+#[checks(is_currently_questioned)]
 #[num_args(0)]
 async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     // Make sure the write lock to data isn't held for the entirety of this command. This causes
@@ -76,9 +77,6 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         let mut data = ctx.data.write().await; // Get a writeable reference to the data
         let users_currently_questioned = data.get_mut::<UsersCurrentlyQuestionedType>().unwrap();
 
-        if users_currently_questioned.contains(&msg.author.id) {
-            return Err(CommandError::from("User already being questioned!"));
-        }
         users_currently_questioned.push(msg.author.id);
     }
 
@@ -95,7 +93,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     }).await?;
 
     // Ask for the details of the issue
-    let thread_name = get_message_reply(
+    let thread_name = match get_message_reply(
         ctx,
         msg,
         |m| {
@@ -106,7 +104,17 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         },
         Duration::from_secs(300),
     )
-    .await?;
+    .await
+    {
+        Ok(content) => content,
+        Err(_) => {
+            let mut data = ctx.data.write().await;
+            data.get_mut::<UsersCurrentlyQuestionedType>()
+                .unwrap()
+                .retain(|val| *val != msg.author.id);
+            return Ok(());
+        }
+    };
 
     // Parse the thread name with the regex to avoid special characters in thread name
     let mut thread_name_safe = {
@@ -117,7 +125,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
             .to_string()
     };
 
-    let mut description = get_message_reply(
+    let mut description = match get_message_reply(
         ctx,
         msg,
         |m| {
@@ -128,9 +136,19 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         },
         Duration::from_secs(300),
     )
-    .await?;
+    .await
+    {
+        Ok(content) => content,
+        Err(_) => {
+            let mut data = ctx.data.write().await;
+            data.get_mut::<UsersCurrentlyQuestionedType>()
+                .unwrap()
+                .retain(|val| *val != msg.author.id);
+            return Ok(());
+        }
+    };
 
-    let mut incident = get_message_reply(
+    let mut incident = match get_message_reply(
         ctx,
         msg,
         |m| {
@@ -141,9 +159,19 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         },
         Duration::from_secs(300),
     )
-    .await?;
+    .await
+    {
+        Ok(content) => content,
+        Err(_) => {
+            let mut data = ctx.data.write().await;
+            data.get_mut::<UsersCurrentlyQuestionedType>()
+                .unwrap()
+                .retain(|val| *val != msg.author.id);
+            return Ok(());
+        }
+    };
 
-    let mut system_info = get_message_reply(
+    let mut system_info = match get_message_reply(
         ctx,
         msg,
         |m| {
@@ -154,7 +182,17 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
         },
         Duration::from_secs(300),
     )
-    .await?;
+    .await
+    {
+        Ok(content) => content,
+        Err(_) => {
+            let mut data = ctx.data.write().await;
+            data.get_mut::<UsersCurrentlyQuestionedType>()
+                .unwrap()
+                .retain(|val| *val != msg.author.id);
+            return Ok(());
+        }
+    };
 
     let att_msg = embed_msg(
         ctx,
@@ -168,7 +206,17 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 
     // The helper function cant really be used for the attachment messages due to much of the
     // checking it does
-    let attachments_msg = wait_for_message(ctx, msg, Duration::from_secs(300)).await?;
+    let attachments_msg = match wait_for_message(ctx, msg, Duration::from_secs(300)).await {
+        Ok(msg) => msg,
+        Err(_) => {
+            let mut data = ctx.data.write().await;
+            data.get_mut::<UsersCurrentlyQuestionedType>()
+                .unwrap()
+                .retain(|val| *val != msg.author.id);
+            return Ok(());
+        }
+    };
+
     // Make sure all attachments with image types get added as images to the embed
     let mut image_attachments = attachments_msg.attachments.clone();
     image_attachments.retain(|a| {
@@ -248,20 +296,10 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     let data = ctx.data.read().await;
 
     let pool = data.get::<PgPoolType>().unwrap();
-    let boost_level = data.get::<BoostLevelType>().unwrap();
-
     // Select auto archive duration based on the server boost level
     let thread_id = msg
         .channel_id
-        .create_public_thread(ctx, thread_msg.id, |ct| {
-            ct.name(thread_name_safe.clone());
-            match boost_level {
-                0 => ct.auto_archive_duration(1440),
-                1 => ct.auto_archive_duration(4320),
-                2 => ct.auto_archive_duration(10080),
-                _ => ct.auto_archive_duration(10080),
-            }
-        })
+        .create_public_thread(ctx, thread_msg.id, |ct| ct.name(thread_name_safe.clone()))
         .await?
         .id;
 
@@ -431,8 +469,8 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
     // Loop through the arguments and with each iteration search for them from the database, if
     // found send a message with the information about the ticket
-    for _ in 0..args.len() {
-        let arg = match args.single::<String>() {
+    for arg in args.iter() {
+        let arg: String = match arg {
             Ok(arg) => arg,
             Err(why) => {
                 embed_msg(
@@ -601,9 +639,18 @@ async fn active(ctx: &Context, msg: &Message) -> CommandResult {
 #[display_in_help(false)]
 async fn is_in_support_channel(ctx: &Context, msg: &Message) -> Result<(), Reason> {
     let data = ctx.data.read().await;
-    let support_chanel_id = data.get::<SupportChannelType>().unwrap();
+    let pool = data.get::<PgPoolType>().unwrap();
+    let support_channel_id = match Config::get_from_db(pool).await {
+        Ok(config) => config.support_channel,
+        Err(why) => {
+            return Err(Reason::Log(format!(
+                "Getting config from database failed: {}",
+                why
+            )))
+        }
+    } as u64;
 
-    if *support_chanel_id != msg.channel_id.0 {
+    if support_channel_id != msg.channel_id.0 {
         return Err(Reason::Log(format!(
             "{} called outside support channel",
             msg.content
@@ -661,6 +708,18 @@ async fn is_in_either(
         "{} called outside wither a support thread or the support channel",
         msg.content
     )))
+}
+
+#[check]
+#[display_in_help(false)]
+async fn is_currently_questioned(ctx: &Context, msg: &Message) -> Result<(), Reason> {
+    let data = ctx.data.read().await;
+    let users_currently_questioned = data.get::<UsersCurrentlyQuestionedType>().unwrap();
+
+    if users_currently_questioned.contains(&msg.author.id) {
+        return Err(Reason::Log("User tried to open a new support ticket while creation of another one was still ongoing".to_string()));
+    }
+    Ok(())
 }
 
 // ------------------------------------
