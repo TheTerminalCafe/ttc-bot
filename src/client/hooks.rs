@@ -44,7 +44,7 @@ pub async fn dispatch_error(ctx: &Context, msg: &Message, error: DispatchError) 
                     m.embed(|e| {
                         e.title("Not enough arguments")
                             .description(format!(
-                                "A minimum of *{}* arguments is required, {} was provided.",
+                                "A minimum of **{}** arguments is required, {} was provided.",
                                 min, given
                             ))
                             .color(Color::RED)
@@ -84,7 +84,7 @@ pub async fn after(ctx: &Context, msg: &Message, cmd_name: &str, error: Result<(
     match error {
         Ok(_) => (),
         Err(why) => {
-            log::error!("Command {} returned with an Err value: {}", cmd_name, why);
+            log::warn!("Command {} returned with an Err value: {}", cmd_name, why);
             match msg
                 .channel_id
                 .send_message(ctx, |m| {
@@ -109,6 +109,7 @@ pub async fn after(ctx: &Context, msg: &Message, cmd_name: &str, error: Result<(
 // Not necessarily a hook but it is close enough so here it shall stay
 
 #[help]
+#[lacking_role(hide)]
 #[embed_error_colour(RED)]
 #[embed_success_colour(FOOYOO)]
 async fn help(
