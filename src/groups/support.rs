@@ -733,7 +733,7 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel) {
         let pool = data.get::<PgPoolType>().unwrap();
 
         // Get the current thread info from the database
-        let db_thread = match sqlx::query_as!(
+        let mut db_thread = match sqlx::query_as!(
             SupportThread,
             r#"SELECT * FROM ttc_support_tickets WHERE thread_id = $1"#,
             thread.id.0 as i64
@@ -796,15 +796,10 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel) {
                 return;
             }
 
+            db_thread.unarchivals += 1;
+
             // Inform the author of the issue about the unarchival
-            match embed_msg(
-                ctx,
-                &thread.id,
-                Some("Thread unarchived"),
-                Some("If the issue has already been solved make sure to mark it as such with `ttc!support solve`"),
-                None,
-                None
-            )
+            match thread.send_message(ctx, |m| m.embed(|e| e.title("Thread unarchived").description("Thread archival prevented, if the issue is solved mark it as such with `ttc!support solve`.")).content(format!("<@{}>", db_thread.user_id)))
             .await
             {
                 Ok(_) => (),
