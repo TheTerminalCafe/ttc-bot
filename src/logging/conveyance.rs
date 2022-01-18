@@ -136,7 +136,7 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
     let user = match UserId(msg.user_id.unwrap() as u64).to_user(ctx).await {
         Ok(user) => user,
         Err(why) => {
-            log::error!("Error getting user based on user id: {}", why);
+            log::warn!("Error getting user based on user id: {}", why);
             User::default()
         }
     };
