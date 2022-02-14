@@ -5,14 +5,14 @@ use serenity::{
         macros::{command, group},
         Args, CommandError, CommandResult,
     },
-    model::{channel::Message, id::UserId},
+    model::{channel::Message, id::UserId, interactions::message_component::ButtonStyle},
     utils::Color,
 };
 
 #[group]
 #[prefix("mod")]
 #[allowed_roles("Moderator")]
-#[commands(ban)]
+#[commands(ban, create_verification)]
 struct Moderation;
 
 #[command]
@@ -58,6 +58,30 @@ async fn ban(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
             Err(why) => return Err(CommandError::from(format!("Error banning user: {}", why))),
         },
     };
+
+    Ok(())
+}
+
+#[command]
+async fn create_verification(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+    msg.channel_id
+        .send_message(ctx, |m| {
+            m.embed(|e| {
+                e.color(Color::FOOYOO)
+                    .description("Be sure to follow the rules!")
+            })
+            .components(|c| {
+                c.create_action_row(|a| {
+                    a.create_button(|b| {
+                        b.label("Clieck here to finish verification")
+                            .custom_id("ttc-bot-verification-button")
+                            .style(ButtonStyle::Primary)
+                    })
+                })
+            })
+        })
+        .await
+        .unwrap();
 
     Ok(())
 }
