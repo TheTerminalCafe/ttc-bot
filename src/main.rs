@@ -78,6 +78,7 @@ async fn main() {
 
     // Load all the values from the config
     let token = config["token"].as_str().unwrap();
+    let application_id = config["application_id"].as_u64().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
     let support_channel_id = config["support_channel"].as_u64().unwrap();
     let conveyance_channel_id = config["conveyance_channel"].as_u64().unwrap();
@@ -134,6 +135,7 @@ async fn main() {
 
     // Create the bot client
     let mut client = Client::builder(token)
+        .application_id(application_id)
         .event_handler(client::event_handler::Handler)
         .cache_settings(|c| c.max_messages(50))
         .framework(framework)
