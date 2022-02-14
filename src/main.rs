@@ -16,7 +16,7 @@ mod groups {
 mod utils {
     pub mod helper_functions;
 }
-mod logging {
+mod events {
     pub mod conveyance;
 }
 mod client {

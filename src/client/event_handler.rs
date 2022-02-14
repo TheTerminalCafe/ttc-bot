@@ -1,4 +1,4 @@
-use crate::{groups, logging};
+use crate::{events, groups};
 use serenity::{
     async_trait,
     client::{Context, EventHandler},
@@ -27,7 +27,7 @@ impl EventHandler for Handler {
     }
 
     async fn message(&self, ctx: Context, msg: Message) {
-        logging::conveyance::message(&ctx, &msg).await;
+        events::conveyance::message(&ctx, &msg).await;
 
         if msg.content.contains("bots will take over the world") {
             match msg.channel_id.say(ctx, "*hides*").await {
@@ -50,7 +50,7 @@ impl EventHandler for Handler {
         deleted_message_id: MessageId,
         _: Option<GuildId>,
     ) {
-        logging::conveyance::message_delete(&ctx, &channel_id, &deleted_message_id).await;
+        events::conveyance::message_delete(&ctx, &channel_id, &deleted_message_id).await;
     }
 
     // For conveyance
@@ -61,12 +61,12 @@ impl EventHandler for Handler {
         new: Option<Message>,
         event: MessageUpdateEvent,
     ) {
-        logging::conveyance::message_update(&ctx, old_if_available, new, &event).await;
+        events::conveyance::message_update(&ctx, old_if_available, new, &event).await;
     }
 
-    // Greeting messages and user join logging
+    // Greeting messages and user join events
     async fn guild_member_addition(&self, ctx: Context, _: GuildId, new_member: Member) {
-        logging::conveyance::guild_member_addition(&ctx, &new_member).await;
+        events::conveyance::guild_member_addition(&ctx, &new_member).await;
     }
 
     async fn guild_member_removal(
@@ -76,6 +76,6 @@ impl EventHandler for Handler {
         user: User,
         member: Option<Member>,
     ) {
-        logging::conveyance::guild_member_removal(&ctx, &user, member).await;
+        events::conveyance::guild_member_removal(&ctx, &user, member).await;
     }
 }
