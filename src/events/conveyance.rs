@@ -9,12 +9,10 @@ use serenity::{
         id::{ChannelId, MessageId, UserId},
         prelude::User,
     },
-    prelude::Mentionable,
     utils::{content_safe, Color, ContentSafeOptions},
 };
 
 use crate::typemap::{config::Config, types::PgPoolType};
-use rand::seq::SliceRandom;
 
 // Types for fetching/writing data from/to SQL database
 struct CurrentIndex {
@@ -321,7 +319,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
         }
     };
 
-    let welcome_message = config
+    /*let welcome_message = config
         .welcome_messages
         .choose(&mut rand::thread_rng())
         .unwrap();
@@ -336,7 +334,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
             log::error!("Error sending message: {}", why);
             return;
         }
-    }
+    }*/
 
     for channel in &config.conveyance_channels {
         match ChannelId(*channel as u64)

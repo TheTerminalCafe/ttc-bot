@@ -1,13 +1,17 @@
+use std::time::Duration;
+
 use crate::typemap::{config::Config, types::PgPoolType};
+use rand::seq::SliceRandom;
 use serenity::{
     builder::CreateEmbed,
     client::Context,
     model::{
-        id::RoleId,
+        id::{ChannelId, RoleId},
         interactions::{
             Interaction, InteractionApplicationCommandCallbackDataFlags, InteractionType,
         },
     },
+    prelude::Mentionable,
     utils::Color,
 };
 
@@ -54,7 +58,25 @@ pub async fn interaction_create(ctx: &Context, intr: Interaction) {
                                     })
                                 })
                                 .await {
-                                    Ok(_) => (),
+                                    Ok(_) => {
+                                    tokio::time::sleep(Duration::from_secs(2)).await;
+                                        let welcome_message = config
+                                            .welcome_messages
+                                            .choose(&mut rand::thread_rng())
+                                            .unwrap();
+                                        let welcome_message = welcome_message.replace("%user%", &intr.user.mention().to_string());
+
+                                        match ChannelId(config.welcome_channel as u64)
+                                            .send_message(ctx, |m| m.content(welcome_message))
+                                            .await
+                                        {
+                                            Ok(_) => (),
+                                            Err(why) => {
+                                                log::error!("Error sending message: {}", why);
+                                                return;
+                                            }
+                                        }
+                                    }
                                     Err(why) => {
                                         log::error!("Unable to respond to interaction: {}", why);
                                     }
