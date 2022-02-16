@@ -7,6 +7,7 @@ use serenity::{
         event::MessageUpdateEvent,
         guild::Member,
         id::{ChannelId, GuildId, MessageId},
+        interactions::Interaction,
         prelude::{Activity, Ready, User},
     },
 };
@@ -77,5 +78,9 @@ impl EventHandler for Handler {
         member: Option<Member>,
     ) {
         events::conveyance::guild_member_removal(&ctx, &user, member).await;
+    }
+
+    async fn interaction_create(&self, ctx: Context, intr: Interaction) {
+        events::interactions::interaction_create(&ctx, intr).await;
     }
 }

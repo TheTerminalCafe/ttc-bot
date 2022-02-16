@@ -122,9 +122,9 @@ async fn kick(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     embed_msg(
         ctx,
         &msg.channel_id,
-        Some("Banhammer has been swung"),
+        Some("The boot of justice has decided."),
         Some(&format!(
-            "{} banned. I hope justice has been made.",
+            "{} kicked. I hope justice has been made.",
             user.tag()
         )),
         Some(Color::RED),
@@ -146,7 +146,7 @@ async fn create_verification(ctx: &Context, msg: &Message, args: Args) -> Comman
             .components(|c| {
                 c.create_action_row(|a| {
                     a.create_button(|b| {
-                        b.label("Clieck here to finish verification")
+                        b.label("Click here to finish verification")
                             .custom_id("ttc-bot-verification-button")
                             .style(ButtonStyle::Primary)
                     })
