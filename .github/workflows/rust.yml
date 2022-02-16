@@ -13,10 +13,40 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    
+     # Service containers to run with `container-job`
+    services:
+      # Label used to access the service container
+      postgres:
+        # Docker Hub image
+        image: postgres
+        # Provide the password for postgres
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install PostgreSQL client
+      run: | 
+        apt-get update
+        apt-get install --yes postgresql-client
+    - name: Setup database
+      run: psql -h localhost -d postgres -U postgres -f sql/ttc-bot.sql
+      env:
+        PGPASSWORD: postgres
     - name: Build
       run: cargo build --verbose
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost/postgres
     - name: Run tests
       run: cargo test --verbose
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost/postgres
