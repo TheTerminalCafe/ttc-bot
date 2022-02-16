@@ -27,6 +27,7 @@ The bot requires a postgresql database with a table based on the schema in `sql/
 ```
 ---
   token: <The bot token you wish to use>
+  application_id: <The application id for the bot on discord, used for interactions>
   sqlx_config: <A string for sqlx to connect to the database, postgres://username:password@host:port/database_name>
   support_channel: <Discord channel id for the support channel>
   conveyance_channel: <Discord channel id for the conveyance channel>
