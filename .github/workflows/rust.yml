@@ -39,14 +39,14 @@ jobs:
         sudo apt-get update
         sudo apt-get install --yes postgresql-client
     - name: Setup database
-      run: psql -h localhost -d postgres -U postgres -f sql/ttc-bot.sql
+      run: psql -h postgres -d postgres -U postgres -f sql/ttc-bot.sql
       env:
         PGPASSWORD: postgres
     - name: Build
       run: cargo build --verbose
       env:
-        DATABASE_URL: postgres://postgres:postgres@localhost/postgres
+        DATABASE_URL: postgres://postgres:postgres@postgres/postgres
     - name: Run tests
       run: cargo test --verbose
       env:
-        DATABASE_URL: postgres://postgres:postgres@localhost/postgres
+        DATABASE_URL: postgres://postgres:postgres@postgres/postgres
