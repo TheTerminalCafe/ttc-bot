@@ -3,7 +3,7 @@ use sqlx::PgPool;
 #[derive(Debug, Clone)]
 pub struct Config {
     pub support_channel: i64,
-    pub conveyance_channel: i64,
+    pub conveyance_channels: Vec<i64>,
     pub conveyance_blacklisted_channels: Vec<i64>,
     pub welcome_channel: i64,
     pub welcome_messages: Vec<String>,

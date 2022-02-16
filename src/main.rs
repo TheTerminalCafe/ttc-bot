@@ -113,7 +113,7 @@ async fn main() {
             conveyance_channel: conveyance_channel_id as i64,
             conveyance_blacklisted_channels: conveyance_blacklisted_channel_ids,
             welcome_channel: welcome_channel_id as i64,
-            welcome_messages: welcome_messages,
+            welcome_messages,
         };
 
         config.save_in_db(&pool).await.unwrap();
