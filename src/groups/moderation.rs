@@ -161,19 +161,16 @@ async fn create_verification(ctx: &Context, msg: &Message, args: Args) -> Comman
 
     channel_id
         .send_message(ctx, |m| {
-            m.embed(|e| {
-                e.color(Color::FOOYOO)
-                    .description("Be sure to follow the rules!")
-            })
-            .components(|c| {
-                c.create_action_row(|a| {
-                    a.create_button(|b| {
-                        b.label("Click here to finish verification")
-                            .custom_id("ttc-bot-verification-button")
-                            .style(ButtonStyle::Primary)
+            m.embed(|e| e.color(Color::FOOYOO).title("Be sure to follow the rules!"))
+                .components(|c| {
+                    c.create_action_row(|a| {
+                        a.create_button(|b| {
+                            b.label("Click here to finish verification")
+                                .custom_id("ttc-bot-verification-button")
+                                .style(ButtonStyle::Primary)
+                        })
                     })
                 })
-            })
         })
         .await?;
 

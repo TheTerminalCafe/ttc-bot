@@ -59,7 +59,7 @@ pub async fn interaction_create(ctx: &Context, intr: Interaction) {
                                 })
                                 .await {
                                     Ok(_) => {
-                                    tokio::time::sleep(Duration::from_secs(2)).await;
+                                        tokio::time::sleep(Duration::from_secs(2)).await;
                                         let welcome_message = config
                                             .welcome_messages
                                             .choose(&mut rand::thread_rng())
