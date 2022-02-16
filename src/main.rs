@@ -15,6 +15,7 @@ mod groups {
 }
 mod utils {
     pub mod helper_functions;
+    pub mod macros;
 }
 mod events {
     pub mod conveyance;
@@ -82,7 +83,14 @@ async fn main() {
     let application_id = config["application_id"].as_u64().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
     let support_channel_id = config["support_channel"].as_u64().unwrap();
-    let conveyance_channel_id = config["conveyance_channel"].as_u64().unwrap();
+    let verified_role_id = config["verified_role"].as_u64().unwrap();
+    let moderator_role_id = config["moderator_role"].as_u64().unwrap();
+    let conveyance_channel_ids = config["conveyance_channels"]
+        .as_sequence()
+        .unwrap()
+        .iter()
+        .map(|val| val.as_i64().unwrap())
+        .collect::<Vec<i64>>();
     let conveyance_blacklisted_channel_ids = config["conveyance_blacklisted_channels"]
         .as_sequence()
         .unwrap()
@@ -112,9 +120,11 @@ async fn main() {
     if matches.is_present("write-db") {
         let config = typemap::config::Config {
             support_channel: support_channel_id as i64,
-            conveyance_channel: conveyance_channel_id as i64,
+            conveyance_channels: conveyance_channel_ids,
             conveyance_blacklisted_channels: conveyance_blacklisted_channel_ids,
             welcome_channel: welcome_channel_id as i64,
+            verified_role: verified_role_id as i64,
+            moderator_role: moderator_role_id as i64,
             welcome_messages,
         };
 

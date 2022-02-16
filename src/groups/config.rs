@@ -9,6 +9,7 @@ use serenity::{
 };
 
 use crate::{
+    groups::moderation::IS_MOD_CHECK,
     typemap::{config, types::PgPoolType},
     utils::helper_functions::embed_msg,
 };
@@ -16,6 +17,7 @@ use crate::{
 #[group]
 #[owners_only]
 #[prefix("config")]
+#[checks(is_mod)]
 #[commands(set, get)]
 struct Config;
 
@@ -47,12 +49,16 @@ async fn set(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                 Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
             }
         }
-        "conveyance_channel" => {
-            let value: String = args.single()?;
-            config.conveyance_channel = match value.parse::<i64>() {
-                Ok(value) => value,
-                Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
+        "conveyance_channels" => {
+            let mut values: Vec<i64> = Vec::new();
+            for value in args.iter() {
+                let value: String = value?;
+                values.push(match value.parse::<i64>() {
+                    Ok(value) => value,
+                    Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
+                })
             }
+            config.conveyance_channels = values;
         }
         "conveyance_blacklisted_channels" => {
             let mut values: Vec<i64> = Vec::new();
@@ -68,6 +74,20 @@ async fn set(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         "welcome_channel" => {
             let value: String = args.single()?;
             config.welcome_channel = match value.parse::<i64>() {
+                Ok(value) => value,
+                Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
+            }
+        }
+        "verified_role" => {
+            let value: String = args.single()?;
+            config.verified_role = match value.parse::<i64>() {
+                Ok(value) => value,
+                Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
+            }
+        }
+        "moderator_role" => {
+            let value: String = args.single()?;
+            config.moderator_role = match value.parse::<i64>() {
                 Ok(value) => value,
                 Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
             }
@@ -138,7 +158,7 @@ async fn get(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     // Match the requested config field to predefined fields
     let property_value = match &property[..] {
         "support_channel" => format!("{}", config.support_channel),
-        "conveyance_channel" => format!("{}", config.conveyance_channel),
+        "conveyance_channel" => format!("{:?}", config.conveyance_channels),
         "conveyance_blacklisted_channels" => {
             format!("{:?}", config.conveyance_blacklisted_channels)
         }

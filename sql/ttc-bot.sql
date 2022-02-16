@@ -46,5 +46,7 @@ CREATE TABLE ttc_config(
 	conveyance_channels BIGINT[] NOT NULL,
 	conveyance_blacklisted_channels BIGINT[] NOT NULL,
 	welcome_channel BIGINT NOT NULL,
+	verified_role BIGINT NOT NULL,
+	moderator_role BIGINT NOT NULL,
 	welcome_messages VARCHAR(100)[] NOT NULL
 );
