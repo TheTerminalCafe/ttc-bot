@@ -9,12 +9,10 @@ use serenity::{
         id::{ChannelId, MessageId, UserId},
         prelude::User,
     },
-    prelude::Mentionable,
     utils::{content_safe, Color, ContentSafeOptions},
 };
 
 use crate::typemap::{config::Config, types::PgPoolType};
-use rand::seq::SliceRandom;
 
 // Types for fetching/writing data from/to SQL database
 struct CurrentIndex {
@@ -156,27 +154,29 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
     content.truncate(1024);
     attachments.truncate(1024);
 
-    match ChannelId(config.conveyance_channel as u64)
-        .send_message(ctx, |m| {
-            m.embed(|e| {
-                e.title("Message deleted")
-                    .author(|a| a.name(&user.name).icon_url(user.face()))
-                    .color(Color::GOLD)
-                    .field("User", user.tag(), true)
-                    .field("UserId", user.id, true)
-                    .field("Message sent at", msg.message_time.unwrap(), false)
-                    .field("Channel", format!("<#{}>", msg.channel_id.unwrap()), true)
-                    .field("Content", content, false)
-                    .field("Attachments", attachments, false)
-                    .timestamp(Utc::now())
+    for channel in &config.conveyance_channels {
+        match ChannelId(*channel as u64)
+            .send_message(ctx, |m| {
+                m.embed(|e| {
+                    e.title("Message deleted")
+                        .author(|a| a.name(&user.name).icon_url(user.face()))
+                        .color(Color::GOLD)
+                        .field("User", user.tag(), true)
+                        .field("UserId", user.id, true)
+                        .field("Message sent at", msg.message_time.unwrap(), false)
+                        .field("Channel", format!("<#{}>", msg.channel_id.unwrap()), true)
+                        .field("Content", content.clone(), false)
+                        .field("Attachments", attachments.clone(), false)
+                        .timestamp(Utc::now())
+                })
             })
-        })
-        .await
-    {
-        Ok(_) => (),
-        Err(why) => {
-            log::error!("Failed to send message: {}", why);
-            return;
+            .await
+        {
+            Ok(_) => (),
+            Err(why) => {
+                log::error!("Failed to send message: {}", why);
+                return;
+            }
         }
     }
 }
@@ -292,14 +292,16 @@ pub async fn message_update(
         }
     }
 
-    match ChannelId(config.conveyance_channel as u64)
-        .send_message(ctx, |m| m.set_embed(message_embed))
-        .await
-    {
-        Ok(_) => (),
-        Err(why) => {
-            log::error!("Error sending message: {}", why);
-            return;
+    for channel in &config.conveyance_channels {
+        match ChannelId(*channel as u64)
+            .send_message(ctx, |m| m.set_embed(message_embed.clone()))
+            .await
+        {
+            Ok(_) => (),
+            Err(why) => {
+                log::error!("Error sending message: {}", why);
+                return;
+            }
         }
     }
 }
@@ -317,7 +319,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
         }
     };
 
-    let welcome_message = config
+    /*let welcome_message = config
         .welcome_messages
         .choose(&mut rand::thread_rng())
         .unwrap();
@@ -332,24 +334,26 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
             log::error!("Error sending message: {}", why);
             return;
         }
-    }
+    }*/
 
-    match ChannelId(config.conveyance_channel as u64)
-        .send_message(ctx, |m| {
-            m.embed(|e| {
-                e.title("New member joined")
-                    .color(Color::FOOYOO)
-                    .field("User", new_member.user.tag(), true)
-                    .field("UserId", new_member.user.id, true)
-                    .field("Account created", new_member.user.created_at(), false)
+    for channel in &config.conveyance_channels {
+        match ChannelId(*channel as u64)
+            .send_message(ctx, |m| {
+                m.embed(|e| {
+                    e.title("New member joined")
+                        .color(Color::FOOYOO)
+                        .field("User", new_member.user.tag(), true)
+                        .field("UserId", new_member.user.id, true)
+                        .field("Account created", new_member.user.created_at(), false)
+                })
             })
-        })
-        .await
-    {
-        Ok(_) => (),
-        Err(why) => {
-            log::error!("Error sending message: {}", why);
-            return;
+            .await
+        {
+            Ok(_) => (),
+            Err(why) => {
+                log::error!("Error sending message: {}", why);
+                return;
+            }
         }
     }
 }
@@ -375,19 +379,21 @@ pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Mem
         None => "Join date not available".to_string(),
     };
 
-    match ChannelId(config.conveyance_channel as u64)
-        .send_message(ctx, |m| {
-            m.embed(|e| {
-                e.title("Member left")
-                    .color(Color::RED)
-                    .field("User", user.tag(), true)
-                    .field("UserId", user.id, true)
-                    .field("Joined at", joined_at, false)
+    for channel in &config.conveyance_channels {
+        match ChannelId(*channel as u64)
+            .send_message(ctx, |m| {
+                m.embed(|e| {
+                    e.title("Member left")
+                        .color(Color::RED)
+                        .field("User", user.tag(), true)
+                        .field("UserId", user.id, true)
+                        .field("Joined at", joined_at.clone(), false)
+                })
             })
-        })
-        .await
-    {
-        Ok(_) => (),
-        Err(why) => log::error!("Error sending message: {}", why),
+            .await
+        {
+            Ok(_) => (),
+            Err(why) => log::error!("Error sending message: {}", why),
+        }
     }
 }

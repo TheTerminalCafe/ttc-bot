@@ -58,7 +58,6 @@ impl PartialEq for ThreadId {
 #[only_in(guilds)]
 #[description("Support related commands")]
 #[commands(new, solve, search, list)]
-#[default_command(new)]
 struct Support;
 
 // ----------------------
@@ -67,8 +66,7 @@ struct Support;
 
 #[command]
 #[description("Create a new support thread")]
-#[checks(is_in_support_channel)]
-#[checks(is_currently_questioned)]
+#[checks(is_in_support_channel, is_currently_questioned)]
 #[num_args(0)]
 async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     // Make sure the write lock to data isn't held for the entirety of this command. This causes
@@ -307,12 +305,13 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     // entry for it's primary key to be added to the support thread title
     let thread = match sqlx::query_as!(
         SupportThread,
-        r#"INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved) VALUES($1, $2, $3, $4, $5) RETURNING *"#,
+        r#"INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved, unarchivals) VALUES($1, $2, $3, $4, $5, $6) RETURNING *"#,
         thread_id.0 as i64,
         msg.author.id.0 as i64,
         Utc::now(),
         thread_name_safe,
         false,
+        0,
     )
     .fetch_one(pool)
     .await {
@@ -650,14 +649,15 @@ async fn is_in_support_channel(ctx: &Context, msg: &Message) -> Result<(), Reaso
         }
     } as u64;
 
-    if support_channel_id != msg.channel_id.0 {
-        return Err(Reason::Log(format!(
-            "{} called outside support channel",
-            msg.content
-        )));
+    if support_channel_id == msg.channel_id.0 {
+        log::info!("Inside a support channel");
+        return Ok(());
     }
 
-    Ok(())
+    Err(Reason::Log(format!(
+        "{} called outside support channel",
+        msg.content
+    )))
 }
 
 // Check for making sure command originated from one of the known support threads in the database

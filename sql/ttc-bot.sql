@@ -43,8 +43,10 @@ INSERT INTO ttc_conveyance_state (current_id) VALUES(0);
 DROP TABLE IF EXISTS ttc_config;
 CREATE TABLE ttc_config(
 	support_channel BIGINT NOT NULL,
-	conveyance_channel BIGINT NOT NULL,
+	conveyance_channels BIGINT[] NOT NULL,
 	conveyance_blacklisted_channels BIGINT[] NOT NULL,
 	welcome_channel BIGINT NOT NULL,
+	verified_role BIGINT NOT NULL,
+	moderator_role BIGINT NOT NULL,
 	welcome_messages VARCHAR(100)[] NOT NULL
 );

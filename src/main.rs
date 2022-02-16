@@ -15,9 +15,11 @@ mod groups {
 }
 mod utils {
     pub mod helper_functions;
+    pub mod macros;
 }
-mod logging {
+mod events {
     pub mod conveyance;
+    pub mod interactions;
 }
 mod client {
     pub mod event_handler;
@@ -36,10 +38,10 @@ use serenity::{
     framework::standard::StandardFramework,
     model::id::UserId,
 };
+use signal_hook::iterator::SignalsInfo;
 use sqlx::postgres::PgPoolOptions;
 use std::{collections::HashSet, fs::File};
 use typemap::types::*;
-
 // ------------
 // Help message
 // ------------
@@ -78,9 +80,17 @@ async fn main() {
 
     // Load all the values from the config
     let token = config["token"].as_str().unwrap();
+    let application_id = config["application_id"].as_u64().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
     let support_channel_id = config["support_channel"].as_u64().unwrap();
-    let conveyance_channel_id = config["conveyance_channel"].as_u64().unwrap();
+    let verified_role_id = config["verified_role"].as_u64().unwrap();
+    let moderator_role_id = config["moderator_role"].as_u64().unwrap();
+    let conveyance_channel_ids = config["conveyance_channels"]
+        .as_sequence()
+        .unwrap()
+        .iter()
+        .map(|val| val.as_i64().unwrap())
+        .collect::<Vec<i64>>();
     let conveyance_blacklisted_channel_ids = config["conveyance_blacklisted_channels"]
         .as_sequence()
         .unwrap()
@@ -110,10 +120,12 @@ async fn main() {
     if matches.is_present("write-db") {
         let config = typemap::config::Config {
             support_channel: support_channel_id as i64,
-            conveyance_channel: conveyance_channel_id as i64,
+            conveyance_channels: conveyance_channel_ids,
             conveyance_blacklisted_channels: conveyance_blacklisted_channel_ids,
             welcome_channel: welcome_channel_id as i64,
-            welcome_messages: welcome_messages,
+            verified_role: verified_role_id as i64,
+            moderator_role: moderator_role_id as i64,
+            welcome_messages,
         };
 
         config.save_in_db(&pool).await.unwrap();
@@ -134,6 +146,7 @@ async fn main() {
 
     // Create the bot client
     let mut client = Client::builder(token)
+        .application_id(application_id)
         .event_handler(client::event_handler::Handler)
         .cache_settings(|c| c.max_messages(50))
         .framework(framework)
@@ -149,6 +162,24 @@ async fn main() {
         data.insert::<UsersCurrentlyQuestionedType>(Vec::new());
         data.insert::<PgPoolType>(pool);
     }
+
+    let shard_manager_signal_hook = client.shard_manager.clone();
+
+    tokio::spawn(async move {
+        let sigs = signal_hook::consts::TERM_SIGNALS;
+
+        let mut signals =
+            SignalsInfo::<signal_hook::iterator::exfiltrator::SignalOnly>::new(sigs).unwrap();
+
+        for info in signals.forever() {
+            match info {
+                _ => {
+                    shard_manager_signal_hook.lock().await.shutdown_all().await;
+                    break;
+                }
+            }
+        }
+    });
 
     match client.start().await {
         Ok(_) => (),
