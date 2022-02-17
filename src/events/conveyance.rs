@@ -12,7 +12,7 @@ use serenity::{
     utils::{content_safe, Color, ContentSafeOptions},
 };
 
-use crate::typemap::{config::Config, types::PgPoolType};
+use crate::{get_config, typemap::types::PgPoolType};
 
 // Types for fetching/writing data from/to SQL database
 struct CurrentIndex {
@@ -98,15 +98,9 @@ pub async fn message(ctx: &Context, msg: &Message) {
 
 // Send logging messages when messages are deleted
 pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_message_id: &MessageId) {
+    let config = get_config!(ctx);
     let data = ctx.data.read().await;
     let pool = data.get::<PgPoolType>().unwrap();
-    let config = match Config::get_from_db(pool).await {
-        Ok(config) => config,
-        Err(why) => {
-            log::error!("Error getting config from database: {}", why);
-            return;
-        }
-    };
 
     // Get the cached message from the database
     let msg = match sqlx::query_as!(
@@ -188,18 +182,7 @@ pub async fn message_update(
     new: Option<Message>,
     event: &MessageUpdateEvent,
 ) {
-    let config = {
-        let data = ctx.data.read().await;
-        let pool = data.get::<PgPoolType>().unwrap();
-        match Config::get_from_db(pool).await {
-            Ok(config) => config,
-            Err(why) => {
-                log::error!("Error getting config from database: {}", why);
-                return;
-            }
-        }
-    };
-
+    let config = get_config!(ctx);
     // Make sure the channel isn't blacklisted from conveyance
     if config
         .conveyance_blacklisted_channels
@@ -218,11 +201,11 @@ pub async fn message_update(
     match &event.author {
         Some(author) => {
             message_embed.field("User", author.tag(), true);
-            message_embed.field("UserId", author.id, true);
+            message_embed.field("UserID", author.id, true);
         }
         None => {
             message_embed.field("User", "User tag not available", true);
-            message_embed.field("UserId", "User id not available", true);
+            message_embed.field("UserID", "User id not available", true);
         }
     }
 
@@ -307,17 +290,7 @@ pub async fn message_update(
 }
 
 pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
-    let config = {
-        let data = ctx.data.read().await;
-        let pool = data.get::<PgPoolType>().unwrap();
-        match Config::get_from_db(pool).await {
-            Ok(config) => config,
-            Err(why) => {
-                log::error!("Error getting config from database: {}", why);
-                return;
-            }
-        }
-    };
+    let config = get_config!(ctx);
 
     /*let welcome_message = config
         .welcome_messages
@@ -343,7 +316,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
                     e.title("New member joined")
                         .color(Color::FOOYOO)
                         .field("User", new_member.user.tag(), true)
-                        .field("UserId", new_member.user.id, true)
+                        .field("UserID", new_member.user.id, true)
                         .field("Account created", new_member.user.created_at(), false)
                 })
             })
@@ -359,7 +332,8 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
 }
 
 pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Member>) {
-    let config = {
+    let config = get_config!(ctx);
+    /*let config = {
         let data = ctx.data.read().await;
         let pool = data.get::<PgPoolType>().unwrap();
         match Config::get_from_db(pool).await {
@@ -369,7 +343,7 @@ pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Mem
                 return;
             }
         }
-    };
+    };*/
 
     let joined_at = match member {
         Some(member) => match member.joined_at {
@@ -386,7 +360,7 @@ pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Mem
                     e.title("Member left")
                         .color(Color::RED)
                         .field("User", user.tag(), true)
-                        .field("UserId", user.id, true)
+                        .field("UserID", user.id, true)
                         .field("Joined at", joined_at.clone(), false)
                 })
             })
@@ -394,6 +368,109 @@ pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Mem
         {
             Ok(_) => (),
             Err(why) => log::error!("Error sending message: {}", why),
+        }
+    }
+}
+pub async fn guild_ban_addition(ctx: &Context, banned_user: User) {
+    let config = get_config!(ctx);
+
+    for channel in &config.conveyance_channels {
+        match ChannelId(*channel as u64)
+            .send_message(ctx, |m| {
+                m.embed(|e| {
+                    e.title("User banned.")
+                        .field("User", banned_user.tag(), true)
+                        .field("UserID", banned_user.id, true)
+                        .color(Color::DARK_RED)
+                })
+            })
+            .await
+        {
+            Ok(_) => (),
+            Err(why) => {
+                log::error!("Error sending message: {}", why);
+                return;
+            }
+        }
+    }
+}
+
+pub async fn guild_ban_removal(ctx: &Context, unbanned_user: User) {
+    let config = get_config!(ctx);
+
+    for channel in &config.conveyance_channels {
+        match ChannelId(*channel as u64)
+            .send_message(ctx, |m| {
+                m.embed(|e| {
+                    e.title("User unbanned")
+                        .field("User", unbanned_user.tag(), true)
+                        .field("UserID", unbanned_user.id, true)
+                        .color(Color::FOOYOO)
+                })
+            })
+            .await
+        {
+            Ok(_) => (),
+            Err(why) => {
+                log::error!("Error sending message: {}", why);
+                return;
+            }
+        }
+    }
+}
+
+pub async fn guild_member_update(ctx: &Context, old: Option<Member>, new: Member) {
+    let config = get_config!(ctx);
+
+    let (old_nickname, old_roles) = match old {
+        Some(old) => {
+            let old_nickname = match old.nick {
+                Some(nick) => nick,
+                None => "N/A".to_string(),
+            };
+            (old_nickname, old.roles)
+        }
+        None => ("N/A".to_string(), Vec::new()),
+    };
+
+    let new_nickname = match new.nick {
+        Some(nick) => nick,
+        None => "N/A".to_string(),
+    };
+    let new_roles = new.roles;
+    let timeouted = match new.communication_disabled_until {
+        Some(comm_disabled) => {
+            if comm_disabled < Utc::now() {
+                false
+            } else {
+                true
+            }
+        }
+        None => false,
+    };
+
+    for channel in &config.conveyance_channels {
+        match ChannelId(*channel as u64)
+            .send_message(ctx, |m| {
+                m.embed(|e| {
+                    e.title("User updated")
+                        .field("User", new.user.tag(), true)
+                        .field("UserID", new.user.id, true)
+                        .field("Timeouted", timeouted, false)
+                        .field("Old nickname", old_nickname.clone(), true)
+                        .field("New nickname", new_nickname.clone(), true)
+                        .field("Old roles", format!("{:?}", old_roles.clone()), false)
+                        .field("New roles", format!("{:?}", new_roles.clone()), false)
+                        .color(Color::ORANGE)
+                })
+            })
+            .await
+        {
+            Ok(_) => (),
+            Err(why) => {
+                log::error!("Error sending message: {}", why);
+                return;
+            }
         }
     }
 }

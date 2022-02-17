@@ -1,10 +1,8 @@
 use std::time::Duration;
 
 use crate::{
-    typemap::{
-        config::Config,
-        types::{PgPoolType, ThreadNameRegexType, UsersCurrentlyQuestionedType},
-    },
+    command_error, get_config,
+    typemap::types::{PgPoolType, ThreadNameRegexType, UsersCurrentlyQuestionedType},
     utils::helper_functions::*,
 };
 use chrono::{DateTime, Utc};
@@ -12,7 +10,7 @@ use serenity::{
     client::Context,
     framework::standard::{
         macros::{check, command, group},
-        Args, CommandError, CommandOptions, CommandResult, Reason,
+        Args, CommandOptions, CommandResult, Reason,
     },
     model::{
         channel::{GuildChannel, Message},
@@ -317,7 +315,7 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     .await {
         Ok(thread) => thread,
         Err(why) => {
-            return Err(CommandError::from(format!("Error writing into database: {}", why)));
+            return command_error!(format!("Error writing into database: {}", why));
         }
     };
 
@@ -351,10 +349,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     {
         Ok(thread) => thread,
         Err(why) => {
-            return Err(CommandError::from(format!(
-                "Unable to read from database: {}",
-                why
-            )));
+            return command_error!(format!("Unable to read from database: {}", why));
         }
     };
 
@@ -388,10 +383,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     {
         Ok(_) => (),
         Err(why) => {
-            return Err(CommandError::from(format!(
-                "Error reading from database: {}",
-                why
-            )));
+            return command_error!(format!("Error reading from database: {}", why));
         }
     }
 
@@ -637,20 +629,11 @@ async fn active(ctx: &Context, msg: &Message) -> CommandResult {
 #[check]
 #[display_in_help(false)]
 async fn is_in_support_channel(ctx: &Context, msg: &Message) -> Result<(), Reason> {
-    let data = ctx.data.read().await;
-    let pool = data.get::<PgPoolType>().unwrap();
-    let support_channel_id = match Config::get_from_db(pool).await {
-        Ok(config) => config.support_channel,
-        Err(why) => {
-            return Err(Reason::Log(format!(
-                "Getting config from database failed: {}",
-                why
-            )))
-        }
-    } as u64;
+    let config = get_config!(ctx, {
+        return Err(Reason::Log("Database error.".to_string()));
+    });
 
-    if support_channel_id == msg.channel_id.0 {
-        log::info!("Inside a support channel");
+    if config.support_channel as u64 == msg.channel_id.0 {
         return Ok(());
     }
 
