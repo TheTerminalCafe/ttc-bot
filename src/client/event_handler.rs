@@ -83,4 +83,16 @@ impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, intr: Interaction) {
         events::interactions::interaction_create(&ctx, intr).await;
     }
+
+    async fn guild_ban_addition(&self, ctx: Context, _: GuildId, banned_user: User) {
+        events::conveyance::guild_ban_addition(&ctx, banned_user).await;
+    }
+
+    async fn guild_ban_removal(&self, ctx: Context, _: GuildId, unbanned_user: User) {
+        events::conveyance::guild_ban_removal(&ctx, unbanned_user).await;
+    }
+
+    async fn guild_member_update(&self, ctx: Context, old: Option<Member>, new: Member) {
+        events::conveyance::guild_member_update(&ctx, old, new).await;
+    }
 }

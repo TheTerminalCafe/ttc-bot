@@ -9,8 +9,7 @@ use serenity::{
 };
 
 use crate::{
-    groups::moderation::IS_MOD_CHECK,
-    typemap::{config, types::PgPoolType},
+    command_error, get_config, groups::moderation::IS_MOD_CHECK, typemap::types::PgPoolType,
     utils::helper_functions::embed_msg,
 };
 
@@ -25,19 +24,11 @@ struct Config;
 #[min_args(2)]
 async fn set(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     args.quoted();
+    // Get the config from the database
+    let mut config = get_config!(ctx, { return command_error!("Database error.") });
 
     let data = ctx.data.read().await;
     let pool = data.get::<PgPoolType>().unwrap();
-    // Get the config from the database
-    let mut config = match config::Config::get_from_db(pool).await {
-        Ok(config) => config,
-        Err(why) => {
-            return Err(CommandError::from(format!(
-                "Error reading from the database: {}",
-                why
-            )));
-        }
-    };
     let property: String = args.single()?;
 
     // Match the requested config field to predefined fields
@@ -140,19 +131,8 @@ async fn set(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 #[command]
 #[num_args(1)]
 async fn get(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let data = ctx.data.read().await;
-    let pool = data.get::<PgPoolType>().unwrap();
+    let config = get_config!(ctx, { return command_error!("Database error.") });
 
-    // Get the config from the database
-    let config = match config::Config::get_from_db(pool).await {
-        Ok(config) => config,
-        Err(why) => {
-            return Err(CommandError::from(format!(
-                "Error reading from the database: {}",
-                why
-            )));
-        }
-    };
     let property: String = args.single()?;
 
     // Match the requested config field to predefined fields
@@ -163,6 +143,8 @@ async fn get(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             format!("{:?}", config.conveyance_blacklisted_channels)
         }
         "welcome_channel" => format!("{}", config.welcome_channel),
+        "verified_role" => format!("{}", config.verified_role),
+        "moderator_role" => format!("{}", config.moderator_role),
         "welcome_messages" => format!("{:?}", config.welcome_messages),
         _ => {
             embed_msg(
