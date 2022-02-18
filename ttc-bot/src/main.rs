@@ -172,7 +172,7 @@ async fn main() {
     let signals = match Signals::new(TERM_SIGNALS) {
         Ok(signals) => signals,
         Err(why) => {
-            log::error!("Failed to create signal hook");
+            log::error!("Failed to create signal hook: {}", why);
             return;
         }
     };
