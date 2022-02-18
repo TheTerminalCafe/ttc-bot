@@ -9,7 +9,8 @@ use serenity::{
         id::{ChannelId, RoleId},
         interactions::{
             message_component::ActionRowComponent, Interaction,
-            InteractionApplicationCommandCallbackDataFlags, InteractionType,
+            InteractionApplicationCommandCallbackDataFlags, InteractionResponseType,
+            InteractionType,
         },
     },
     prelude::Mentionable,
@@ -120,6 +121,14 @@ pub async fn interaction_create(ctx: &Context, intr: Interaction) {
                             // be the selection menu, still check just in case.
                             match &intr.message.components[0].components[0] {
                                 ActionRowComponent::SelectMenu(menu) => {
+                                    match intr.create_interaction_response(ctx, |i| i.kind(InteractionResponseType::DeferredChannelMessageWithSource).interaction_response_data(|d| d.flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL))).await {
+                                        Ok(_) => (),
+                                        Err(why) => {
+                                            log::error!("Failed to create deferred responce: {}", why);
+                                            return;
+                                        }
+                                    }
+
                                     // Get the available self roles from the afformentioned
                                     // component
                                     let available_self_roles: Vec<RoleId> = menu
@@ -131,6 +140,9 @@ pub async fn interaction_create(ctx: &Context, intr: Interaction) {
                                     // Get the member from the interaction
                                     let mut member = intr.member.clone().unwrap();
 
+                                    let mut roles_to_remove: Vec<RoleId> = Vec::new();
+                                    let mut roles_to_add: Vec<RoleId> = Vec::new();
+
                                     // If user has the role but has not selected it, remove it.
                                     for role in &available_self_roles {
                                         if check_user_role!(
@@ -140,17 +152,7 @@ pub async fn interaction_create(ctx: &Context, intr: Interaction) {
                                             role
                                         ) && !intr.data.values.contains(&role.to_string())
                                         {
-                                            match member.remove_role(ctx, role).await {
-                                                Ok(_) => (),
-                                                Err(why) => {
-                                                    log::error!(
-                                                        "Error removing role {} from user {}: {}",
-                                                        role,
-                                                        intr.user.tag(),
-                                                        why
-                                                    )
-                                                }
-                                            }
+                                            roles_to_remove.push(*role);
                                         // If user does not have the role but has selected it, add
                                         // it.
                                         } else if !check_user_role!(
@@ -160,27 +162,46 @@ pub async fn interaction_create(ctx: &Context, intr: Interaction) {
                                             role
                                         ) && intr.data.values.contains(&role.to_string())
                                         {
-                                            match member.add_role(ctx, role).await {
-                                                Ok(_) => (),
-                                                Err(why) => {
-                                                    log::error!(
-                                                        "Error adding role {} to user {}: {}",
-                                                        role,
-                                                        intr.user.tag(),
-                                                        why
-                                                    );
-                                                    return;
-                                                }
+                                            roles_to_add.push(*role);
+                                        }
+                                    }
+                                    if roles_to_add.len() > 0 {
+                                        match member.add_roles(ctx, &roles_to_add).await {
+                                            Ok(_) => (),
+                                            Err(why) => {
+                                                log::error!(
+                                                    "Error adding roles {:?} to user {}: {}",
+                                                    roles_to_add,
+                                                    intr.user.tag(),
+                                                    why
+                                                );
+                                                return;
+                                            }
+                                        }
+                                    }
+                                    if roles_to_remove.len() > 0 {
+                                        match member.remove_roles(ctx, &roles_to_remove).await {
+                                            Ok(_) => (),
+                                            Err(why) => {
+                                                log::error!(
+                                                    "Error removing roles {:?} from user {}: {}",
+                                                    roles_to_remove,
+                                                    intr.user.tag(),
+                                                    why
+                                                )
                                             }
                                         }
                                     }
 
                                     // Notify the user that their selection of self roles has been
-                                    // modified
-                                    match intr.create_interaction_response(ctx, |i| i.interaction_response_data(|r| r.create_embed(|e| e.color(Color::FOOYOO).title("Self roles modified").description("Self role modifications successfully completed")).flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL))).await {
+                                    match intr.edit_original_interaction_response(ctx, |i| {
+                                        i.create_embed(|e| e.color(Color::FOOYOO)
+                                                       .title("Self roles modified")
+                                                       .description("Self role modifications successfully completed"))
+                                    }).await {
                                         Ok(_) => (),
                                         Err(why) => {
-                                            log::error!("Failed to respond to interaction user: {}", why);
+                                            log::error!("Failed to respond to edit deferred responce: {}", why);
                                             return;
                                         }
                                     }

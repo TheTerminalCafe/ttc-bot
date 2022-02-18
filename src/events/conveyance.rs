@@ -422,15 +422,26 @@ pub async fn guild_ban_removal(ctx: &Context, unbanned_user: User) {
 pub async fn guild_member_update(ctx: &Context, old: Option<Member>, new: Member) {
     let config = get_config!(ctx);
 
-    let (old_nickname, old_roles) = match old {
+    let (old_nickname, old_roles, old_timeouted) = match old {
         Some(old) => {
             let old_nickname = match old.nick {
                 Some(nick) => nick,
                 None => "N/A".to_string(),
             };
-            (old_nickname, old.roles)
+            let old_timeouted = match old.communication_disabled_until {
+                Some(comm_disabled) => {
+                    if comm_disabled < Utc::now() {
+                        false
+                    } else {
+                        true
+                    }
+                }
+                None => false,
+            };
+
+            (old_nickname, old.roles, Some(old_timeouted))
         }
-        None => ("N/A".to_string(), Vec::new()),
+        None => ("N/A".to_string(), Vec::new(), None),
     };
 
     let new_nickname = match new.nick {
@@ -438,7 +449,7 @@ pub async fn guild_member_update(ctx: &Context, old: Option<Member>, new: Member
         None => "N/A".to_string(),
     };
     let new_roles = new.roles;
-    let timeouted = match new.communication_disabled_until {
+    let new_timeouted = match new.communication_disabled_until {
         Some(comm_disabled) => {
             if comm_disabled < Utc::now() {
                 false
@@ -449,6 +460,24 @@ pub async fn guild_member_update(ctx: &Context, old: Option<Member>, new: Member
         None => false,
     };
 
+    // Make sure it is only the values displayed that have changed
+    if !(old_nickname != new_nickname
+        || old_roles != new_roles
+        || match old_timeouted {
+            Some(old_timeouted) => {
+                if old_timeouted == new_timeouted {
+                    false
+                } else {
+                    true
+                }
+            }
+            None => false,
+        })
+    {
+        log::debug!("User updated, but no logging done");
+        return;
+    }
+
     for channel in &config.conveyance_channels {
         match ChannelId(*channel as u64)
             .send_message(ctx, |m| {
@@ -456,7 +485,7 @@ pub async fn guild_member_update(ctx: &Context, old: Option<Member>, new: Member
                     e.title("User updated")
                         .field("User", new.user.tag(), true)
                         .field("UserID", new.user.id, true)
-                        .field("Timeouted", timeouted, false)
+                        .field("Timeouted", new_timeouted, false)
                         .field("Old nickname", old_nickname.clone(), true)
                         .field("New nickname", new_nickname.clone(), true)
                         .field("Old roles", format!("{:?}", old_roles.clone()), false)
