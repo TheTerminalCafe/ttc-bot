@@ -31,16 +31,22 @@ mod client {
 // ----------------------
 
 use clap::{App, Arg};
+use futures::stream::StreamExt;
 use regex::Regex;
 use serde_yaml::Value;
 use serenity::{
-    client::{bridge::gateway::GatewayIntents, Client},
+    client::{
+        bridge::gateway::{GatewayIntents, ShardManager},
+        Client,
+    },
     framework::standard::StandardFramework,
     model::id::UserId,
 };
-use signal_hook::iterator::SignalsInfo;
+use signal_hook::consts::TERM_SIGNALS;
+use signal_hook_tokio::Signals;
 use sqlx::postgres::PgPoolOptions;
-use std::{collections::HashSet, fs::File};
+use std::{collections::HashSet, fs::File, sync::Arc};
+use tokio::sync::Mutex;
 use typemap::types::*;
 // ------------
 // Help message
@@ -163,28 +169,31 @@ async fn main() {
         data.insert::<PgPoolType>(pool);
     }
 
-    let shard_manager_signal_hook = client.shard_manager.clone();
-
-    tokio::spawn(async move {
-        let sigs = signal_hook::consts::TERM_SIGNALS;
-
-        let mut signals =
-            SignalsInfo::<signal_hook::iterator::exfiltrator::SignalOnly>::new(sigs).unwrap();
-
-        for info in signals.forever() {
-            match info {
-                _ => {
-                    shard_manager_signal_hook.lock().await.shutdown_all().await;
-                    break;
-                }
-            }
+    let signals = match Signals::new(TERM_SIGNALS) {
+        Ok(signals) => signals,
+        Err(why) => {
+            log::error!("Failed to create signal hook");
+            return;
         }
-    });
+    };
+
+    let handle = signals.handle();
+
+    tokio::spawn(signal_hook_task(signals, client.shard_manager.clone()));
 
     match client.start().await {
         Ok(_) => (),
         Err(why) => log::error!("An error occurred when starting the client: {}", why),
     }
 
+    handle.close();
+
     log::info!("Bot shut down");
+}
+
+async fn signal_hook_task(mut signals: Signals, shard_mgr: Arc<Mutex<ShardManager>>) {
+    while let Some(_) = signals.next().await {
+        shard_mgr.lock().await.shutdown_all().await;
+        break;
+    }
 }
