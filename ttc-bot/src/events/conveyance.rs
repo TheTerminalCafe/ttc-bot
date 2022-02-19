@@ -1,3 +1,4 @@
+use crate::{get_config, typemap::types::PgPoolType, utils::helper_functions::alert_mods};
 use chrono::{DateTime, Utc};
 use serenity::{
     builder::CreateEmbed,
@@ -12,14 +13,12 @@ use serenity::{
     utils::{content_safe, Color, ContentSafeOptions},
 };
 
-use crate::{get_config, typemap::types::PgPoolType};
-
 // Types for fetching/writing data from/to SQL database
 struct CurrentIndex {
     current_id: i32,
 }
 
-#[allow(dead_code)] // A few of these paramteres are technically never read, but it is best that they are available in case they are needed
+#[allow(dead_code)] // A few of these parameters are technically never read, but it is best that they are available in case they are needed
 struct CachedMessage {
     id: i32,
     message_id: Option<i64>,
@@ -28,6 +27,10 @@ struct CachedMessage {
     message_time: Option<DateTime<Utc>>,
     content: Option<String>,
     attachments: Option<String>,
+}
+
+struct BadWord {
+    word: String,
 }
 
 // --------------------------------
@@ -39,6 +42,18 @@ struct CachedMessage {
 pub async fn message(ctx: &Context, msg: &Message) {
     let data = ctx.data.read().await;
     let pool = data.get::<PgPoolType>().unwrap();
+
+    let bad_words: Vec<BadWord> =
+        match sqlx::query_as!(BadWord, r#"SELECT (word) FROM ttc_bad_words"#)
+            .fetch_all(pool)
+            .await
+        {
+            Ok(bad_words) => bad_words,
+            Err(why) => {
+                log::error!("Failed to get bad words from the database: {}", why);
+                return;
+            }
+        };
 
     let mut id = match sqlx::query_as!(
         CurrentIndex,
@@ -92,6 +107,69 @@ pub async fn message(ctx: &Context, msg: &Message) {
         Err(why) => {
             log::error!("Writing to database failed: {}", why);
             return;
+        }
+    }
+
+    // Drop the lock as we are done with it
+    std::mem::drop(data);
+
+    for word in &bad_words {
+        if msg
+            .content
+            .to_lowercase()
+            .contains(&word.word.to_lowercase())
+        {
+            match msg.delete(ctx).await {
+                Ok(_) => {
+                    let mut member = match msg.member(ctx).await {
+                        Ok(member) => member,
+                        Err(why) => {
+                            log::error!("Error getting member from message: {}", why);
+                            return;
+                        }
+                    };
+
+                    match member
+                        .disable_communication_until_datetime(
+                            ctx,
+                            Utc::now() + chrono::Duration::hours(2),
+                        )
+                        .await
+                    {
+                        Ok(_) => (),
+                        Err(why) => {
+                            log::error!("Error time outing member: {}", why);
+                            return;
+                        }
+                    }
+
+                    let mut embed = CreateEmbed::default();
+                    embed
+                        .title("Bad word detected!")
+                        .description(
+                            format!(
+                                "User {} has said a bad word (||{}||). They have been timed out for 2 hours. Full message is available below/above, thank me later.",
+                                msg.author.tag(),
+                                word.word
+                            )
+                        )
+                        .color(Color::RED);
+
+                    match alert_mods(ctx, embed).await {
+                        Ok(_) => (),
+                        Err(why) => {
+                            log::error!("Error sending messages: {}", why);
+                            return;
+                        }
+                    }
+
+                    break;
+                }
+                Err(why) => {
+                    log::error!("Error deleting message: {}", why);
+                    return;
+                }
+            };
         }
     }
 }
@@ -426,7 +504,7 @@ pub async fn guild_member_update(ctx: &Context, old: Option<Member>, new: Member
         Some(old) => {
             let old_nickname = match old.nick {
                 Some(nick) => nick,
-                None => "N/A".to_string(),
+                None => "None".to_string(),
             };
             let old_timeouted = match old.communication_disabled_until {
                 Some(comm_disabled) => {
@@ -446,7 +524,7 @@ pub async fn guild_member_update(ctx: &Context, old: Option<Member>, new: Member
 
     let new_nickname = match new.nick {
         Some(nick) => nick,
-        None => "N/A".to_string(),
+        None => "None".to_string(),
     };
     let new_roles = new.roles;
     let new_timeouted = match new.communication_disabled_until {
@@ -478,6 +556,29 @@ pub async fn guild_member_update(ctx: &Context, old: Option<Member>, new: Member
         return;
     }
 
+    let mut old_roles_string = String::new();
+    let mut new_roles_string = String::new();
+
+    for role in old_roles {
+        old_roles_string.push_str(&format!("<@&{}>, ", role));
+    }
+    if old_roles_string.len() == 0 {
+        old_roles_string = "None or N/A".to_string();
+    } else {
+        old_roles_string.pop();
+        old_roles_string.pop();
+    }
+
+    for role in new_roles {
+        new_roles_string.push_str(&format!("<@&{}>, ", role));
+    }
+    if new_roles_string.len() == 0 {
+        new_roles_string = "None".to_string();
+    } else {
+        new_roles_string.pop();
+        new_roles_string.pop();
+    }
+
     for channel in &config.conveyance_channels {
         match ChannelId(*channel as u64)
             .send_message(ctx, |m| {
@@ -485,11 +586,11 @@ pub async fn guild_member_update(ctx: &Context, old: Option<Member>, new: Member
                     e.title("User updated")
                         .field("User", new.user.tag(), true)
                         .field("UserID", new.user.id, true)
-                        .field("Timeouted", new_timeouted, false)
-                        .field("Old nickname", old_nickname.clone(), true)
-                        .field("New nickname", new_nickname.clone(), true)
-                        .field("Old roles", format!("{:?}", old_roles.clone()), false)
-                        .field("New roles", format!("{:?}", new_roles.clone()), false)
+                        .field("Timed out", new_timeouted, false)
+                        .field("Old nickname", &old_nickname, true)
+                        .field("New nickname", &new_nickname, true)
+                        .field("Old roles", &old_roles_string, false)
+                        .field("New roles", &new_roles_string, false)
                         .color(Color::ORANGE)
                 })
             })

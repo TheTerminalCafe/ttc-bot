@@ -42,11 +42,18 @@ INSERT INTO ttc_conveyance_state (current_id) VALUES(0);
 
 DROP TABLE IF EXISTS ttc_config;
 CREATE TABLE ttc_config(
-	support_channel BIGINT NOT NULL,
-	conveyance_channels BIGINT[] NOT NULL,
-	conveyance_blacklisted_channels BIGINT[] NOT NULL,
-	welcome_channel BIGINT NOT NULL,
-	verified_role BIGINT NOT NULL,
-	moderator_role BIGINT NOT NULL,
-	welcome_messages VARCHAR(100)[] NOT NULL
+	support_channel BIGINT,
+	conveyance_channels BIGINT[],
+	conveyance_blacklisted_channels BIGINT[],
+	welcome_channel BIGINT,
+	verified_role BIGINT,
+	moderator_role BIGINT,
+	welcome_messages VARCHAR(100)[]
+);
+
+DROP TABLE IF EXISTS ttc_bad_words;
+CREATE TABLE ttc_bad_words(
+    id SERIAL,
+    word VARCHAR(4000) NOT NULL,
+    PRIMARY KEY(id)
 );

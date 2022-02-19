@@ -1,0 +1,550 @@
+{
+  "db": "PostgreSQL",
+  "0b0b65c92e367e42db23ebaa28b087f81fc1b5c1230c297fca7e75016fcfb0c3": {
+    "query": "SELECT thread_id FROM ttc_support_tickets",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "thread_id",
+          "type_info": "Int8"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "15b8bf5e653a7e3c9f31849847bac3e15811076f135ce9e387f2d4638e8ffa42": {
+    "query": "UPDATE ttc_support_tickets SET incident_solved = 't' WHERE thread_id = $1",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "207ec70e47bdd9274434173708d605ab0df4af6a6c9ce751cc0493f3f681f153": {
+    "query": "UPDATE ttc_support_tickets SET incident_solved = 't' WHERE incident_id = $1",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int4"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "2510f49d050470f995b0b5eee11b2f27e52303e506a772510b328c44472cd0bc": {
+    "query": "UPDATE ttc_conveyance_state SET current_id = $1",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int4"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "4793c3b5f653862afc4468b1e7aed1adb831bf6e4f9f6ea27c535dac2afbee0e": {
+    "query": "SELECT current_id FROM ttc_conveyance_state",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "current_id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "5ee3be1b00cc258bda0c1bcd2df3fa4ce2a751d7bfa7c0b4546ca7cea985401f": {
+    "query": "UPDATE ttc_support_tickets SET unarchivals = $1 WHERE incident_id = $2",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int2",
+          "Int4"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "691086f41c9e5561bf5a7c8d344094895d80a59399fad25ae1d81159180f1a19": {
+    "query": "DELETE FROM ttc_bad_words",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
+    }
+  },
+  "70af4f116f9687287ef3c7cf363048d775a498fdc46ba571c5986c6777a84ee3": {
+    "query": "UPDATE ttc_message_cache SET message_id = $1, channel_id = $2, user_id = $3, message_time = $4, content = $5, attachments = $6 WHERE id = $7",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8",
+          "Int8",
+          "Timestamptz",
+          "Varchar",
+          "Varchar",
+          "Int4"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "738f77b9b61eb611e2b7ee2ae6b4c31922140146ce283e4b08b095b99179d853": {
+    "query": "SELECT * FROM ttc_support_tickets WHERE incident_title LIKE CONCAT('%', $1::text, '%')",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "incident_id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 1,
+          "name": "thread_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 2,
+          "name": "user_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 3,
+          "name": "incident_time",
+          "type_info": "Timestamptz"
+        },
+        {
+          "ordinal": 4,
+          "name": "incident_title",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 5,
+          "name": "incident_solved",
+          "type_info": "Bool"
+        },
+        {
+          "ordinal": 6,
+          "name": "unarchivals",
+          "type_info": "Int2"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "8415d11449a8fd98317f0ef8eea49f19b8d0c8fe02b96aa73652ed4c2344f3fc": {
+    "query": "INSERT INTO ttc_config VALUES($1, $2, $3, $4, $5, $6, $7)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8Array",
+          "Int8Array",
+          "Int8",
+          "Int8",
+          "Int8",
+          "VarcharArray"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "84839c8c6e3de763e6a18582dddddb75749304e9b4db35a9421e2a0956c0649a": {
+    "query": "INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved, unarchivals) VALUES($1, $2, $3, $4, $5, $6) RETURNING *",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "incident_id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 1,
+          "name": "thread_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 2,
+          "name": "user_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 3,
+          "name": "incident_time",
+          "type_info": "Timestamptz"
+        },
+        {
+          "ordinal": 4,
+          "name": "incident_title",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 5,
+          "name": "incident_solved",
+          "type_info": "Bool"
+        },
+        {
+          "ordinal": 6,
+          "name": "unarchivals",
+          "type_info": "Int2"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8",
+          "Timestamptz",
+          "Varchar",
+          "Bool",
+          "Int2"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "989bba7ed9f8cffcf6f17cb389ee157640e4efeb522035dd7981d09f1572fd76": {
+    "query": "DELETE FROM ttc_config",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
+    }
+  },
+  "bb7972cadce53049f4695443e0698c3e6f89cfe7b446054243717f9364b3d258": {
+    "query": "SELECT * FROM ttc_message_cache WHERE message_id = $1 AND channel_id = $2",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 1,
+          "name": "message_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 2,
+          "name": "channel_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 3,
+          "name": "user_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 4,
+          "name": "message_time",
+          "type_info": "Timestamptz"
+        },
+        {
+          "ordinal": 5,
+          "name": "content",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 6,
+          "name": "attachments",
+          "type_info": "Varchar"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      },
+      "nullable": [
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "ceef597842ec23e62bc8001213791dc426fea4a866c2ad30905a5804be88966b": {
+    "query": "SELECT * FROM ttc_support_tickets WHERE incident_id = $1",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "incident_id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 1,
+          "name": "thread_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 2,
+          "name": "user_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 3,
+          "name": "incident_time",
+          "type_info": "Timestamptz"
+        },
+        {
+          "ordinal": 4,
+          "name": "incident_title",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 5,
+          "name": "incident_solved",
+          "type_info": "Bool"
+        },
+        {
+          "ordinal": 6,
+          "name": "unarchivals",
+          "type_info": "Int2"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int4"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "d52f80972b154d89e8bef96c8b9226646ede2c93f6fb79a6807098c5d5c1446c": {
+    "query": "INSERT INTO ttc_bad_words (word) VALUES($1)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Varchar"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "e95b3bc893518f528e7dc1da0852d5807ef9e392c57d763d6f7086f8f84f160b": {
+    "query": "SELECT * FROM ttc_support_tickets WHERE incident_solved = 'f'",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "incident_id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 1,
+          "name": "thread_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 2,
+          "name": "user_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 3,
+          "name": "incident_time",
+          "type_info": "Timestamptz"
+        },
+        {
+          "ordinal": 4,
+          "name": "incident_title",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 5,
+          "name": "incident_solved",
+          "type_info": "Bool"
+        },
+        {
+          "ordinal": 6,
+          "name": "unarchivals",
+          "type_info": "Int2"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "ef8d237db20801c47dddaf718ebf108490889e1a55bca731dd4a83904f7f109e": {
+    "query": "SELECT * FROM ttc_config",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "support_channel",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 1,
+          "name": "conveyance_channels",
+          "type_info": "Int8Array"
+        },
+        {
+          "ordinal": 2,
+          "name": "conveyance_blacklisted_channels",
+          "type_info": "Int8Array"
+        },
+        {
+          "ordinal": 3,
+          "name": "welcome_channel",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 4,
+          "name": "verified_role",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 5,
+          "name": "moderator_role",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 6,
+          "name": "welcome_messages",
+          "type_info": "VarcharArray"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "f7183a9968f80ccc7e509022abec8a4cecbdf5b27a21a1cf09a5cf2fe16c6c11": {
+    "query": "SELECT * FROM ttc_support_tickets WHERE thread_id = $1",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "incident_id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 1,
+          "name": "thread_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 2,
+          "name": "user_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 3,
+          "name": "incident_time",
+          "type_info": "Timestamptz"
+        },
+        {
+          "ordinal": 4,
+          "name": "incident_title",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 5,
+          "name": "incident_solved",
+          "type_info": "Bool"
+        },
+        {
+          "ordinal": 6,
+          "name": "unarchivals",
+          "type_info": "Int2"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  }
+}
