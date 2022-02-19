@@ -85,6 +85,16 @@
       "nullable": []
     }
   },
+  "691086f41c9e5561bf5a7c8d344094895d80a59399fad25ae1d81159180f1a19": {
+    "query": "DELETE FROM ttc_bad_words",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
+    }
+  },
   "70af4f116f9687287ef3c7cf363048d775a498fdc46ba571c5986c6777a84ee3": {
     "query": "UPDATE ttc_message_cache SET message_id = $1, channel_id = $2, user_id = $3, message_time = $4, content = $5, attachments = $6 WHERE id = $7",
     "describe": {
@@ -359,6 +369,18 @@
         false,
         false
       ]
+    }
+  },
+  "d52f80972b154d89e8bef96c8b9226646ede2c93f6fb79a6807098c5d5c1446c": {
+    "query": "INSERT INTO ttc_bad_words (word) VALUES($1)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Varchar"
+        ]
+      },
+      "nullable": []
     }
   },
   "e95b3bc893518f528e7dc1da0852d5807ef9e392c57d763d6f7086f8f84f160b": {

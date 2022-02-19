@@ -1,4 +1,4 @@
-config.yaml
+core-config.yaml
 .env
 target/
 .idea/

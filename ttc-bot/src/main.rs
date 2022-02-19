@@ -45,6 +45,7 @@ use serenity::{
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook_tokio::Signals;
 use sqlx::postgres::PgPoolOptions;
+use std::io::Read;
 use std::{collections::HashSet, fs::File, sync::Arc};
 use tokio::sync::Mutex;
 use typemap::types::*;
@@ -60,18 +61,37 @@ use typemap::types::*;
 async fn main() {
     let matches = App::new("TTCBot")
         .arg(
-            Arg::with_name("config")
+            Arg::with_name("core-config")
                 .takes_value(true)
                 .required(true)
                 .short("c")
-                .long("config"),
+                .long("core-config")
+                .help("Configuration file"),
         )
         .arg(
             Arg::with_name("write-db")
                 .takes_value(false)
                 .required(false)
                 .short("w")
-                .long("write"),
+                .long("write")
+                .help("Write the config to the database"),
+        )
+        .arg(
+            Arg::with_name("bad-words")
+                .takes_value(true)
+                .required(false)
+                .short("b")
+                .long("bad-words")
+                .help("A bad word list, one per line"),
+        )
+        .arg(
+            Arg::with_name("append-bad-words")
+                .takes_value(false)
+                .required(false)
+                .short("a")
+                .long("append-bad-words")
+                .requires("bad-words")
+                .help("Appends provided bad words to the database table"),
         )
         .get_matches();
 
@@ -81,7 +101,7 @@ async fn main() {
     env_logger::init();
 
     // Load the config file
-    let config_file = File::open(matches.value_of("config").unwrap()).unwrap();
+    let config_file = File::open(matches.value_of("core-config").unwrap()).unwrap();
     let config: Value = serde_yaml::from_reader(config_file).unwrap();
 
     // Load all the values from the config
@@ -123,7 +143,7 @@ async fn main() {
         .await
         .unwrap();
 
-    if matches.is_present("write-db") {
+    if matches.is_present("additional-config") {
         let config = typemap::config::Config {
             support_channel: support_channel_id as i64,
             conveyance_channels: conveyance_channel_ids,
@@ -135,6 +155,38 @@ async fn main() {
         };
 
         config.save_in_db(&pool).await.unwrap();
+    }
+
+    if matches.is_present("bad-words") {
+        let mut file = File::open(matches.value_of("bad-words").unwrap()).unwrap();
+        let mut raw_string = String::new();
+        file.read_to_string(&mut raw_string).unwrap();
+
+        if !matches.is_present("append-bad-words") {
+            match sqlx::query!(r#"DELETE FROM ttc_bad_words"#)
+                .execute(&pool)
+                .await
+            {
+                Ok(_) => (),
+                Err(why) => {
+                    log::error!("Failed to clear bad word database: {}", why);
+                    return;
+                }
+            }
+        }
+        for line in raw_string.lines() {
+            let line = line.trim();
+            match sqlx::query!(r#"INSERT INTO ttc_bad_words (word) VALUES($1)"#, line)
+                .execute(&pool)
+                .await
+            {
+                Ok(_) => (),
+                Err(why) => {
+                    log::error!("Failed to write bad words into the database: {}", why);
+                    return;
+                }
+            }
+        }
     }
 
     // Create the framework of the bot
@@ -193,6 +245,7 @@ async fn main() {
 
 async fn signal_hook_task(mut signals: Signals, shard_mgr: Arc<Mutex<ShardManager>>) {
     while let Some(_) = signals.next().await {
+        log::info!("A termination signal received, exiting...");
         shard_mgr.lock().await.shutdown_all().await;
         break;
     }

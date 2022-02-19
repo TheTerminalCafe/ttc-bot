@@ -1,5 +1,7 @@
-use std::env;
-use std::process::{Command, Stdio};
+use std::{
+    env,
+    process::{Command, Stdio},
+};
 
 const DOCKER_IMAGE: &str = "kirottu/cross:x86_64-unknown-freebsd";
 const CROSS_DIR_PATH: &str = "ttc-bot/cross/docker";
@@ -120,10 +122,26 @@ fn build_freebsd(project_dir: &String, cargo_home: &String) -> Result<(), String
         {
             Command::new(format!("{}/bin/cross", cargo_home))
                 .current_dir(format!("{}/ttc-bot", project_dir))
+                .env("CARGO_TERM_COLOR", "always")
                 .arg("build")
                 .arg("--target")
                 .arg("x86_64-unknown-freebsd")
                 .arg("--release")
+        }
+    );
+
+    println!("{}Stripping the binary...{}", INFO_ANSI, CLEAR_ANSI);
+    match_command!(
+        "Could not start strip process",
+        "Failed to strip the binary",
+        {
+            Command::new("strip")
+                .current_dir(format!(
+                    "{}/ttc-bot/target/x86_64-unknown-freebsd/release",
+                    project_dir
+                ))
+                .arg("-s")
+                .arg("./ttc-bot")
         }
     );
 
@@ -138,6 +156,7 @@ fn build(project_dir: &String, cargo: &String) -> Result<(), String> {
         {
             Command::new(cargo)
                 .current_dir(format!("{}/ttc-bot", project_dir))
+                .env("CARGO_TERM_COLOR", "always")
                 .arg("build")
         }
     );
@@ -147,17 +166,15 @@ fn build(project_dir: &String, cargo: &String) -> Result<(), String> {
 
 fn run(project_dir: &String, cargo: &String, args: &[String]) -> Result<(), String> {
     println!("{}Running ttc-bot...{}", INFO_ANSI, CLEAR_ANSI);
-    match_command!(
-        "Could not start build process",
-        "Failed to build ttc-bot",
-        {
-            Command::new(cargo)
-                .current_dir(format!("{}/ttc-bot", project_dir))
-                .arg("run")
-                .arg("--")
-                .args(args)
-        }
-    );
+
+    match_command!("Failed to start process", "Process failed", {
+        Command::new(cargo)
+            .current_dir(format!("{}/ttc-bot", project_dir))
+            .env("CARGO_TERM_COLOR", "always")
+            .arg("run")
+            .arg("--")
+            .args(args)
+    });
 
     Ok(())
 }
