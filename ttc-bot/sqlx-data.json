@@ -315,6 +315,24 @@
       ]
     }
   },
+  "cc5449c7f1015f292fec325a1f87082a12da2d73176da4d369514e2d338bdbbd": {
+    "query": "SELECT (word) FROM ttc_bad_words",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "word",
+          "type_info": "Varchar"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
   "ceef597842ec23e62bc8001213791dc426fea4a866c2ad30905a5804be88966b": {
     "query": "SELECT * FROM ttc_support_tickets WHERE incident_id = $1",
     "describe": {
