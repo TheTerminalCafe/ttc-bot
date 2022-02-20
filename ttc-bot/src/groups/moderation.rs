@@ -1,6 +1,7 @@
 use crate::{
     command_error, get_config, typemap::types::PgPoolType, utils::helper_functions::embed_msg,
 };
+use chrono::{Duration, Utc};
 use serenity::{
     builder::CreateSelectMenu,
     client::Context,
@@ -22,7 +23,7 @@ use serenity::{
 #[allowed_roles("Moderator")]
 #[checks(is_mod)]
 #[only_in(guilds)]
-#[commands(ban, kick, create_verification, create_selfroles)]
+#[commands(ban, pardon, kick, timeout, create_verification, create_selfroles)]
 struct Moderation;
 
 #[command]
@@ -31,16 +32,7 @@ struct Moderation;
 #[required_permissions(BAN_MEMBERS)]
 async fn ban(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     // Get the user mentioned in the command
-    let user = match match args.single::<UserId>() {
-        Ok(user_id) => user_id,
-        Err(why) => return command_error!(format!("Invalid user id: {}", why)),
-    }
-    .to_user(ctx)
-    .await
-    {
-        Ok(user) => user,
-        Err(why) => return command_error!(format!("Invalid user: {}", why)),
-    };
+    let user = args.single::<UserId>()?.to_user(ctx).await?;
 
     // Make sure people do not ban themselves
     if user == msg.author {
@@ -66,11 +58,11 @@ async fn ban(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     match args.parse::<String>() {
         Ok(reason) => match guild_id.ban_with_reason(ctx, user.clone(), 2, reason).await {
             Ok(_) => (),
-            Err(why) => return command_error!(format!("Error banning user: {}", why)),
+            Err(why) => return command_error!("Error banning user: {}", why),
         },
         Err(_) => match guild_id.ban(ctx, user.clone(), 2).await {
             Ok(_) => (),
-            Err(why) => return command_error!(format!("Error banning user: {}", why)),
+            Err(why) => return command_error!("Error banning user: {}", why),
         },
     };
 
@@ -111,17 +103,12 @@ async fn pardon(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
     let guild_id = msg.guild_id.unwrap();
 
-    match guild_id.unban(ctx, user.id).await {
-        Ok(_) => (),
-        Err(why) => {
-            return command_error!(format!("Unable to unban user {}: {}", user.tag(), why));
-        }
-    }
+    guild_id.unban(ctx, user.id).await?;
 
     embed_msg(
         ctx,
         &msg.channel_id,
-        Some("User unbanned"),
+        Some("User forgiven"),
         Some(&format!("User {} has been unbanned", user.tag())),
         Some(Color::FOOYOO),
         None,
@@ -154,14 +141,12 @@ async fn kick(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let guild_id = msg.guild_id.unwrap();
 
     match args.parse::<String>() {
-        Ok(reason) => match guild_id.kick_with_reason(ctx, user.clone(), &reason).await {
-            Ok(_) => (),
-            Err(why) => return command_error!(format!("Error kicking user: {}", why)),
-        },
-        Err(_) => match guild_id.kick(ctx, user.clone()).await {
-            Ok(_) => (),
-            Err(why) => return command_error!(format!("Error kicking user: {}", why)),
-        },
+        Ok(reason) => {
+            guild_id
+                .kick_with_reason(ctx, user.clone(), &reason)
+                .await?
+        }
+        Err(_) => guild_id.kick(ctx, user.clone()).await?,
     };
 
     embed_msg(
@@ -171,6 +156,49 @@ async fn kick(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         Some(&format!(
             "{} kicked. I hope justice has been made.",
             user.tag()
+        )),
+        Some(Color::RED),
+        None,
+    )
+    .await?;
+
+    Ok(())
+}
+
+#[command]
+#[min_args(2)]
+async fn timeout(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let user_id = args.single::<UserId>()?;
+
+    let duration_str = args.rest();
+    let duration = match Duration::from_std(match parse_duration::parse(duration_str) {
+        Ok(duration) => duration,
+        Err(why) => {
+            return command_error!("Error parsing duration: {}", why);
+        }
+    }) {
+        Ok(duration) => duration,
+        Err(why) => {
+            return command_error!("Error parsing duration: {}", why);
+        }
+    };
+
+    let guild_id = msg.guild_id.unwrap();
+
+    let mut member = guild_id.member(ctx, user_id).await?;
+
+    member
+        .disable_communication_until_datetime(ctx, Utc::now() + duration)
+        .await?;
+
+    embed_msg(
+        ctx,
+        &msg.channel_id,
+        Some("User timed out"),
+        Some(&format!(
+            "User {} timed out for {}",
+            member.user.tag(),
+            duration
         )),
         Some(Color::RED),
         None,

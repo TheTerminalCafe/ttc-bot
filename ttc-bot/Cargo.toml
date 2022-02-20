@@ -21,3 +21,4 @@ log = { version = "0.4.14", features = ["std"] }
 signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
 signal-hook = "0.3"
 futures = "0.3"
+parse_duration = "2.1.1"

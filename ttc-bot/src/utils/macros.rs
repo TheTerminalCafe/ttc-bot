@@ -26,7 +26,10 @@ macro_rules! get_config {
 
 #[macro_export]
 macro_rules! command_error {
-    ( $expr:expr ) => {
-        Err(serenity::framework::standard::CommandError::from($expr))
+    ( $arg:expr ) => {
+        Err(serenity::framework::standard::CommandError::from($arg))
+    };
+    ( $fmt:expr, $( $arg:tt )* ) => {
+        Err(serenity::framework::standard::CommandError::from(format!($fmt, $($arg)*)))
     };
 }

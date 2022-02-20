@@ -9,14 +9,12 @@ use serenity::{
 };
 
 use crate::{
-    command_error, get_config, groups::moderation::IS_MOD_CHECK, typemap::types::PgPoolType,
-    utils::helper_functions::embed_msg,
+    command_error, get_config, typemap::types::PgPoolType, utils::helper_functions::embed_msg,
 };
 
 #[group]
 #[owners_only]
 #[prefix("config")]
-#[checks(is_mod)]
 #[commands(set, get)]
 struct Config;
 
