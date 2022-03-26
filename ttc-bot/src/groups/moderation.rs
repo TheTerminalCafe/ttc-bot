@@ -23,7 +23,15 @@ use serenity::{
 #[allowed_roles("Moderator")]
 #[checks(is_mod)]
 #[only_in(guilds)]
-#[commands(ban, pardon, kick, timeout, create_verification, create_selfroles)]
+#[commands(
+    ban,
+    pardon,
+    kick,
+    timeout,
+    purge,
+    create_verification,
+    create_selfroles
+)]
 struct Moderation;
 
 #[command]
@@ -204,6 +212,42 @@ async fn timeout(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
         None,
     )
     .await?;
+
+    Ok(())
+}
+
+#[command]
+#[num_args(1)]
+#[description("Delete multiple messages")]
+async fn purge(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let amount = args.single::<u64>()?;
+
+    if amount > 100 {
+        return command_error!("Unable to delete more than 100 items");
+    }
+
+    let messages = msg
+        .channel_id
+        .messages(ctx, |retriever| retriever.before(msg.id).limit(amount))
+        .await?;
+
+    msg.channel_id.delete_messages(ctx, messages).await?;
+
+    let reply = msg
+        .reply(
+            ctx,
+            format!(
+                "Deleted {} messages. This message will self destruct in 5 seconds.",
+                amount
+            ),
+        )
+        .await?;
+
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
+    msg.channel_id
+        .delete_messages(ctx, vec![msg.id, reply.id])
+        .await?;
 
     Ok(())
 }

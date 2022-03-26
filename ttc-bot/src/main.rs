@@ -10,6 +10,7 @@ mod groups {
     pub mod admin;
     pub mod config;
     pub mod general;
+    pub mod localisation;
     pub mod moderation;
     pub mod support;
 }
@@ -200,7 +201,8 @@ async fn main() {
         .group(&groups::support::SUPPORT_GROUP)
         .group(&groups::admin::ADMIN_GROUP)
         .group(&groups::config::CONFIG_GROUP)
-        .group(&groups::moderation::MODERATION_GROUP);
+        .group(&groups::moderation::MODERATION_GROUP)
+        .group(&groups::localisation::LOCALISATION_GROUP);
 
     // Create the bot client
     let mut client = Client::builder(token)
