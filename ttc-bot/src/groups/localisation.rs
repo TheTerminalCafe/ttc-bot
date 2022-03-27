@@ -129,10 +129,10 @@ struct Localisation;
 #[aliases("tr")]
 async fn translate(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     // Get the language code and the text to translate
-    let lang = args.single::<String>()?;
+    let mut lang = args.single::<String>()?;
     let text_to_translate = args.rest().to_string();
 
-    let (translated_text, source_lang) = translate_text(lang.clone(), &text_to_translate).await?;
+    let (translated_text, source_lang) = translate_text(&mut lang, &text_to_translate).await?;
 
     // Get the author's nickname or username
     let author_name = msg
@@ -164,10 +164,10 @@ async fn translate(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
 #[example("en Hello world")]
 #[aliases("imp")]
 async fn impersonate(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let lang = args.single::<String>()?;
+    let mut lang = args.single::<String>()?.to_lowercase();
     let text_to_translate = args.rest().to_string();
 
-    let (translated_text, source_lang) = translate_text(lang.clone(), &text_to_translate).await?;
+    let (translated_text, source_lang) = translate_text(&mut lang, &text_to_translate).await?;
 
     // Get the author's nickname or username
     let author_name = msg
@@ -192,17 +192,17 @@ async fn impersonate(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
     Ok(())
 }
 
-async fn translate_text(mut lang: String, text_to_translate: &str) -> Result<(String, String), CommandError> {
+async fn translate_text(lang: &mut String, text_to_translate: &str) -> Result<(String, String), CommandError> {
     let mut language_found = false;
 
     // Check if the language code is valid
     for lang_code in LANGUAGE_CODES {
-        if lang_code.0 == lang {
+        if lang_code.0.to_lowercase() == *lang {
             language_found = true;
             break;
-        } else if lang_code.1.to_lowercase() == lang.to_lowercase() {
+        } else if lang_code.1.to_lowercase() == *lang {
             language_found = true;
-            lang = lang_code.0.to_string();
+            *lang = lang_code.0.to_string();
             break;
         }
     }
