@@ -36,3 +36,10 @@ async fn shutdown(ctx: &Context, msg: &Message) -> CommandResult {
     shard_manager.lock().await.shutdown_all().await;
     Ok(())
 }
+
+#[poise::command(prefix_command)]
+pub async fn register(ctx: crate::Context<'_>) -> Result<(), crate::Error> {
+    log::info!("Registering slash commands");
+    poise::builtins::register_application_commands(ctx, false).await?;
+    Ok(())
+}

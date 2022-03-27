@@ -54,9 +54,34 @@ use typemap::types::*;
 // Help message
 // ------------
 
+pub struct Data {}
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
+pub type Context<'a> = poise::Context<'a, Data, Error>;
+
 // ---------------------------------
 // Initialization code & Entry point
 // ---------------------------------
+
+#[poise::command(prefix_command, track_edits, slash_command)]
+async fn help(
+    ctx: Context<'_>,
+    #[description = "Specific command to show help about"]
+    #[autocomplete = "poise::builtins::autocomplete_command"]
+    command: Option<String>,
+) -> Result<(), Error> {
+    poise::builtins::help(
+        ctx,
+        command.as_deref(),
+        poise::builtins::HelpConfiguration {
+            extra_text_at_bottom: "\
+This is an example bot made to showcase features of my custom Discord bot framework",
+            show_context_menu_commands: true,
+            ..Default::default()
+        },
+    )
+    .await?;
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() {
@@ -134,7 +159,7 @@ async fn main() {
     let mut owners = HashSet::new();
 
     for owner in config["owners"].as_sequence().unwrap() {
-        owners.insert(UserId(owner.as_u64().unwrap()));
+        owners.insert(poise::serenity_prelude::UserId(owner.as_u64().unwrap()));
     }
 
     // Create the connection to the database
@@ -144,7 +169,7 @@ async fn main() {
         .await
         .unwrap();
 
-    if matches.is_present("additional-config") {
+    /*if matches.is_present("additional-config") {
         let config = typemap::config::Config {
             support_channel: support_channel_id as i64,
             conveyance_channels: conveyance_channel_ids,
@@ -156,7 +181,7 @@ async fn main() {
         };
 
         config.save_in_db(&pool).await.unwrap();
-    }
+    }*/
 
     if matches.is_present("bad-words") {
         let mut file = File::open(matches.value_of("bad-words").unwrap()).unwrap();
@@ -189,7 +214,7 @@ async fn main() {
             }
         }
     }
-
+    /* 
     // Create the framework of the bot
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("ttc!").owners(owners))
@@ -223,24 +248,50 @@ async fn main() {
         data.insert::<PgPoolType>(pool);
     }
 
-    let signals = match Signals::new(TERM_SIGNALS) {
+
+    match client.start().await {
+        Ok(_) => (),
+        Err(why) => log::error!("An error occurred when starting the client: {}", why),
+    }*/
+    /*let signals = match Signals::new(TERM_SIGNALS) {
         Ok(signals) => signals,
         Err(why) => {
             log::error!("Failed to create signal hook: {}", why);
             return;
         }
-    };
+    };*/
 
-    let handle = signals.handle();
+    //let handle = signals.handle();
 
-    tokio::spawn(signal_hook_task(signals, client.shard_manager.clone()));
+    //tokio::spawn(signal_hook_task(signals, client.shard_manager.clone()));
 
-    match client.start().await {
-        Ok(_) => (),
-        Err(why) => log::error!("An error occurred when starting the client: {}", why),
-    }
+    log::info!("Got here");
 
-    handle.close();
+    poise::Framework::build()
+        .token(token)
+        .user_data_setup(move |ctx, ready, framework| {
+            Box::pin(async move { 
+                log::info!("Ready I guess?");
+                log::info!("{:?}", ready);
+                Ok(Data {})
+            })
+        })
+        .options(poise::FrameworkOptions {
+            commands: vec![
+                help(),
+                groups::admin::register(),
+                groups::general::ping(),
+            ],
+            prefix_options: poise::PrefixFrameworkOptions {
+                prefix: Some("!".to_string()),
+                ..Default::default()
+            },
+            owners: owners,
+            ..Default::default()
+        })
+        .run().await.unwrap();
+
+    //handle.close();
 
     log::info!("Bot shut down");
 }

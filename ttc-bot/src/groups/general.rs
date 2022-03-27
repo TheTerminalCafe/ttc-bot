@@ -1,24 +1,12 @@
-use serenity::{
-    client::Context,
-    framework::standard::{
-        macros::{command, group},
-        CommandResult,
-    },
-    model::channel::Message,
-};
-
-#[group]
-#[commands(ping)]
-struct General;
-
+use poise::serenity_prelude;
 // ----------------------
 // General group commands
 // ----------------------
 
-#[command]
-#[description("Ping!")]
-async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.reply_ping(ctx, "pong").await?;
+
+#[poise::command(slash_command)]
+pub async fn ping(ctx: crate::Context<'_>) -> Result<(), crate::Error> {
+    ctx.say("pong").await?;
 
     Ok(())
 }
