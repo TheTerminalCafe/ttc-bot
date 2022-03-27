@@ -124,6 +124,7 @@ struct Localisation;
 #[command]
 #[description("Translates a message to the specified language")]
 #[usage("<language> <text>")]
+#[min_args(2)]
 #[example("en Hello world")]
 #[aliases("tr")]
 async fn translate(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {

@@ -219,11 +219,15 @@ async fn timeout(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 #[command]
 #[num_args(1)]
 #[description("Delete multiple messages")]
+#[required_permissions(MANAGE_MESSAGES)]
+#[usage("<number of messages to delete>")]
 async fn purge(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let amount = args.single::<u64>()?;
 
     if amount > 100 {
         return command_error!("Unable to delete more than 100 items");
+    } else if amount == 0 {
+        return command_error!("Unable to delete 0 items");
     }
 
     let messages = msg
@@ -289,16 +293,22 @@ async fn create_verification(ctx: &Context, msg: &Message, args: Args) -> Comman
 }
 
 #[command]
+#[description("Command for creating a selfrole menu")]
+#[usage("<channel> <roles>")]
 #[min_args(2)]
 async fn create_selfroles(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    // Get the channel and guild ids
     let channel_id = args.single::<ChannelId>()?;
     let guild_id = msg.guild_id.unwrap();
 
+    // Create the selection menu
     let mut menu = CreateSelectMenu::default();
     menu.custom_id("ttc-bot-self-role-menu");
 
+    // Create the list for the roles
     let mut role_list: Vec<Role> = Vec::new();
 
+    // Get the roles
     for arg in args.iter() {
         let arg: String = arg?;
         let role_id = arg.parse::<RoleId>()?;
@@ -319,13 +329,16 @@ async fn create_selfroles(ctx: &Context, msg: &Message, mut args: Args) -> Comma
         }
     }
 
+    // Make sure some valid roles were procided
     if role_list.len() == 0 {
         return command_error!("None of the provided roles were valid.");
     }
 
+    // Set the menu values properly
     menu.min_values(0);
     menu.max_values(role_list.len() as u64);
 
+    // Create the options for the roles
     menu.options(|m| {
         for role in role_list {
             m.create_option(|o| o.label(role.name).value(role.id));
@@ -333,6 +346,7 @@ async fn create_selfroles(ctx: &Context, msg: &Message, mut args: Args) -> Comma
         m
     });
 
+    // Create the menu in the specified channel
     channel_id
         .send_message(ctx, |m| {
             m.components(|c| c.create_action_row(|a| a.add_select_menu(menu)))
@@ -340,6 +354,7 @@ async fn create_selfroles(ctx: &Context, msg: &Message, mut args: Args) -> Comma
         })
         .await?;
 
+    // Reply to the user
     embed_msg(
         ctx,
         &msg.channel_id,
