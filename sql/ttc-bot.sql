@@ -45,8 +45,15 @@ CREATE TABLE ttc_config(
 	support_channel BIGINT NOT NULL,
 	conveyance_channels BIGINT[] NOT NULL,
 	conveyance_blacklisted_channels BIGINT[] NOT NULL,
-	welcome_channel BIGINT NOT NULL,
+	welcome_channel BIGINT NOT NULL	,
 	verified_role BIGINT NOT NULL,
 	moderator_role BIGINT NOT NULL,
 	welcome_messages VARCHAR(100)[] NOT NULL
+);
+
+DROP TABLE IF EXISTS ttc_bad_words;
+CREATE TABLE ttc_bad_words(
+    id SERIAL,
+    word VARCHAR(4000) NOT NULL,
+    PRIMARY KEY(id)
 );

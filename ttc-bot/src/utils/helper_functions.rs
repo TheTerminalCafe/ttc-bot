@@ -173,13 +173,13 @@ where
     Ok(content)
 }
 
-pub async fn alert_mods<F>(ctx: &Context, embed: CreateEmbed) -> CommandResult {
+pub async fn alert_mods(ctx: &Context, embed: CreateEmbed) -> CommandResult {
     let config = get_config!(ctx, { return command_error!("Database error.") });
 
     for channel in &config.conveyance_channels {
         ChannelId(*channel as u64)
             .send_message(ctx, |m| {
-                m.content(format!("<@{}>", config.moderator_role))
+                m.content(format!("<@&{}>", config.moderator_role))
                     .set_embed(embed.clone())
             })
             .await?;

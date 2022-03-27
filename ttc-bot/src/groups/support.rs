@@ -52,7 +52,7 @@ impl PartialEq for ThreadId {
 // Group creation
 
 #[group]
-#[prefixes("support")]
+#[prefixes("support", "sp")]
 #[only_in(guilds)]
 #[description("Support related commands")]
 #[commands(new, solve, search, list)]
