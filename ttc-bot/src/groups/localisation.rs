@@ -211,8 +211,22 @@ async fn translate(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
         .await
         .unwrap_or(msg.author.name.clone());
 
+    
+    // Impersonate the user
+    let webhook = msg.channel_id.create_webhook(ctx,format!("{} ({}->{})", author_name, source_lang, lang)).await?;
+
+    // Send the message
+    webhook.execute(ctx, false, |w| 
+        w.content(translated_text)
+        .avatar_url(msg.author.avatar_url().unwrap_or(msg.author.default_avatar_url()
+    ))).await?;
+
+    // Clean up afterwards
+    msg.delete(ctx).await?;
+    webhook.delete(ctx).await?;
+
     // Send the translated message
-    msg.channel_id
+    /*msg.channel_id
         .send_message(ctx, |m| {
             m.embed(|e| {
                 e.title("Translated Message")
@@ -224,6 +238,7 @@ async fn translate(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
             })
         })
         .await?;
+    */
 
     Ok(())
 }

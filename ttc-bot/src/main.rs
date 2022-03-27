@@ -144,7 +144,7 @@ async fn main() {
         .await
         .unwrap();
 
-    if matches.is_present("additional-config") {
+    if matches.is_present("write-db") {
         let config = typemap::config::Config {
             support_channel: support_channel_id as i64,
             conveyance_channels: conveyance_channel_ids,
