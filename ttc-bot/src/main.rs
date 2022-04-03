@@ -2,29 +2,29 @@
 // Module declarations
 // -------------------
 
-mod typemap {
+/*mod typemap {
     pub mod config;
     pub mod types;
-}
+}*/
 mod groups {
     pub mod admin;
-    pub mod config;
+//    pub mod config;
     pub mod general;
-    pub mod localisation;
-    pub mod moderation;
-    pub mod support;
+//    pub mod localisation;
+//    pub mod moderation;
+//    pub mod support;
 }
 mod utils {
-    pub mod helper_functions;
-    pub mod macros;
+//    pub mod helper_functions;
+//    pub mod macros;
 }
-mod events {
+/*mod events {
     pub mod conveyance;
     pub mod interactions;
-}
+}*/
 mod client {
-    pub mod event_handler;
-    pub mod hooks;
+//    pub mod event_handler;
+//    pub mod hooks;
 }
 
 // ----------------------
@@ -35,21 +35,14 @@ use clap::{App, Arg};
 use futures::stream::StreamExt;
 use regex::Regex;
 use serde_yaml::Value;
-use serenity::{
-    client::{
-        bridge::gateway::{GatewayIntents, ShardManager},
-        Client,
-    },
-    framework::standard::StandardFramework,
-    model::id::UserId,
-};
 use signal_hook::consts::TERM_SIGNALS;
+use poise::serenity_prelude::GatewayIntents;
 use signal_hook_tokio::Signals;
 use sqlx::postgres::PgPoolOptions;
 use std::io::Read;
 use std::{collections::HashSet, fs::File, sync::Arc};
 use tokio::sync::Mutex;
-use typemap::types::*;
+//use typemap::types::*;
 // ------------
 // Help message
 // ------------
@@ -269,6 +262,9 @@ async fn main() {
 
     poise::Framework::build()
         .token(token)
+        .client_settings(move |client| { client
+            .application_id(application_id)
+            .intents(GatewayIntents::non_privileged() | GatewayIntents::GUILD_MEMBERS | GatewayIntents::MESSAGE_CONTENT)})
         .user_data_setup(move |ctx, ready, framework| {
             Box::pin(async move { 
                 log::info!("Ready I guess?");
@@ -296,7 +292,7 @@ async fn main() {
     log::info!("Bot shut down");
 }
 
-async fn signal_hook_task(mut signals: Signals, shard_mgr: Arc<Mutex<ShardManager>>) {
+async fn signal_hook_task(mut signals: Signals, shard_mgr: Arc<Mutex<poise::serenity_prelude::ShardManager>>) {
     while let Some(_) = signals.next().await {
         log::info!("A termination signal received, exiting...");
         shard_mgr.lock().await.shutdown_all().await;

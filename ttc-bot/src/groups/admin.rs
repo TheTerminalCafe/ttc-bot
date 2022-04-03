@@ -1,4 +1,4 @@
-use crate::{typemap::types::ShardManagerType, utils::helper_functions::embed_msg};
+/*use crate::{typemap::types::ShardManagerType, utils::helper_functions::embed_msg};
 use serenity::{
     client::Context,
     framework::standard::{
@@ -35,7 +35,7 @@ async fn shutdown(ctx: &Context, msg: &Message) -> CommandResult {
     .await?;
     shard_manager.lock().await.shutdown_all().await;
     Ok(())
-}
+}*/
 
 #[poise::command(prefix_command)]
 pub async fn register(ctx: crate::Context<'_>) -> Result<(), crate::Error> {
