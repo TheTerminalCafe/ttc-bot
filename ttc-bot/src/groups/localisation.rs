@@ -1,14 +1,6 @@
-use crate::command_error;
+use crate::{command_error, Context, Error};
+use poise::serenity_prelude::Color;
 use serde_json::Value;
-use serenity::{
-    client::Context,
-    framework::standard::{
-        macros::{command, group},
-        Args, CommandResult,
-    },
-    model::channel::Message,
-    utils::Color,
-};
 
 const LANGUAGE_CODES: [(&str, &str); 104] = [
     ("af", "Afrikaans"),
@@ -117,20 +109,15 @@ const LANGUAGE_CODES: [(&str, &str); 104] = [
     ("zu", "Zulu"),
 ];
 
-#[group]
-#[commands(translate)]
-struct Localisation;
-
-#[command]
-#[description("Translates a message to the specified language")]
-#[usage("<language> <text>")]
-#[min_args(2)]
-#[example("en Hello world")]
-#[aliases("tr")]
-async fn translate(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+#[poise::command(slash_command, category = "Localisation")]
+pub async fn translate(
+    ctx: Context<'_>,
+    #[description = "Target language"] mut lang: String,
+    #[description = "The text to translate"] text_to_translate: String,
+) -> Result<(), Error> {
     // Get the language code and the text to translate
-    let mut lang = args.single::<String>()?;
-    let text_to_translate = args.rest().to_string();
+
+    ctx.defer().await?;
 
     let mut language_found = false;
 
@@ -206,24 +193,26 @@ async fn translate(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
     };
 
     // Get the author's nickname or username
-    let author_name = msg
-        .author_nick(ctx)
-        .await
-        .unwrap_or(msg.author.name.clone());
+    let author_name = match ctx.author_member().await {
+        Some(member) => match member.nick {
+            Some(nick) => nick,
+            None => member.user.name,
+        },
+        None => ctx.author().name.clone(),
+    };
 
     // Send the translated message
-    msg.channel_id
-        .send_message(ctx, |m| {
-            m.embed(|e| {
-                e.title("Translated Message")
-                    .author(|a| a.name(author_name).icon_url(msg.author.face()))
-                    .description(format!("{} -> {}", source_lang, lang))
-                    .field("Original Message", text_to_translate, false)
-                    .field("Translated Message", translated_text, false)
-                    .color(Color::FOOYOO)
-            })
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Translated Message")
+                .author(|a| a.name(author_name).icon_url(ctx.author().face()))
+                .description(format!("{} -> {}", source_lang, lang))
+                .field("Original Message", text_to_translate, false)
+                .field("Translated Message", translated_text, false)
+                .color(Color::FOOYOO)
         })
-        .await?;
+    })
+    .await?;
 
     Ok(())
 }

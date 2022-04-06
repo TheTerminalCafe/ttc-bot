@@ -43,6 +43,7 @@ pub async fn interaction_create(ctx: &Context, intr: Interaction) {
             // Make sure the interaction happened inside a guild
             match intr.guild_id {
                 Some(_) => {
+                    
                     match &intr.data.custom_id[..] {
                         // The interaction for the verification button
                         "ttc-bot-verification-button" => {

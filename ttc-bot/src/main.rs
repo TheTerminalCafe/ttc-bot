@@ -8,24 +8,25 @@
 }*/
 mod groups {
     pub mod admin;
-//    pub mod config;
+    //    pub mod config;
     pub mod general;
-//    pub mod localisation;
-//    pub mod moderation;
-//    pub mod support;
+    pub mod localisation;
+    pub mod moderation;
+    //    pub mod support;
 }
 mod utils {
-//    pub mod helper_functions;
-//    pub mod macros;
+    //    pub mod helper_functions;
+    pub mod macros;
 }
 /*mod events {
     pub mod conveyance;
     pub mod interactions;
 }*/
 mod client {
-//    pub mod event_handler;
-//    pub mod hooks;
+    //    pub mod event_handler;
+    //    pub mod hooks;
 }
+mod types;
 
 // ----------------------
 // Imports from libraries
@@ -33,23 +34,20 @@ mod client {
 
 use clap::{App, Arg};
 use futures::stream::StreamExt;
+use poise::serenity_prelude::GatewayIntents;
 use regex::Regex;
 use serde_yaml::Value;
 use signal_hook::consts::TERM_SIGNALS;
-use poise::serenity_prelude::GatewayIntents;
 use signal_hook_tokio::Signals;
 use sqlx::postgres::PgPoolOptions;
 use std::io::Read;
 use std::{collections::HashSet, fs::File, sync::Arc};
 use tokio::sync::Mutex;
+use types::{Context, Data, Error};
 //use typemap::types::*;
 // ------------
 // Help message
 // ------------
-
-pub struct Data {}
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 // ---------------------------------
 // Initialization code & Entry point
@@ -207,7 +205,7 @@ async fn main() {
             }
         }
     }
-    /* 
+    /*
     // Create the framework of the bot
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("ttc!").owners(owners))
@@ -236,7 +234,7 @@ async fn main() {
     {
         let mut data = client.data.write().await;
         data.insert::<ShardManagerType>(client.shard_manager.clone());
-        data.insert::<ThreadNameRegexType>(Regex::new("[^a-zA-Z0-9 ]").unwrap());
+        data.insert::<ThreadNameRegexType>("Regex::new("[^a-zA-Z0-9 ]").unwrap()");
         data.insert::<UsersCurrentlyQuestionedType>(Vec::new());
         data.insert::<PgPoolType>(pool);
     }
@@ -262,14 +260,22 @@ async fn main() {
 
     poise::Framework::build()
         .token(token)
-        .client_settings(move |client| { client
-            .application_id(application_id)
-            .intents(GatewayIntents::non_privileged() | GatewayIntents::GUILD_MEMBERS | GatewayIntents::MESSAGE_CONTENT)})
+        .client_settings(move |client| {
+            client.application_id(application_id).intents(
+                GatewayIntents::non_privileged()
+                    | GatewayIntents::GUILD_MEMBERS
+                    | GatewayIntents::MESSAGE_CONTENT,
+            )
+        })
         .user_data_setup(move |ctx, ready, framework| {
-            Box::pin(async move { 
+            Box::pin(async move {
                 log::info!("Ready I guess?");
                 log::info!("{:?}", ready);
-                Ok(Data {})
+                Ok(Data {
+                    users_currently_questioned: Vec::new(),
+                    pool: pool,
+                    thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
+                })
             })
         })
         .options(poise::FrameworkOptions {
@@ -277,6 +283,7 @@ async fn main() {
                 help(),
                 groups::admin::register(),
                 groups::general::ping(),
+                groups::localisation::translate(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("!".to_string()),
@@ -285,14 +292,19 @@ async fn main() {
             owners: owners,
             ..Default::default()
         })
-        .run().await.unwrap();
+        .run()
+        .await
+        .unwrap();
 
     //handle.close();
 
     log::info!("Bot shut down");
 }
 
-async fn signal_hook_task(mut signals: Signals, shard_mgr: Arc<Mutex<poise::serenity_prelude::ShardManager>>) {
+async fn signal_hook_task(
+    mut signals: Signals,
+    shard_mgr: Arc<Mutex<poise::serenity_prelude::ShardManager>>,
+) {
     while let Some(_) = signals.next().await {
         log::info!("A termination signal received, exiting...");
         shard_mgr.lock().await.shutdown_all().await;

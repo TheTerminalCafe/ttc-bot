@@ -2,37 +2,6 @@ use crate::{
     command_error, get_config, typemap::types::PgPoolType, utils::helper_functions::embed_msg,
 };
 use chrono::{Duration, Utc};
-use serenity::{
-    builder::CreateSelectMenu,
-    client::Context,
-    framework::standard::{
-        macros::{check, command, group},
-        Args, CommandResult, Reason,
-    },
-    model::{
-        channel::Message,
-        guild::Role,
-        id::{ChannelId, RoleId, UserId},
-        interactions::message_component::ButtonStyle,
-    },
-    utils::Color,
-};
-
-#[group]
-#[prefix("mod")]
-#[allowed_roles("Moderator")]
-#[checks(is_mod)]
-#[only_in(guilds)]
-#[commands(
-    ban,
-    pardon,
-    kick,
-    timeout,
-    purge,
-    create_verification,
-    create_selfroles
-)]
-struct Moderation;
 
 #[command]
 #[min_args(1)]
