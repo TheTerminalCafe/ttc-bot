@@ -1,6 +1,5 @@
 use crate::{
-    command_error, get_config, groups::support::SupportThread, typemap::types::PgPoolType,
-    UsersCurrentlyQuestionedType,
+    command_error, get_config, groups::support::SupportThread, UsersCurrentlyQuestionedType,
 };
 use serenity::{
     builder::{CreateEmbed, CreateMessage},

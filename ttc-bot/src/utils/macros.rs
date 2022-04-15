@@ -13,7 +13,7 @@ macro_rules! get_config {
     }};
     ( $ctx:expr, $on_error:block ) => {{
         let data = $ctx.data.read().await;
-        let pool = data.get::<PgPoolType>().unwrap();
+        let pool = data.get::<crate::typemap::types::PgPoolType>().unwrap();
         match crate::typemap::config::Config::get_from_db(pool).await {
             Ok(config) => config,
             Err(why) => {
