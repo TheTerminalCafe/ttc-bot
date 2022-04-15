@@ -215,6 +215,19 @@ pub async fn interaction_create(ctx: &Context, intr: Interaction) {
                                 }
                             }
                         }
+                        "ttc-bot-ticket-button" => {
+                            match intr.create_interaction_response(ctx, |i| {
+                                i.kind(InteractionResponseType::DeferredChannelMessageWithSource)
+                                    .interaction_response_data(|d| d.flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL))
+                            }).await {
+                                Ok(_) => (),
+                                Err(why) => {
+                                    log::error!("Failed to create deferred responce: {}", why);
+                                    return;
+                                }
+                            }
+                            let config = get_config!(ctx);
+                        }
                         _ => {
                             log::warn!("Unknown interaction created");
                         }

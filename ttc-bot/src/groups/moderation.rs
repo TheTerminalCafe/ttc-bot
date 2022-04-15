@@ -30,7 +30,8 @@ use serenity::{
     timeout,
     purge,
     create_verification,
-    create_selfroles
+    create_selfroles,
+    create_support_ticket_button
 )]
 struct Moderation;
 
@@ -288,6 +289,44 @@ async fn create_verification(ctx: &Context, msg: &Message, args: Args) -> Comman
         None,
     )
     .await?;
+
+    Ok(())
+}
+
+#[command]
+#[min_args(1)]
+#[description("Command for creating a support ticket prompt")]
+#[usage("<channel id>")]
+async fn create_support_ticket_button(
+    ctx: &Context,
+    msg: &Message,
+    mut args: Args,
+) -> CommandResult {
+    let channel_id = args.single::<ChannelId>()?;
+    let description = args.rest();
+    let config = get_config!(ctx, { return command_error!("Unable to obtain config") });
+
+    channel_id
+        .send_message(ctx, |m| {
+            m.embed(|e| {
+                e.color(Color::FOOYOO)
+                    .title("Support tickets")
+                    .description(format!(
+                        "{}\n\nAll support tickets are created in <#{}>",
+                        description, config.support_channel
+                    ))
+            })
+            .components(|c| {
+                c.create_action_row(|a| {
+                    a.create_button(|b| {
+                        b.label("Click here to create a support ticket")
+                            .custom_id("ttc-bot-ticket-button")
+                            .style(ButtonStyle::Primary)
+                    })
+                })
+            })
+        })
+        .await?;
 
     Ok(())
 }
