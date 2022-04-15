@@ -328,7 +328,7 @@ mod interactions {
         .fetch_one(pool)
         .await {
             Ok(thread) => thread,
-            Err(why) => {new_len
+            Err(why) => {
                 return command_error!(format!("Error writing into database: {}", why));
             }
         };
