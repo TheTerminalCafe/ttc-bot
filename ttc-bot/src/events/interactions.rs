@@ -1,21 +1,7 @@
 use std::time::Duration;
 
-use crate::{get_config, typemap::types::PgPoolType};
-use rand::seq::SliceRandom;
-use serenity::{
-    builder::CreateEmbed,
-    client::Context,
-    model::{
-        id::{ChannelId, RoleId},
-        interactions::{
-            message_component::ActionRowComponent, Interaction,
-            InteractionApplicationCommandCallbackDataFlags, InteractionResponseType,
-            InteractionType,
-        },
-    },
-    prelude::Mentionable,
-    utils::Color,
-};
+use crate::get_config;
+use poise::serenity_prelude::*;
 
 // Macro to quickly check if a user has a certain role
 macro_rules! check_user_role {
@@ -43,7 +29,6 @@ pub async fn interaction_create(ctx: &Context, intr: Interaction) {
             // Make sure the interaction happened inside a guild
             match intr.guild_id {
                 Some(_) => {
-                    
                     match &intr.data.custom_id[..] {
                         // The interaction for the verification button
                         "ttc-bot-verification-button" => {

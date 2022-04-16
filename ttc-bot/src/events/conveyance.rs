@@ -1,17 +1,7 @@
-use crate::{get_config, typemap::types::PgPoolType, utils::helper_functions::alert_mods};
+use crate::{get_config, utils::helper_functions::alert_mods};
 use chrono::{DateTime, Utc};
-use serenity::{
-    builder::CreateEmbed,
-    client::Context,
-    model::{
-        channel::Message,
-        event::MessageUpdateEvent,
-        guild::Member,
-        id::{ChannelId, MessageId, UserId},
-        prelude::User,
-    },
-    utils::{content_safe, Color, ContentSafeOptions},
-};
+use poise::serenity_prelude::*;
+use sqlx::PgPool;
 
 // Types for fetching/writing data from/to SQL database
 struct CurrentIndex {
@@ -39,10 +29,7 @@ struct BadWord {
 
 // Store 500 most recent messages seen by this bot in a cache for informing when it had been
 // deleted
-pub async fn message(ctx: &Context, msg: &Message) {
-    let data = ctx.data.read().await;
-    let pool = data.get::<PgPoolType>().unwrap();
-
+pub async fn message(ctx: &Context, pool: &PgPool, msg: &Message) {
     let bad_words: Vec<BadWord> =
         match sqlx::query_as!(BadWord, r#"SELECT (word) FROM ttc_bad_words"#)
             .fetch_all(pool)
@@ -83,7 +70,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
         msg.channel_id.0 as i64,
         msg.author.id.0 as i64,
         Utc::now(),
-        msg.content_safe(ctx).await,
+        msg.content_safe(ctx),
         msg.attachments.iter().map(|a| a.url.clone()).collect::<Vec<String>>().join(" "),
         id.current_id
     )
@@ -110,9 +97,6 @@ pub async fn message(ctx: &Context, msg: &Message) {
         }
     }
 
-    // Drop the lock as we are done with it
-    std::mem::drop(data);
-
     for word in &bad_words {
         if msg
             .content
@@ -132,7 +116,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
                     match member
                         .disable_communication_until_datetime(
                             ctx,
-                            Utc::now() + chrono::Duration::hours(2),
+                            Timestamp::from(Utc::now() + chrono::Duration::hours(2)),
                         )
                         .await
                     {

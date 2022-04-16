@@ -11,19 +11,20 @@ mod groups {
     //    pub mod config;
     pub mod general;
     pub mod localisation;
-    pub mod moderation;
+    // pub mod moderation;
     //    pub mod support;
 }
 mod utils {
     //    pub mod helper_functions;
     pub mod macros;
 }
-/*mod events {
+mod events {
     pub mod conveyance;
-    pub mod interactions;
-}*/
+    //pub mod interactions;
+    pub mod listener;
+}
 mod client {
-    //    pub mod event_handler;
+    pub mod event_handler;
     //    pub mod hooks;
 }
 mod types;
@@ -290,6 +291,9 @@ async fn main() {
                 ..Default::default()
             },
             owners: owners,
+            listener: |ctx, event, framework, data| {
+                Box::pin(events::listener::listener(ctx, event, framework, data))
+            },
             ..Default::default()
         })
         .run()

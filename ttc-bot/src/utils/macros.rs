@@ -1,9 +1,8 @@
 #[macro_export]
 macro_rules! get_config {
-    ( $ctx:expr ) => {{
-        let data = $ctx.data.read().await;
-        let pool = data.get::<PgPoolType>().unwrap();
-        match crate::typemap::config::Config::get_from_db(pool).await {
+    ( $data:expr ) => {{
+        let pool = &$data.pool;
+        match crate::types::Config::get_from_db(pool).await {
             Ok(config) => config,
             Err(why) => {
                 log::error!("error getting config from database: {}", why);
@@ -11,9 +10,8 @@ macro_rules! get_config {
             }
         }
     }};
-    ( $ctx:expr, $on_error:block ) => {{
-        let data = $ctx.data.read().await;
-        let pool = &$ctx.data.pool;
+    ( $data:expr, $on_error:block ) => {{
+        let pool = &$data.pool;
         match crate::types::Config::get_from_db(pool).await {
             Ok(config) => config,
             Err(why) => {

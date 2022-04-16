@@ -3,10 +3,7 @@ use crate::{
 };
 use chrono::{Duration, Utc};
 
-#[command]
-#[min_args(1)]
-#[max_args(2)]
-#[required_permissions(BAN_MEMBERS)]
+#[poise::command()]
 async fn ban(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     // Get the user mentioned in the command
     let user = args.single::<UserId>()?.to_user(ctx).await?;
