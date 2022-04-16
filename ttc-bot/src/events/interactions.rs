@@ -1,22 +1,14 @@
-use std::time::Duration;
-
-use crate::{get_config, typemap::types::PgPoolType};
-use rand::seq::SliceRandom;
 use serenity::{
-    builder::CreateEmbed,
     client::Context,
-    framework::standard::CommandResult,
     model::{
-        id::{ChannelId, RoleId},
         interactions::{
-            message_component::{ActionRowComponent, MessageComponentInteraction},
-            Interaction, InteractionApplicationCommandCallbackDataFlags, InteractionResponseType,
+            Interaction,
             InteractionType,
         },
     },
-    prelude::Mentionable,
-    utils::Color,
 };
+
+use crate::typemap::types::UsersCurrentlyQuestionedType;
 
 // Macro to quickly check if a user has a certain role
 macro_rules! check_user_role {
@@ -65,12 +57,29 @@ pub async fn interaction_create(ctx: &Context, intr: Interaction) {
                                 log::error!("Error completing self role menu interaction: {}", why);
                             }
                         },
-                        "ttc-bot-ticket-button" => match interactions::ticket_button(ctx, intr)
+                        "ttc-bot-ticket-button" => match interactions::ticket_button(ctx, &intr)
                             .await
                         {
                             Ok(_) => (),
                             Err(why) => {
-                                log::error!("Error completing ticket button interaction: {}", why);
+                                {
+                                    let mut data = ctx.data.write().await;
+                                    data.get_mut::<UsersCurrentlyQuestionedType>().unwrap()
+                                        .retain(|uid| uid != &intr.user.id);
+                                }
+                                match intr.edit_original_interaction_response(
+                                    ctx,
+                                    |i| 
+                                        i.create_embed(|e| 
+                                            e.title("Something went wrong.")
+                                                .description(why)
+                                        )
+                                    ).await {
+                                    Ok(_) => (),
+                                    Err(why) => {
+                                        log::error!("Error editing interaction response: {}", why);
+                                    }
+                                }
                             }
                         },
                         _ => {
@@ -110,14 +119,16 @@ mod interactions {
     use crate::{
         command_error, get_config,
         groups::support::SupportThread,
-        typemap::types::{PgPoolType, ThreadNameRegexType},
-        utils::helper_functions::{get_message_reply, wait_for_message},
+        typemap::types::{PgPoolType, ThreadNameRegexType, UsersCurrentlyQuestionedType},
+        utils::helper_functions::get_message_reply,
     };
 
+    // Interaction for the verification button
     pub async fn verification_button(
         ctx: &Context,
         intr: MessageComponentInteraction,
     ) -> CommandResult {
+        // Defer the reply to avoid possible issues
         intr.create_interaction_response(ctx, |i| {
             i.kind(InteractionResponseType::DeferredChannelMessageWithSource)
                 .interaction_response_data(|d| {
@@ -195,6 +206,8 @@ mod interactions {
         }
         Ok(())
     }
+    
+    // Interaction for the self role menu
     pub async fn self_role_menu(ctx: &Context, intr: MessageComponentInteraction) -> CommandResult {
         // Select the first component from the first action row which *should*
         // be the selection menu, still check just in case.
@@ -262,7 +275,8 @@ mod interactions {
         Ok(())
     }
 
-    pub async fn ticket_button(ctx: &Context, intr: MessageComponentInteraction) -> CommandResult {
+    pub async fn ticket_button(ctx: &Context, intr: &MessageComponentInteraction) -> CommandResult {
+        // Defer the reply initially to avoid getting the interaction invalidated
         intr.create_interaction_response(ctx, |i| {
             i.kind(InteractionResponseType::DeferredChannelMessageWithSource)
                 .interaction_response_data(|d| {
@@ -270,11 +284,32 @@ mod interactions {
                 })
         })
         .await?;
+
+        {
+            let mut data = ctx.data.write().await;
+            let users_currently_questioned = data.get_mut::<UsersCurrentlyQuestionedType>().unwrap();
+            if users_currently_questioned.contains(&intr.user.id) {
+                match intr.edit_original_interaction_response(ctx, |i| {
+                    i.create_embed(|e| {
+                        e.color(Color::FOOYOO)
+                            .title("You are already opening a ticket!")
+                            .description("Please finish that before opening a new one.")
+                    })
+                }).await {
+                    Ok(_) => (),
+                    Err(_) => (),
+                }
+                return Ok(())
+            } else {
+                users_currently_questioned.push(intr.user.id);
+            }
+        }
+
         let config = get_config!(ctx, { return command_error!("Failed to get config") });
 
         let support_channel = ChannelId(config.support_channel as u64);
 
-        let thread_msg = support_channel
+        let mut thread_msg = support_channel
             .send_message(ctx, |m| m.embed(|e| e.title("Pending info...")))
             .await?;
 
@@ -284,13 +319,22 @@ mod interactions {
             .create_public_thread(ctx, thread_msg.id, |ct| ct.name("Pending title..."))
             .await?;
 
+        intr.edit_original_interaction_response(ctx, |i| {
+            i.create_embed(|e| {
+                e.title("Ticket created")
+                    .description(format!("A ticket has been created for you in <#{}>", thread.id))
+                    .color(Color::FOOYOO)
+            })
+        }).await?;
+
         let thread_name = match get_message_reply(
             ctx, 
-            &thread_msg, 
+            &thread.id,
+            &intr.user, 
             |m| 
                 m.content(format!("{}", intr.user.mention()))
                     .embed(|e| 
-                        e.title("Provide a title for the issue (By sending it as a message in this thread, max length 100 characters")), 
+                        e.title("Provide a title for the issue").description("By sending it as a message in this thread, max length ~100 characters, time limit 5 minutes")), 
             Duration::from_secs(300)).await {
             Ok(response) => response,
             Err(why) => {
@@ -300,6 +344,28 @@ mod interactions {
             }
         };
 
+        let description = match get_message_reply(
+            ctx, 
+            &thread.id,
+            &intr.user,
+            |m| 
+                m.embed(|e| 
+                    e.title("Provide a description for the issue")
+                        .description(
+                            "By sending it as a message in this thread, max length 4096 characters, time limit 10 minutes\n\n
+                            Include information like:\n\n
+                            - Short description of the issue\n
+                            - System information (OS, CPU, GPU, etc.)\n
+                            - Anything else that may be relevant for the issue.")), 
+            Duration::from_secs(600)
+        ).await {
+            Ok(description) => description,
+            Err(why) => {
+                thread.delete(ctx).await?;
+                thread_msg.delete(ctx).await?;
+                return command_error!("Failed to get message reply: {}", why);
+            }
+        };
 
         let mut thread_name_safe = {
             let data = ctx.data.read().await;
@@ -309,6 +375,12 @@ mod interactions {
                 .to_string()
         };
         thread_name_safe.truncate(100);
+
+        {
+            let mut data = ctx.data.write().await;
+            let users_currently_questioned = data.get_mut::<UsersCurrentlyQuestionedType>().unwrap();
+            users_currently_questioned.retain(|uid| uid != &intr.user.id);
+        }
 
         // Insert the gathered information into the database and return the newly created database
         // entry for it's primary key to be added to the support thread title
@@ -340,6 +412,13 @@ mod interactions {
             .id
             .edit_thread(ctx, |t| t.name(&new_thread_name))
             .await?;
+
+        thread_msg.edit(ctx, |m| m.content("").embed(|e|
+            e.title(new_thread_name)
+                .description(description)
+                .color(Color::FOOYOO)
+        )).await?;
+
 
         Ok(())
     }

@@ -55,7 +55,7 @@ impl PartialEq for ThreadId {
 #[prefixes("support", "sp")]
 #[only_in(guilds)]
 #[description("Support related commands")]
-#[commands(new, solve, search, list)]
+#[commands(solve, search, list)]
 struct Support;
 
 // ----------------------
@@ -91,7 +91,8 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     // Ask for the details of the issue
     let thread_name = match get_message_reply(
         ctx,
-        msg,
+        &msg.channel_id,
+        &msg.author,
         |m| {
             m.embed(|e| {
                 e.description("**Title?** (300 seconds time limit, ~100 character limit)")
@@ -123,7 +124,8 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 
     let mut description = match get_message_reply(
         ctx,
-        msg,
+        &msg.channel_id,
+        &msg.author,
         |m| {
             m.embed(|e| {
                 e.description("**Description?** (300 seconds time limit, 1024 character limit)")
@@ -146,7 +148,8 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 
     let mut incident = match get_message_reply(
         ctx,
-        msg,
+        &msg.channel_id,
+        &msg.author,
         |m| {
             m.embed(|e| {
                 e.description("**Incident?** (300 seconds time limit, 1024 character limit)")
@@ -169,7 +172,8 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 
     let mut system_info = match get_message_reply(
         ctx,
-        msg,
+        &msg.channel_id,
+        &msg.author,
         |m| {
             m.embed(|e| {
                 e.description("**System info?** (300 seconds time limit, 1024 character limit)")
@@ -202,16 +206,17 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
 
     // The helper function cant really be used for the attachment messages due to much of the
     // checking it does
-    let attachments_msg = match wait_for_message(ctx, msg, Duration::from_secs(300)).await {
-        Ok(msg) => msg,
-        Err(_) => {
-            let mut data = ctx.data.write().await;
-            data.get_mut::<UsersCurrentlyQuestionedType>()
-                .unwrap()
-                .retain(|val| *val != msg.author.id);
-            return Ok(());
-        }
-    };
+    let attachments_msg =
+        match wait_for_message(ctx, &msg.channel_id, &msg.author, Duration::from_secs(300)).await {
+            Ok(msg) => msg,
+            Err(_) => {
+                let mut data = ctx.data.write().await;
+                data.get_mut::<UsersCurrentlyQuestionedType>()
+                    .unwrap()
+                    .retain(|val| *val != msg.author.id);
+                return Ok(());
+            }
+        };
 
     // Make sure all attachments with image types get added as images to the embed
     let mut image_attachments = attachments_msg.attachments.clone();
@@ -397,7 +402,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
         )
         .await?;
 
-    match wait_for_message(ctx, msg, Duration::from_secs(300)).await {
+    match wait_for_message(ctx, &msg.channel_id, &msg.author, Duration::from_secs(300)).await {
         Ok(_) => (),
         Err(_) => {
             embed_msg(
@@ -430,7 +435,6 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[sub_commands(id, title)]
 #[usage("<id|title>")]
-#[checks(is_in_either)]
 async fn search(ctx: &Context, msg: &Message) -> CommandResult {
     embed_msg(
         ctx,
@@ -448,7 +452,6 @@ async fn search(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[description("Search for titles containing specified strings from the database. Quotes allow for spaces in naming.")]
 #[usage("<list of strings to search for>")]
-#[checks(is_in_either)]
 #[min_args(1)]
 async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     args.quoted(); // Parse the arguments respecting quoted strings
@@ -509,7 +512,6 @@ async fn title(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 #[command]
 #[description("Search for specific id from the database")]
 #[usage("<id of support ticket>")]
-#[checks(is_in_either)]
 #[min_args(1)]
 async fn id(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     // Loop through the arguments and search in each iteration
