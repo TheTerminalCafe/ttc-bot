@@ -1,6 +1,4 @@
-use crate::{
-    command_error, get_config, typemap::types::PgPoolType, utils::helper_functions::embed_msg,
-};
+use crate::{command_error, get_config, utils::helper_functions::embed_msg};
 use chrono::{Duration, Utc};
 use serenity::{
     builder::CreateSelectMenu,
@@ -297,11 +295,7 @@ async fn create_verification(ctx: &Context, msg: &Message, args: Args) -> Comman
 #[min_args(1)]
 #[description("Command for creating a support ticket prompt")]
 #[usage("<channel id>")]
-async fn create_support_ticket_button(
-    ctx: &Context,
-    msg: &Message,
-    mut args: Args,
-) -> CommandResult {
+async fn create_support_ticket_button(ctx: &Context, _: &Message, mut args: Args) -> CommandResult {
     let channel_id = args.single::<ChannelId>()?;
     let description = args.rest();
     let config = get_config!(ctx, { return command_error!("Unable to obtain config") });

@@ -190,18 +190,15 @@ mod interactions {
             }
         } else {
             // If the user has already verified tell them about it
-            intr.create_interaction_response(ctx, |i| {
-                i.interaction_response_data(|r| {
-                    r.create_embed(|e: &mut CreateEmbed| {
+            intr.edit_original_interaction_response(ctx, |i| {
+                    i.create_embed(|e: &mut CreateEmbed| {
                         e.title("Verification failed")
                             .description(
                                 "You are already verified! You can't over-verify yourself.",
                             )
                             .color(Color::RED)
                     })
-                    .flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL)
                 })
-            })
             .await?;
         }
         Ok(())
