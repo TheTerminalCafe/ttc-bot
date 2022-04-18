@@ -1,10 +1,8 @@
 use std::time::Duration;
 
 use crate::{
-    typemap::{
-        config::Config,
-        types::{PgPoolType, ThreadNameRegexType, UsersCurrentlyQuestionedType},
-    },
+    command_error, get_config,
+    typemap::types::{PgPoolType, ThreadNameRegexType, UsersCurrentlyQuestionedType},
     utils::helper_functions::*,
 };
 use chrono::{DateTime, Utc};
@@ -12,7 +10,7 @@ use serenity::{
     client::Context,
     framework::standard::{
         macros::{check, command, group},
-        Args, CommandError, CommandOptions, CommandResult, Reason,
+        Args, CommandOptions, CommandResult, Reason,
     },
     model::{
         channel::{GuildChannel, Message},
@@ -54,11 +52,10 @@ impl PartialEq for ThreadId {
 // Group creation
 
 #[group]
-#[prefixes("support")]
+#[prefixes("support", "sp")]
 #[only_in(guilds)]
 #[description("Support related commands")]
 #[commands(new, solve, search, list)]
-#[default_command(new)]
 struct Support;
 
 // ----------------------
@@ -67,8 +64,7 @@ struct Support;
 
 #[command]
 #[description("Create a new support thread")]
-#[checks(is_in_support_channel)]
-#[checks(is_currently_questioned)]
+#[checks(is_in_support_channel, is_currently_questioned)]
 #[num_args(0)]
 async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     // Make sure the write lock to data isn't held for the entirety of this command. This causes
@@ -307,18 +303,19 @@ async fn new(ctx: &Context, msg: &Message) -> CommandResult {
     // entry for it's primary key to be added to the support thread title
     let thread = match sqlx::query_as!(
         SupportThread,
-        r#"INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved) VALUES($1, $2, $3, $4, $5) RETURNING *"#,
+        r#"INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved, unarchivals) VALUES($1, $2, $3, $4, $5, $6) RETURNING *"#,
         thread_id.0 as i64,
         msg.author.id.0 as i64,
         Utc::now(),
         thread_name_safe,
         false,
+        0,
     )
     .fetch_one(pool)
     .await {
         Ok(thread) => thread,
         Err(why) => {
-            return Err(CommandError::from(format!("Error writing into database: {}", why)));
+            return command_error!(format!("Error writing into database: {}", why));
         }
     };
 
@@ -352,10 +349,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     {
         Ok(thread) => thread,
         Err(why) => {
-            return Err(CommandError::from(format!(
-                "Unable to read from database: {}",
-                why
-            )));
+            return command_error!(format!("Unable to read from database: {}", why));
         }
     };
 
@@ -389,10 +383,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     {
         Ok(_) => (),
         Err(why) => {
-            return Err(CommandError::from(format!(
-                "Error reading from database: {}",
-                why
-            )));
+            return command_error!(format!("Error reading from database: {}", why));
         }
     }
 
@@ -638,26 +629,18 @@ async fn active(ctx: &Context, msg: &Message) -> CommandResult {
 #[check]
 #[display_in_help(false)]
 async fn is_in_support_channel(ctx: &Context, msg: &Message) -> Result<(), Reason> {
-    let data = ctx.data.read().await;
-    let pool = data.get::<PgPoolType>().unwrap();
-    let support_channel_id = match Config::get_from_db(pool).await {
-        Ok(config) => config.support_channel,
-        Err(why) => {
-            return Err(Reason::Log(format!(
-                "Getting config from database failed: {}",
-                why
-            )))
-        }
-    } as u64;
+    let config = get_config!(ctx, {
+        return Err(Reason::Log("Database error.".to_string()));
+    });
 
-    if support_channel_id != msg.channel_id.0 {
-        return Err(Reason::Log(format!(
-            "{} called outside support channel",
-            msg.content
-        )));
+    if config.support_channel as u64 == msg.channel_id.0 {
+        return Ok(());
     }
 
-    Ok(())
+    Err(Reason::Log(format!(
+        "{} called outside support channel",
+        msg.content
+    )))
 }
 
 // Check for making sure command originated from one of the known support threads in the database

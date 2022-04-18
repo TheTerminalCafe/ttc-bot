@@ -10,14 +10,17 @@ mod groups {
     pub mod admin;
     pub mod config;
     pub mod general;
+    pub mod localisation;
     pub mod moderation;
     pub mod support;
 }
 mod utils {
     pub mod helper_functions;
+    pub mod macros;
 }
-mod logging {
+mod events {
     pub mod conveyance;
+    pub mod interactions;
 }
 mod client {
     pub mod event_handler;
@@ -29,17 +32,24 @@ mod client {
 // ----------------------
 
 use clap::{App, Arg};
+use futures::stream::StreamExt;
 use regex::Regex;
 use serde_yaml::Value;
 use serenity::{
-    client::{bridge::gateway::GatewayIntents, Client},
+    client::{
+        bridge::gateway::{GatewayIntents, ShardManager},
+        Client,
+    },
     framework::standard::StandardFramework,
     model::id::UserId,
 };
+use signal_hook::consts::TERM_SIGNALS;
+use signal_hook_tokio::Signals;
 use sqlx::postgres::PgPoolOptions;
-use std::{collections::HashSet, fs::File};
+use std::io::Read;
+use std::{collections::HashSet, fs::File, sync::Arc};
+use tokio::sync::Mutex;
 use typemap::types::*;
-
 // ------------
 // Help message
 // ------------
@@ -52,18 +62,37 @@ use typemap::types::*;
 async fn main() {
     let matches = App::new("TTCBot")
         .arg(
-            Arg::with_name("config")
+            Arg::with_name("core-config")
                 .takes_value(true)
                 .required(true)
                 .short("c")
-                .long("config"),
+                .long("core-config")
+                .help("Configuration file"),
         )
         .arg(
             Arg::with_name("write-db")
                 .takes_value(false)
                 .required(false)
                 .short("w")
-                .long("write"),
+                .long("write")
+                .help("Write the config to the database"),
+        )
+        .arg(
+            Arg::with_name("bad-words")
+                .takes_value(true)
+                .required(false)
+                .short("b")
+                .long("bad-words")
+                .help("A bad word list, one per line"),
+        )
+        .arg(
+            Arg::with_name("append-bad-words")
+                .takes_value(false)
+                .required(false)
+                .short("a")
+                .long("append-bad-words")
+                .requires("bad-words")
+                .help("Appends provided bad words to the database table"),
         )
         .get_matches();
 
@@ -73,14 +102,22 @@ async fn main() {
     env_logger::init();
 
     // Load the config file
-    let config_file = File::open(matches.value_of("config").unwrap()).unwrap();
+    let config_file = File::open(matches.value_of("core-config").unwrap()).unwrap();
     let config: Value = serde_yaml::from_reader(config_file).unwrap();
 
     // Load all the values from the config
     let token = config["token"].as_str().unwrap();
+    let application_id = config["application_id"].as_u64().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
     let support_channel_id = config["support_channel"].as_u64().unwrap();
-    let conveyance_channel_id = config["conveyance_channel"].as_u64().unwrap();
+    let verified_role_id = config["verified_role"].as_u64().unwrap();
+    let moderator_role_id = config["moderator_role"].as_u64().unwrap();
+    let conveyance_channel_ids = config["conveyance_channels"]
+        .as_sequence()
+        .unwrap()
+        .iter()
+        .map(|val| val.as_i64().unwrap())
+        .collect::<Vec<i64>>();
     let conveyance_blacklisted_channel_ids = config["conveyance_blacklisted_channels"]
         .as_sequence()
         .unwrap()
@@ -110,13 +147,47 @@ async fn main() {
     if matches.is_present("write-db") {
         let config = typemap::config::Config {
             support_channel: support_channel_id as i64,
-            conveyance_channel: conveyance_channel_id as i64,
+            conveyance_channels: conveyance_channel_ids,
             conveyance_blacklisted_channels: conveyance_blacklisted_channel_ids,
             welcome_channel: welcome_channel_id as i64,
-            welcome_messages: welcome_messages,
+            verified_role: verified_role_id as i64,
+            moderator_role: moderator_role_id as i64,
+            welcome_messages,
         };
 
         config.save_in_db(&pool).await.unwrap();
+    }
+
+    if matches.is_present("bad-words") {
+        let mut file = File::open(matches.value_of("bad-words").unwrap()).unwrap();
+        let mut raw_string = String::new();
+        file.read_to_string(&mut raw_string).unwrap();
+
+        if !matches.is_present("append-bad-words") {
+            match sqlx::query!(r#"DELETE FROM ttc_bad_words"#)
+                .execute(&pool)
+                .await
+            {
+                Ok(_) => (),
+                Err(why) => {
+                    log::error!("Failed to clear bad word database: {}", why);
+                    return;
+                }
+            }
+        }
+        for line in raw_string.lines() {
+            let line = line.trim();
+            match sqlx::query!(r#"INSERT INTO ttc_bad_words (word) VALUES($1)"#, line)
+                .execute(&pool)
+                .await
+            {
+                Ok(_) => (),
+                Err(why) => {
+                    log::error!("Failed to write bad words into the database: {}", why);
+                    return;
+                }
+            }
+        }
     }
 
     // Create the framework of the bot
@@ -130,10 +201,12 @@ async fn main() {
         .group(&groups::support::SUPPORT_GROUP)
         .group(&groups::admin::ADMIN_GROUP)
         .group(&groups::config::CONFIG_GROUP)
-        .group(&groups::moderation::MODERATION_GROUP);
+        .group(&groups::moderation::MODERATION_GROUP)
+        .group(&groups::localisation::LOCALISATION_GROUP);
 
     // Create the bot client
     let mut client = Client::builder(token)
+        .application_id(application_id)
         .event_handler(client::event_handler::Handler)
         .cache_settings(|c| c.max_messages(50))
         .framework(framework)
@@ -150,10 +223,32 @@ async fn main() {
         data.insert::<PgPoolType>(pool);
     }
 
+    let signals = match Signals::new(TERM_SIGNALS) {
+        Ok(signals) => signals,
+        Err(why) => {
+            log::error!("Failed to create signal hook: {}", why);
+            return;
+        }
+    };
+
+    let handle = signals.handle();
+
+    tokio::spawn(signal_hook_task(signals, client.shard_manager.clone()));
+
     match client.start().await {
         Ok(_) => (),
         Err(why) => log::error!("An error occurred when starting the client: {}", why),
     }
 
+    handle.close();
+
     log::info!("Bot shut down");
+}
+
+async fn signal_hook_task(mut signals: Signals, shard_mgr: Arc<Mutex<ShardManager>>) {
+    while let Some(_) = signals.next().await {
+        log::info!("A termination signal received, exiting...");
+        shard_mgr.lock().await.shutdown_all().await;
+        break;
+    }
 }

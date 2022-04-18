@@ -9,8 +9,7 @@ use serenity::{
 };
 
 use crate::{
-    typemap::{config, types::PgPoolType},
-    utils::helper_functions::embed_msg,
+    command_error, get_config, typemap::types::PgPoolType, utils::helper_functions::embed_msg,
 };
 
 #[group]
@@ -23,19 +22,11 @@ struct Config;
 #[min_args(2)]
 async fn set(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     args.quoted();
+    // Get the config from the database
+    let mut config = get_config!(ctx, { return command_error!("Database error.") });
 
     let data = ctx.data.read().await;
     let pool = data.get::<PgPoolType>().unwrap();
-    // Get the config from the database
-    let mut config = match config::Config::get_from_db(pool).await {
-        Ok(config) => config,
-        Err(why) => {
-            return Err(CommandError::from(format!(
-                "Error reading from the database: {}",
-                why
-            )));
-        }
-    };
     let property: String = args.single()?;
 
     // Match the requested config field to predefined fields
@@ -47,12 +38,16 @@ async fn set(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
                 Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
             }
         }
-        "conveyance_channel" => {
-            let value: String = args.single()?;
-            config.conveyance_channel = match value.parse::<i64>() {
-                Ok(value) => value,
-                Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
+        "conveyance_channels" => {
+            let mut values: Vec<i64> = Vec::new();
+            for value in args.iter() {
+                let value: String = value?;
+                values.push(match value.parse::<i64>() {
+                    Ok(value) => value,
+                    Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
+                })
             }
+            config.conveyance_channels = values;
         }
         "conveyance_blacklisted_channels" => {
             let mut values: Vec<i64> = Vec::new();
@@ -68,6 +63,20 @@ async fn set(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         "welcome_channel" => {
             let value: String = args.single()?;
             config.welcome_channel = match value.parse::<i64>() {
+                Ok(value) => value,
+                Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
+            }
+        }
+        "verified_role" => {
+            let value: String = args.single()?;
+            config.verified_role = match value.parse::<i64>() {
+                Ok(value) => value,
+                Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
+            }
+        }
+        "moderator_role" => {
+            let value: String = args.single()?;
+            config.moderator_role = match value.parse::<i64>() {
                 Ok(value) => value,
                 Err(why) => return Err(CommandError::from(format!("Parsing error: {}", why))),
             }
@@ -120,29 +129,20 @@ async fn set(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 #[command]
 #[num_args(1)]
 async fn get(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let data = ctx.data.read().await;
-    let pool = data.get::<PgPoolType>().unwrap();
+    let config = get_config!(ctx, { return command_error!("Database error.") });
 
-    // Get the config from the database
-    let config = match config::Config::get_from_db(pool).await {
-        Ok(config) => config,
-        Err(why) => {
-            return Err(CommandError::from(format!(
-                "Error reading from the database: {}",
-                why
-            )));
-        }
-    };
     let property: String = args.single()?;
 
     // Match the requested config field to predefined fields
     let property_value = match &property[..] {
         "support_channel" => format!("{}", config.support_channel),
-        "conveyance_channel" => format!("{}", config.conveyance_channel),
+        "conveyance_channel" => format!("{:?}", config.conveyance_channels),
         "conveyance_blacklisted_channels" => {
             format!("{:?}", config.conveyance_blacklisted_channels)
         }
         "welcome_channel" => format!("{}", config.welcome_channel),
+        "verified_role" => format!("{}", config.verified_role),
+        "moderator_role" => format!("{}", config.moderator_role),
         "welcome_messages" => format!("{:?}", config.welcome_messages),
         _ => {
             embed_msg(
