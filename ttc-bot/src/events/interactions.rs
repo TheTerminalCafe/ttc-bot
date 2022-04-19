@@ -410,9 +410,15 @@ mod interactions {
             .edit_thread(ctx, |t| t.name(&new_thread_name))
             .await?;
 
+        let user_name = match &intr.member {
+            Some(member) => member.nick.clone().unwrap_or(intr.user.name.clone()),
+            None => intr.user.name.clone(),
+        };
+        
         thread_msg.edit(ctx, |m| m.content("").embed(|e|
             e.title(new_thread_name)
                 .description(description)
+                .author(|a| a.name(user_name).icon_url(intr.user.face()))
                 .color(Color::FOOYOO)
         )).await?;
 
