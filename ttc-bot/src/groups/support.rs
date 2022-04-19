@@ -2,22 +2,11 @@ use std::time::Duration;
 
 use crate::{
     command_error, get_config,
-    typemap::types::{PgPoolType, ThreadNameRegexType, UsersCurrentlyQuestionedType},
+    types::{Context, Error},
     utils::helper_functions::*,
 };
 use chrono::{DateTime, Utc};
-use serenity::{
-    client::Context,
-    framework::standard::{
-        macros::{check, command, group},
-        Args, CommandOptions, CommandResult, Reason,
-    },
-    model::{
-        channel::{GuildChannel, Message},
-        id::UserId,
-    },
-    utils::Color,
-};
+use poise::serenity_prelude::{Color, GuildChannel, Message, UserId};
 
 // ----------------------------
 // Support thread related types
@@ -49,300 +38,20 @@ impl PartialEq for ThreadId {
     }
 }
 
-// Group creation
-
-#[group]
-#[prefixes("support", "sp")]
-#[only_in(guilds)]
-#[description("Support related commands")]
-#[commands(new, solve, search, list)]
-struct Support;
-
 // ----------------------
 // Support group commands
 // ----------------------
 
-#[command]
-#[description("Create a new support thread")]
-#[checks(is_in_support_channel, is_currently_questioned)]
-#[num_args(0)]
-async fn new(ctx: &Context, msg: &Message) -> CommandResult {
-    // Make sure the write lock to data isn't held for the entirety of this command. This causes
-    // the code to be a bit messier but concurrency has forced my hand
-    {
-        let mut data = ctx.data.write().await; // Get a writeable reference to the data
-        let users_currently_questioned = data.get_mut::<UsersCurrentlyQuestionedType>().unwrap();
-
-        users_currently_questioned.push(msg.author.id);
-    }
-
-    // Send a summary message
-    let info_msg = msg.channel_id.send_message(ctx, |m| {
-        m.embed(|e| { e.title("Support ticket creation")
-            .description("You will be asked for the following fields during the ticket creation.")
-            .field("Title:", "The title for this issue.", false)
-            .field("Description:", "A more in depth explanation of the issue.", false)
-            .field("Incident:", "Anything that could have caused this issue in the first place.", false)
-            .field("System info:", "Information about your system. OS, OS version, hardware, any info about hardware/software possibly related to this issue.", false)
-            .field("Attachments:", "Any attachments related to the issue. If the message contains no attachments none will be shown", false)
-            .color(Color::PURPLE)})
-    }).await?;
-
-    // Ask for the details of the issue
-    let thread_name = match get_message_reply(
-        ctx,
-        msg,
-        |m| {
-            m.embed(|e| {
-                e.description("**Title?** (300 seconds time limit, ~100 character limit)")
-                    .color(Color::BLUE)
-            })
-        },
-        Duration::from_secs(300),
-    )
-    .await
-    {
-        Ok(content) => content,
-        Err(_) => {
-            let mut data = ctx.data.write().await;
-            data.get_mut::<UsersCurrentlyQuestionedType>()
-                .unwrap()
-                .retain(|val| *val != msg.author.id);
-            return Ok(());
-        }
-    };
-
-    // Parse the thread name with the regex to avoid special characters in thread name
-    let mut thread_name_safe = {
-        let data = ctx.data.read().await;
-        data.get::<ThreadNameRegexType>()
-            .unwrap()
-            .replace_all(&thread_name, "")
-            .to_string()
-    };
-
-    let mut description = match get_message_reply(
-        ctx,
-        msg,
-        |m| {
-            m.embed(|e| {
-                e.description("**Description?** (300 seconds time limit, 1024 character limit)")
-                    .color(Color::BLUE)
-            })
-        },
-        Duration::from_secs(300),
-    )
-    .await
-    {
-        Ok(content) => content,
-        Err(_) => {
-            let mut data = ctx.data.write().await;
-            data.get_mut::<UsersCurrentlyQuestionedType>()
-                .unwrap()
-                .retain(|val| *val != msg.author.id);
-            return Ok(());
-        }
-    };
-
-    let mut incident = match get_message_reply(
-        ctx,
-        msg,
-        |m| {
-            m.embed(|e| {
-                e.description("**Incident?** (300 seconds time limit, 1024 character limit)")
-                    .color(Color::BLUE)
-            })
-        },
-        Duration::from_secs(300),
-    )
-    .await
-    {
-        Ok(content) => content,
-        Err(_) => {
-            let mut data = ctx.data.write().await;
-            data.get_mut::<UsersCurrentlyQuestionedType>()
-                .unwrap()
-                .retain(|val| *val != msg.author.id);
-            return Ok(());
-        }
-    };
-
-    let mut system_info = match get_message_reply(
-        ctx,
-        msg,
-        |m| {
-            m.embed(|e| {
-                e.description("**System info?** (300 seconds time limit, 1024 character limit)")
-                    .color(Color::BLUE)
-            })
-        },
-        Duration::from_secs(300),
-    )
-    .await
-    {
-        Ok(content) => content,
-        Err(_) => {
-            let mut data = ctx.data.write().await;
-            data.get_mut::<UsersCurrentlyQuestionedType>()
-                .unwrap()
-                .retain(|val| *val != msg.author.id);
-            return Ok(());
-        }
-    };
-
-    let att_msg = embed_msg(
-        ctx,
-        &msg.channel_id,
-        None,
-        Some("**Attachments?** (300 seconds time limit)"),
-        Some(Color::BLUE),
-        None,
-    )
-    .await?;
-
-    // The helper function cant really be used for the attachment messages due to much of the
-    // checking it does
-    let attachments_msg = match wait_for_message(ctx, msg, Duration::from_secs(300)).await {
-        Ok(msg) => msg,
-        Err(_) => {
-            let mut data = ctx.data.write().await;
-            data.get_mut::<UsersCurrentlyQuestionedType>()
-                .unwrap()
-                .retain(|val| *val != msg.author.id);
-            return Ok(());
-        }
-    };
-
-    // Make sure all attachments with image types get added as images to the embed
-    let mut image_attachments = attachments_msg.attachments.clone();
-    image_attachments.retain(|a| {
-        if let Some(ct) = &a.content_type {
-            return ct.contains("image");
-        }
-        false
-    });
-
-    // Get the string of the urls to the attachments
-    let mut attachments_str = attachments_msg
-        .attachments
-        .iter()
-        .map(|a| {
-            let mut url = a.url.clone();
-            url.push(' ');
-            url
-        })
-        .collect::<String>();
-    if attachments_str == "" {
-        attachments_str = "None".to_string();
-    }
-
-    match msg
-        .channel_id
-        .delete_messages(ctx, vec![attachments_msg.id, att_msg.id, info_msg.id])
-        .await
-    {
-        Ok(_) => (),
-        Err(why) => log::error!("Error deleting messages: {}", why),
-    }
-
-    // Finally remove the user id from the currently questioned list to allow them to run
-    // ttc!support new again
-    {
-        let mut data = ctx.data.write().await;
-        data.get_mut::<UsersCurrentlyQuestionedType>()
-            .unwrap()
-            .retain(|uid| uid != &msg.author.id);
-    }
-    // Truncate the strings to match the character limits of the embed
-    thread_name_safe.truncate(100);
-    description.truncate(1024);
-    system_info.truncate(1024);
-    incident.truncate(1024);
-    attachments_str.truncate(1024);
-
-    // Get the author name to use on the embed
-    let author_name = msg
-        .author_nick(ctx)
-        .await
-        .unwrap_or(msg.author.name.clone());
-
-    // The message to start the support thread containing all the given information
-    let thread_msg = msg
-        .channel_id
-        .send_message(ctx, |m| {
-            m.embed(|e| {
-                e.title(thread_name_safe.clone())
-                    .description("Once the issue has been solved, please use the command `ttc!support solve` to mark the thread as such.")
-                    .author(|a| a.name(author_name).icon_url(msg.author.face()))
-                    .field("Description:", description, false)
-                    .field("Incident:", incident, false)
-                    .field("System info:", system_info, false)
-                    .field("Attachments:", attachments_str, false)
-                    .color(Color::FOOYOO);
-                for attachment in &image_attachments {
-                    e.image(&attachment.url);
-                }
-                e
-            })
-        })
-        .await?;
-
-    // Here the data variable doesn't live long and a read lock is much better for smooth
-    // operation, so it can be locked "globally" like this
-    let data = ctx.data.read().await;
-
-    let pool = data.get::<PgPoolType>().unwrap();
-    // Select auto archive duration based on the server boost level
-    let thread_id = msg
-        .channel_id
-        .create_public_thread(ctx, thread_msg.id, |ct| ct.name(thread_name_safe.clone()))
-        .await?
-        .id;
-
-    // Insert the gathered information into the database and return the newly created database
-    // entry for it's primary key to be added to the support thread title
-    let thread = match sqlx::query_as!(
-        SupportThread,
-        r#"INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved, unarchivals) VALUES($1, $2, $3, $4, $5, $6) RETURNING *"#,
-        thread_id.0 as i64,
-        msg.author.id.0 as i64,
-        Utc::now(),
-        thread_name_safe,
-        false,
-        0,
-    )
-    .fetch_one(pool)
-    .await {
-        Ok(thread) => thread,
-        Err(why) => {
-            return command_error!(format!("Error writing into database: {}", why));
-        }
-    };
-
-    let mut new_thread_name = format!("[{}] {}", thread.incident_id, thread_name_safe);
-    new_thread_name.truncate(100);
-
-    thread_id
-        .edit_thread(ctx, |t| t.name(&new_thread_name))
-        .await?;
-
-    Ok(())
-}
-
-#[command]
-#[description("Solve the current support thread")]
-#[checks(is_in_support_thread)]
-#[num_args(0)]
-async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
+#[poise::command(slash_command)]
+async fn solve(ctx: Context<'_>) -> Result<(), Error> {
     // Get a reference to the database
-    let data = ctx.data.read().await;
-    let pool = data.get::<PgPoolType>().unwrap();
+    let pool = ctx.data().pool;
 
     // Get the row with the current channel id from the database
     let thread = match sqlx::query_as!(
         SupportThread,
         r#"SELECT * FROM ttc_support_tickets WHERE thread_id = $1"#,
-        msg.channel_id.0 as i64
+        ctx.channel_id.0 as i64
     )
     .fetch_one(pool)
     .await
@@ -357,7 +66,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     if thread.incident_solved {
         embed_msg(
             ctx,
-            &msg.channel_id,
+            &ctx.channel_id,
             Some("Thread already solved"),
             Some(&format!(
                 "Thread already solved by {} at {}",
@@ -376,7 +85,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
     // Update the state to be solved
     match sqlx::query!(
         r#"UPDATE ttc_support_tickets SET incident_solved = 't' WHERE thread_id = $1"#,
-        msg.channel_id.0 as i64
+        ctx.channel_id.0 as i64
     )
     .execute(pool)
     .await
@@ -389,7 +98,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
 
     embed_msg(
         ctx,
-        &msg.channel_id,
+        &ctx.channel_id,
         Some("Great!"),
         Some("Now that the issue is solved, you can give back to society and send the solution after this message."),
         Some(Color::FOOYOO),
@@ -397,7 +106,7 @@ async fn solve(ctx: &Context, msg: &Message) -> CommandResult {
         )
         .await?;
 
-    match wait_for_message(ctx, msg, Duration::from_secs(300)).await {
+    match wait_for_message(ctx, ctx., Duration::from_secs(300)).await {
         Ok(_) => (),
         Err(_) => {
             embed_msg(

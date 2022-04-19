@@ -12,10 +12,10 @@ mod groups {
     pub mod general;
     pub mod localisation;
     // pub mod moderation;
-    //    pub mod support;
+    pub mod support;
 }
 mod utils {
-    //    pub mod helper_functions;
+    pub mod helper_functions;
     pub mod macros;
 }
 mod events {
@@ -161,20 +161,6 @@ async fn main() {
         .await
         .unwrap();
 
-    /*if matches.is_present("additional-config") {
-        let config = typemap::config::Config {
-            support_channel: support_channel_id as i64,
-            conveyance_channels: conveyance_channel_ids,
-            conveyance_blacklisted_channels: conveyance_blacklisted_channel_ids,
-            welcome_channel: welcome_channel_id as i64,
-            verified_role: verified_role_id as i64,
-            moderator_role: moderator_role_id as i64,
-            welcome_messages,
-        };
-
-        config.save_in_db(&pool).await.unwrap();
-    }*/
-
     if matches.is_present("bad-words") {
         let mut file = File::open(matches.value_of("bad-words").unwrap()).unwrap();
         let mut raw_string = String::new();
@@ -206,56 +192,6 @@ async fn main() {
             }
         }
     }
-    /*
-    // Create the framework of the bot
-    let framework = StandardFramework::new()
-        .configure(|c| c.prefix("ttc!").owners(owners))
-        .help(&client::hooks::HELP)
-        .unrecognised_command(client::hooks::unknown_command)
-        .on_dispatch_error(client::hooks::dispatch_error)
-        .after(client::hooks::after)
-        .group(&groups::general::GENERAL_GROUP)
-        .group(&groups::support::SUPPORT_GROUP)
-        .group(&groups::admin::ADMIN_GROUP)
-        .group(&groups::config::CONFIG_GROUP)
-        .group(&groups::moderation::MODERATION_GROUP)
-        .group(&groups::localisation::LOCALISATION_GROUP);
-
-    // Create the bot client
-    let mut client = Client::builder(token)
-        .application_id(application_id)
-        .event_handler(client::event_handler::Handler)
-        .cache_settings(|c| c.max_messages(50))
-        .framework(framework)
-        .intents(GatewayIntents::non_privileged() | GatewayIntents::GUILD_MEMBERS)
-        .await
-        .expect("Error creating client");
-
-    // Initial data for the bot
-    {
-        let mut data = client.data.write().await;
-        data.insert::<ShardManagerType>(client.shard_manager.clone());
-        data.insert::<ThreadNameRegexType>("Regex::new("[^a-zA-Z0-9 ]").unwrap()");
-        data.insert::<UsersCurrentlyQuestionedType>(Vec::new());
-        data.insert::<PgPoolType>(pool);
-    }
-
-
-    match client.start().await {
-        Ok(_) => (),
-        Err(why) => log::error!("An error occurred when starting the client: {}", why),
-    }*/
-    /*let signals = match Signals::new(TERM_SIGNALS) {
-        Ok(signals) => signals,
-        Err(why) => {
-            log::error!("Failed to create signal hook: {}", why);
-            return;
-        }
-    };*/
-
-    //let handle = signals.handle();
-
-    //tokio::spawn(signal_hook_task(signals, client.shard_manager.clone()));
 
     log::info!("Got here");
 

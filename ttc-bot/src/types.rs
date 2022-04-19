@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
+use futures::lock::Mutex;
 use poise::serenity_prelude::UserId;
 use sqlx::PgPool;
 
 pub struct Data {
-    pub users_currently_questioned: Vec<UserId>,
+    pub users_currently_questioned: Mutex<Vec<UserId>>,
     pub pool: PgPool,
     pub thread_name_regex: regex::Regex,
 }
