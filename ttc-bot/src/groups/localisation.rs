@@ -4,10 +4,10 @@ use serenity::{
     client::Context,
     framework::standard::{
         macros::{command, group},
-        Args, CommandResult, CommandError,
+        Args, CommandError, CommandResult,
     },
     model::channel::Message,
-    utils::Color,
+    utils::{content_safe, Color, ContentSafeOptions},
 };
 
 const LANGUAGE_CODES: [(&str, &str); 104] = [
@@ -169,21 +169,35 @@ async fn impersonate(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
 
     let (translated_text, source_lang) = translate_text(&mut lang, &text_to_translate).await?;
 
+    let content_safe_options = ContentSafeOptions::new()
+        .clean_everyone(true)
+        .clean_here(true)
+        .clean_user(false);
+
+    let translated_text = content_safe(ctx, translated_text, &content_safe_options).await;
+
     // Get the author's nickname or username
     let author_name = msg
         .author_nick(ctx)
         .await
         .unwrap_or(msg.author.name.clone());
 
-    
     // Impersonate the user
-    let webhook = msg.channel_id.create_webhook(ctx,format!("{} ({}->{})", author_name, source_lang, lang)).await?;
+    let webhook = msg
+        .channel_id
+        .create_webhook(ctx, format!("{} ({}->{})", author_name, source_lang, lang))
+        .await?;
 
     // Send the message
-    webhook.execute(ctx, false, |w| 
-        w.content(translated_text)
-        .avatar_url(msg.author.avatar_url().unwrap_or(msg.author.default_avatar_url()
-    ))).await?;
+    webhook
+        .execute(ctx, false, |w| {
+            w.content(translated_text).avatar_url(
+                msg.author
+                    .avatar_url()
+                    .unwrap_or(msg.author.default_avatar_url()),
+            )
+        })
+        .await?;
 
     // Clean up afterwards
     msg.delete(ctx).await?;
@@ -192,7 +206,10 @@ async fn impersonate(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
     Ok(())
 }
 
-async fn translate_text(lang: &mut String, text_to_translate: &str) -> Result<(String, String), CommandError> {
+async fn translate_text(
+    lang: &mut String,
+    text_to_translate: &str,
+) -> Result<(String, String), CommandError> {
     let mut language_found = false;
 
     // Check if the language code is valid
@@ -256,7 +273,7 @@ async fn translate_text(lang: &mut String, text_to_translate: &str) -> Result<(S
             }
         });
     }
-    
+
     // Get the source language
     let source_lang = match body[2].as_str() {
         Some(lang) => lang,
