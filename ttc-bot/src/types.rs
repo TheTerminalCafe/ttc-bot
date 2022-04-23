@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use futures::lock::Mutex;
 use poise::serenity_prelude::UserId;
 use sqlx::PgPool;

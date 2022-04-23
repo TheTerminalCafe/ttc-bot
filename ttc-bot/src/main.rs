@@ -34,6 +34,7 @@ mod types;
 // ----------------------
 
 use clap::{App, Arg};
+use futures::lock::Mutex;
 use futures::stream::StreamExt;
 use poise::serenity_prelude::GatewayIntents;
 use regex::Regex;
@@ -43,7 +44,6 @@ use signal_hook_tokio::Signals;
 use sqlx::postgres::PgPoolOptions;
 use std::io::Read;
 use std::{collections::HashSet, fs::File, sync::Arc};
-use tokio::sync::Mutex;
 use types::{Context, Data, Error};
 //use typemap::types::*;
 // ------------
@@ -209,7 +209,7 @@ async fn main() {
                 log::info!("Ready I guess?");
                 log::info!("{:?}", ready);
                 Ok(Data {
-                    users_currently_questioned: Vec::new(),
+                    users_currently_questioned: Mutex::new(Vec::new()),
                     pool: pool,
                     thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
                 })
