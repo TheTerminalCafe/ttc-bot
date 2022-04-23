@@ -109,7 +109,7 @@ const LANGUAGE_CODES: [(&str, &str); 104] = [
     ("zu", "Zulu"),
 ];
 
-#[poise::command(slash_command, category = "Localisation")]
+#[poise::command(slash_command, prefix_command, category = "Localisation")]
 pub async fn translate(
     ctx: Context<'_>,
     #[description = "Target language"] mut lang: String,

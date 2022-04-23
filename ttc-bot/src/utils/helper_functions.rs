@@ -5,7 +5,7 @@ use poise::serenity_prelude::{
 use crate::{
     command_error, get_config,
     groups::support::SupportThread,
-    types::{self, Error},
+    types::{self, Data, Error},
 };
 use std::{sync::Arc, time::Duration};
 
@@ -43,14 +43,12 @@ pub async fn embed_msg(
         None => (),
     }
 
-    let msg = channel_id
-        .send_message(ctx.discord(), |m| m.set_embed(embed))
-        .await?;
+    let msg = channel_id.send_message(ctx, |m| m.set_embed(embed)).await?;
 
     match autodelete {
         Some(duration) => {
             tokio::time::sleep(duration).await;
-            msg.delete(ctx.discord()).await?;
+            msg.delete(ctx).await?;
         }
         None => (),
     }
@@ -88,51 +86,29 @@ pub async fn wait_for_message(
     Ok(message)
 }
 
-// Function to send a message with info of a ticket
-pub async fn support_ticket_msg(
-    ctx: &Context,
-    channel_id: &ChannelId,
-    thread: &SupportThread,
-) -> Result<(), Error> {
-    channel_id
-        .send_message(ctx(), |m| {
-            m.embed(|e| {
-                e.title(format!("Support ticket [{}]", thread.incident_id))
-                    .field("Title:", thread.incident_title.clone(), false)
-                    .field(
-                        "Status:",
-                        format!("Solved: {}", thread.incident_solved,),
-                        false,
-                    )
-                    .field("Timestamp:", thread.incident_time, false)
-                    .field("Thread:", format!("<#{}>", thread.thread_id), false)
-            })
-        })
-        .await?;
-    Ok(())
-}
-
 // Helper function for asking for user input after a message from the bot
 pub async fn get_message_reply<'a, F>(
     ctx: &Context,
-    msg: &Message,
+    channel_id: &ChannelId,
+    user: &User,
     question_msg_f: F,
     timeout: Duration,
+    data: &Data,
 ) -> Result<String, Error>
 where
     for<'b> F: FnOnce(&'b mut CreateMessage<'a>) -> &'b mut CreateMessage<'a>,
 {
     // Ask the user first
-    let question_msg = msg.channel_id.send_message(ctx(), question_msg_f).await?;
+    let question_msg = channel_id.send_message(ctx, question_msg_f).await?;
 
     // Get the reply message
     // The loops are for making sure there is at least some text content in the message
     let msg = loop {
-        let new_msg = match wait_for_message(ctx, msg, timeout).await {
+        let new_msg = match wait_for_message(ctx, channel_id, user, timeout).await {
             Ok(msg) => msg,
             Err(why) => {
-                let mut guard = ctx.data().users_currently_questioned.lock().await;
-                guard.retain(|uid| uid != &msg.author.id);
+                let mut guard = data.users_currently_questioned.lock().await;
+                guard.retain(|uid| uid != &user.id);
                 return Err(Error::from(format!(
                     "User took too long to respond: {}",
                     why
@@ -144,7 +120,7 @@ where
         }
         embed_msg(
             ctx,
-            &msg.channel_id,
+            channel_id,
             None,
             Some("Please send a message with text content."),
             Some(Color::RED),
@@ -170,12 +146,12 @@ where
     Ok(content)
 }
 
-pub async fn alert_mods(ctx: types::Context<'_>, embed: CreateEmbed) -> Result<(), Error> {
-    let config = get_config!(ctx.data(), { return command_error!("Database error.") });
+pub async fn alert_mods(ctx: &Context, embed: CreateEmbed, data: &Data) -> Result<(), Error> {
+    let config = get_config!(data, { return command_error!("Database error.") });
 
     for channel in &config.conveyance_channels {
         ChannelId(*channel as u64)
-            .send_message(ctx.discord(), |m| {
+            .send_message(ctx, |m| {
                 m.content(format!("<@&{}>", config.moderator_role))
                     .set_embed(embed.clone())
             })

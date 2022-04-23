@@ -20,7 +20,7 @@ mod utils {
 }
 mod events {
     pub mod conveyance;
-    //pub mod interactions;
+    pub mod interactions;
     pub mod listener;
 }
 mod client {
@@ -37,6 +37,7 @@ use clap::{App, Arg};
 use futures::lock::Mutex;
 use futures::stream::StreamExt;
 use poise::serenity_prelude::GatewayIntents;
+use poise::Command;
 use regex::Regex;
 use serde_yaml::Value;
 use signal_hook::consts::TERM_SIGNALS;
@@ -197,13 +198,12 @@ async fn main() {
 
     poise::Framework::build()
         .token(token)
-        .client_settings(move |client| {
-            client.application_id(application_id).intents(
-                GatewayIntents::non_privileged()
-                    | GatewayIntents::GUILD_MEMBERS
-                    | GatewayIntents::MESSAGE_CONTENT,
-            )
-        })
+        .client_settings(move |client| client.application_id(application_id))
+        .intents(
+            GatewayIntents::non_privileged()
+                | GatewayIntents::GUILD_MEMBERS
+                | GatewayIntents::MESSAGE_CONTENT,
+        )
         .user_data_setup(move |ctx, ready, framework| {
             Box::pin(async move {
                 log::info!("Ready I guess?");
@@ -221,6 +221,11 @@ async fn main() {
                 groups::admin::register(),
                 groups::general::ping(),
                 groups::localisation::translate(),
+                groups::support::solve(),
+                Command {
+                    subcommands: vec![groups::support::title(), groups::support::id()],
+                    ..groups::support::search()
+                },
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("!".to_string()),

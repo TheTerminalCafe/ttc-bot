@@ -37,7 +37,7 @@ async fn shutdown(ctx: &Context, msg: &Message) -> CommandResult {
     Ok(())
 }*/
 
-#[poise::command(prefix_command)]
+#[poise::command(prefix_command, owners_only, hide_in_help)]
 pub async fn register(ctx: crate::Context<'_>) -> Result<(), crate::Error> {
     log::info!("Registering slash commands");
     poise::builtins::register_application_commands(ctx, false).await?;

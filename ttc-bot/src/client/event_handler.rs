@@ -1,4 +1,3 @@
-use crate::groups;
 use poise::serenity_prelude::*;
 
 // -------------------------------------
