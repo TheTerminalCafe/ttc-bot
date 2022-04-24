@@ -70,10 +70,10 @@ pub async fn listener(
         InteractionCreate { interaction } => {
             crate::events::interactions::interaction_create(ctx, interaction, data).await;
         }
-
-        ChannelUpdate { old: _, new } => {
-            crate::events::support::channel_update(ctx, new, data).await;
+        ThreadUpdate { thread } => {
+            crate::events::support::thread_update(ctx, thread, data).await;
         }
+
         _ => (),
     }
 
