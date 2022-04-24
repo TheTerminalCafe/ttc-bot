@@ -1,6 +1,5 @@
 use poise::{
     serenity_prelude::Context,
-    BoxFuture,
     Event::{self, *},
     Framework,
 };
@@ -10,12 +9,13 @@ use crate::types::{Data, Error};
 pub async fn listener(
     ctx: &Context,
     event: &Event<'_>,
-    framework: &Framework<Data, Error>,
+    _: &Framework<Data, Error>,
     data: &Data,
 ) -> Result<(), Error> {
     match event {
         Message { new_message } => {
             crate::events::conveyance::message(ctx, new_message, data).await;
+            crate::events::bumpy_business::message(ctx, new_message, data).await;
         }
         MessageDelete {
             channel_id,
@@ -37,7 +37,7 @@ pub async fn listener(
             crate::events::conveyance::guild_member_addition(ctx, new_member, data).await;
         }
         GuildMemberRemoval {
-            guild_id,
+            guild_id: _,
             user,
             member_data_if_available,
         } => {
@@ -50,13 +50,13 @@ pub async fn listener(
             .await;
         }
         GuildBanAddition {
-            guild_id,
+            guild_id: _,
             banned_user,
         } => {
             crate::events::conveyance::guild_ban_addition(ctx, banned_user, data).await;
         }
         GuildBanRemoval {
-            guild_id,
+            guild_id: _,
             unbanned_user,
         } => {
             crate::events::conveyance::guild_ban_removal(ctx, unbanned_user, data).await;
@@ -71,6 +71,9 @@ pub async fn listener(
             crate::events::interactions::interaction_create(ctx, interaction, data).await;
         }
 
+        ChannelUpdate { old: _, new } => {
+            crate::events::support::channel_update(ctx, new, data).await;
+        }
         _ => (),
     }
 

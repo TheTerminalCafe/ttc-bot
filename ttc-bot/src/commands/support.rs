@@ -49,6 +49,7 @@ impl PartialEq for ThreadId {
     slash_command,
     prefix_command,
     check = "is_in_support_thread",
+    category = "Support",
     guild_only
 )]
 pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
@@ -120,11 +121,7 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/*#[command]
-#[sub_commands(id, title)]
-#[usage("<id|title>")]
-#[checks(is_in_either)]*/
-#[poise::command(slash_command, prefix_command)]
+#[poise::command(slash_command, prefix_command, category = "Support")]
 pub async fn search(ctx: Context<'_>) -> Result<(), Error> {
     ctx.send(|m| {
         m.embed(|e| {
@@ -140,11 +137,7 @@ pub async fn search(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/*#[command]
-#[description("Search for titles containing specified strings from the database. Quotes allow for spaces in naming.")]
-#[usage("<list of strings to search for>")]
-#[min_args(1)]*/
-#[poise::command(slash_command, prefix_command)]
+#[poise::command(slash_command, prefix_command, category = "Support")]
 pub async fn title(
     ctx: Context<'_>,
     #[description = "Search for an issue based on a title"] title: String,
@@ -185,12 +178,7 @@ pub async fn title(
     Ok(())
 }
 
-/*#[command]
-#[description("Search for specific id from the database")]
-#[usage("<id of support ticket>")]
-#[checks(is_in_either)]
-#[min_args(1)]*/
-#[poise::command(slash_command, prefix_command)]
+#[poise::command(slash_command, prefix_command, category = "Support")]
 pub async fn id(
     ctx: Context<'_>,
     #[description = "The numerical id for the thread"]

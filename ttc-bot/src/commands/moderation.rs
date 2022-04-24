@@ -40,11 +40,11 @@ async fn ban(
         Some(reason) => {
             ctx.guild()
                 .unwrap()
-                .ban_with_reason(ctx.discord(), user, 0, &reason)
+                .ban_with_reason(ctx.discord(), &user, 0, &reason)
                 .await?;
         }
         None => {
-            ctx.guild().unwrap().ban(ctx.discord(), user, 0).await?;
+            ctx.guild().unwrap().ban(ctx.discord(), &user, 0).await?;
         }
     }
 
@@ -61,7 +61,7 @@ async fn ban(
     Ok(())
 }
 
-#[command]
+/*#[command]
 #[num_args(1)]
 #[required_permissions(BAN_MEMBERS)]
 async fn pardon(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
@@ -340,7 +340,7 @@ async fn create_selfroles(ctx: &Context, msg: &Message, mut args: Args) -> Comma
     .await?;
 
     Ok(())
-}
+}*/
 
 async fn is_mod(ctx: Context<'_>) -> Result<bool, Error> {
     let config = get_config!(ctx.data(), {

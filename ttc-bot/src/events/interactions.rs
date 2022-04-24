@@ -110,7 +110,7 @@ mod interactions {
 
     use crate::{
         command_error, get_config,
-        groups::support::SupportThread,
+        commands::support::SupportThread,
         utils::helper_functions::get_message_reply, types::{Error, Data},
     };
 

@@ -2,9 +2,9 @@
 // Module declarations
 // -------------------
 
-mod groups {
+mod commands {
     pub mod admin;
-    pub mod config;
+    //pub mod config;
     pub mod general;
     pub mod localisation;
     pub mod moderation;
@@ -15,9 +15,11 @@ mod utils {
     pub mod macros;
 }
 mod events {
+    pub mod bumpy_business;
     pub mod conveyance;
     pub mod interactions;
     pub mod listener;
+    pub mod support;
 }
 mod types;
 
@@ -247,10 +249,10 @@ async fn main() {
                 | GatewayIntents::GUILD_MEMBERS
                 | GatewayIntents::MESSAGE_CONTENT,
         )
-        .user_data_setup(move |ctx, ready, framework| {
+        .user_data_setup(move |ctx, ready, _| {
             Box::pin(async move {
-                log::info!("Ready I guess?");
-                ctx.set_activity(Activity::listening("Kirottu's noises of anguish"))
+                log::info!("Ready! Logged in as {}", ready.user.tag());
+                ctx.set_activity(Activity::listening("Kirottu's screaming"))
                     .await;
                 Ok(Data {
                     users_currently_questioned: Mutex::new(Vec::new()),
@@ -262,14 +264,15 @@ async fn main() {
         .options(poise::FrameworkOptions {
             commands: vec![
                 help(),
-                groups::admin::register(),
-                groups::general::ping(),
-                groups::localisation::translate(),
-                groups::localisation::translate_to_en(),
-                groups::support::solve(),
+                commands::admin::register(),
+                commands::general::ping(),
+                commands::general::bump(),
+                commands::localisation::translate(),
+                commands::localisation::translate_to_en(),
+                commands::support::solve(),
                 Command {
-                    subcommands: vec![groups::support::title(), groups::support::id()],
-                    ..groups::support::search()
+                    subcommands: vec![commands::support::title(), commands::support::id()],
+                    ..commands::support::search()
                 },
             ],
             prefix_options: poise::PrefixFrameworkOptions {
@@ -283,7 +286,7 @@ async fn main() {
             on_error: |error| Box::pin(on_error(error)),
             ..Default::default()
         })
-        .build()
+        .run()
         .await
         .unwrap();
 
