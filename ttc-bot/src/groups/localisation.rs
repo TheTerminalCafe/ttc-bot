@@ -1,5 +1,6 @@
 use crate::{command_error, Context, Error};
-use poise::serenity_prelude::Color;
+use futures::{Stream, StreamExt};
+use poise::serenity_prelude::{Color, Message};
 use serde_json::Value;
 
 const LANGUAGE_CODES: [(&str, &str); 104] = [
@@ -112,13 +113,73 @@ const LANGUAGE_CODES: [(&str, &str); 104] = [
 #[poise::command(slash_command, prefix_command, category = "Localisation")]
 pub async fn translate(
     ctx: Context<'_>,
-    #[description = "Target language"] mut lang: String,
+    #[description = "Target language"]
+    #[autocomplete = "language_autocomplete"]
+    lang: String,
     #[description = "The text to translate"] text_to_translate: String,
 ) -> Result<(), Error> {
     // Get the language code and the text to translate
 
     ctx.defer().await?;
 
+    let (source_lang, translated_text) = translate_text(lang.clone(), &text_to_translate).await?;
+
+    // Send the translated message
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Translated Message")
+                .description(format!("{} -> {}", source_lang, lang))
+                .field("Original Message", text_to_translate, false)
+                .field("Translated Message", translated_text, false)
+                .color(Color::FOOYOO)
+        })
+        .ephemeral(true)
+    })
+    .await?;
+
+    Ok(())
+}
+
+#[poise::command(
+    context_menu_command = "Translate to English",
+    category = "Localisation"
+)]
+pub async fn translate_to_en(
+    ctx: Context<'_>,
+    #[description = "Message to translate"] msg: Message,
+) -> Result<(), Error> {
+    // Get the language code and the text to translate
+
+    ctx.defer().await?;
+
+    let (source_lang, translated_text) = translate_text("en".to_string(), &msg.content).await?;
+
+    // Send the translated message
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Translated Message")
+                .description(format!("{} -> English", source_lang))
+                .field("Original Message", msg.content, false)
+                .field("Translated Message", translated_text, false)
+                .color(Color::FOOYOO)
+        })
+    })
+    .await?;
+
+    Ok(())
+}
+
+async fn language_autocomplete(_: Context<'_>, partial: String) -> impl Stream<Item = String> {
+    futures::stream::iter(LANGUAGE_CODES)
+        .filter(move |code| futures::future::ready(code.1.starts_with(&partial)))
+        .map(|code| code.1.to_string())
+}
+
+// Function to translate the text
+async fn translate_text(
+    mut lang: String,
+    text_to_translate: &str,
+) -> Result<(String, String), Error> {
     let mut language_found = false;
 
     // Check if the language code is valid
@@ -192,27 +253,5 @@ pub async fn translate(
         }
     };
 
-    // Get the author's nickname or username
-    let author_name = match ctx.author_member().await {
-        Some(member) => match member.nick {
-            Some(nick) => nick,
-            None => member.user.name,
-        },
-        None => ctx.author().name.clone(),
-    };
-
-    // Send the translated message
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Translated Message")
-                .author(|a| a.name(author_name).icon_url(ctx.author().face()))
-                .description(format!("{} -> {}", source_lang, lang))
-                .field("Original Message", text_to_translate, false)
-                .field("Translated Message", translated_text, false)
-                .color(Color::FOOYOO)
-        })
-    })
-    .await?;
-
-    Ok(())
+    Ok((source_lang.to_string(), translated_text))
 }

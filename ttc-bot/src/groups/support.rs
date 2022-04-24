@@ -45,7 +45,12 @@ impl PartialEq for ThreadId {
 // Support group commands
 // ----------------------
 
-#[poise::command(slash_command, prefix_command, check = "is_in_support_thread")]
+#[poise::command(
+    slash_command,
+    prefix_command,
+    check = "is_in_support_thread",
+    guild_only
+)]
 pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
     // Get a reference to the database
     let pool = &ctx.data().pool;
@@ -144,6 +149,8 @@ pub async fn title(
     ctx: Context<'_>,
     #[description = "Search for an issue based on a title"] title: String,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
+
     let pool = &ctx.data().pool;
 
     // Loop through the arguments and with each iteration search for them from the database, if
@@ -190,7 +197,7 @@ pub async fn id(
     #[min = 0]
     id: u32,
 ) -> Result<(), Error> {
-    // Loop through the arguments and search in each iteration
+    ctx.defer().await?;
 
     let pool = &ctx.data().pool;
 
@@ -204,7 +211,7 @@ pub async fn id(
     .await
     {
         Ok(thread) => thread,
-        Err(why) => {
+        Err(_) => {
             ctx.send(|m| {
                 m.ephemeral(true)
                     .embed(|e| e.title("No such ticket found").color(Color::RED))

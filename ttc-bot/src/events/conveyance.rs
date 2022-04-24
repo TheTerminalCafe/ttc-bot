@@ -2,7 +2,6 @@ use crate::{get_config, types::Data, utils::helper_functions::alert_mods};
 use chrono::{DateTime, Utc};
 use poise::serenity_prelude::*;
 use rand::prelude::SliceRandom;
-use sqlx::PgPool;
 
 // Types for fetching/writing data from/to SQL database
 struct CurrentIndex {

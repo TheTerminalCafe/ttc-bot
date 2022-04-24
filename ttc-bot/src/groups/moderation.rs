@@ -1,56 +1,61 @@
 use crate::{
-    command_error, get_config, typemap::types::PgPoolType, utils::helper_functions::embed_msg,
+    command_error, get_config,
+    types::{Context, Error},
+    utils::helper_functions::embed_msg,
 };
 use chrono::{Duration, Utc};
+use poise::serenity_prelude::{Color, RoleId, User};
 
-#[poise::command()]
-async fn ban(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    check = "is_mod",
+    guild_only
+)]
+async fn ban(
+    ctx: Context<'_>,
+    #[description = "User to ban"] user: User,
+    #[description = "Reason"] reason: Option<String>,
+) -> Result<(), Error> {
     // Get the user mentioned in the command
-    let user = args.single::<UserId>()?.to_user(ctx).await?;
 
     // Make sure people do not ban themselves
-    if user == msg.author {
-        embed_msg(
-            ctx,
-            &msg.channel_id,
-            Some("That's a bad idea."),
-            Some("You really should not try to ban yourself."),
-            Some(Color::DARK_RED),
-            None,
-        )
+    if user == *ctx.author() {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("That's a bad idea")
+                    .description("You should not try to ban yourself.")
+                    .color(Color::RED)
+            })
+            .ephemeral(true)
+        })
         .await?;
         return Ok(());
     }
 
-    // Also make sure a guild id is available
-    let guild_id = match msg.guild_id {
-        Some(guild_id) => guild_id,
-        None => return command_error!("No guild id available!"),
-    };
-
     // Ban the person depending on if a reason was supplied
-    match args.parse::<String>() {
-        Ok(reason) => match guild_id.ban_with_reason(ctx, user.clone(), 2, reason).await {
-            Ok(_) => (),
-            Err(why) => return command_error!("Error banning user: {}", why),
-        },
-        Err(_) => match guild_id.ban(ctx, user.clone(), 2).await {
-            Ok(_) => (),
-            Err(why) => return command_error!("Error banning user: {}", why),
-        },
-    };
 
-    embed_msg(
-        ctx,
-        &msg.channel_id,
-        Some("Banhammer has been swung"),
-        Some(&format!(
-            "{} banned. I hope justice has been made.",
-            user.tag()
-        )),
-        Some(Color::RED),
-        None,
-    )
+    match reason {
+        Some(reason) => {
+            ctx.guild()
+                .unwrap()
+                .ban_with_reason(ctx.discord(), user, 0, &reason)
+                .await?;
+        }
+        None => {
+            ctx.guild().unwrap().ban(ctx.discord(), user, 0).await?;
+        }
+    }
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Banhammer has been swung.")
+                .description(format!("{} has been banned.", user.tag()))
+                .color(Color::RED)
+        })
+        .ephemeral(true)
+    })
     .await?;
 
     Ok(())
@@ -337,37 +342,13 @@ async fn create_selfroles(ctx: &Context, msg: &Message, mut args: Args) -> Comma
     Ok(())
 }
 
-#[check]
-async fn is_mod(ctx: &Context, msg: &Message) -> Result<(), Reason> {
-    let config = get_config!(ctx, {
-        return Err(Reason::Log("Database error.".to_string()));
+async fn is_mod(ctx: Context<'_>) -> Result<bool, Error> {
+    let config = get_config!(ctx.data(), {
+        return Err(Error::from("Database error.".to_string()));
     });
 
-    if match msg
-        .author
-        .has_role(
-            ctx,
-            match msg.guild_id {
-                Some(id) => id,
-                None => {
-                    return Err(Reason::UserAndLog {
-                        user: "Not in a server!".to_string(),
-                        log: "Moderation command called outside a server".to_string(),
-                    })
-                }
-            },
-            RoleId(config.moderator_role as u64),
-        )
-        .await
-    {
-        Ok(result) => result,
-        Err(why) => {
-            log::error!("Failed to get user roles: {}", why);
-            false
-        }
-    } {
-        return Ok(());
-    }
-
-    Err(Reason::Log("No mod role found".to_string()))
+    Ok(match ctx.author_member().await {
+        Some(member) => member.roles.contains(&RoleId(config.moderator_role as u64)),
+        None => false,
+    })
 }

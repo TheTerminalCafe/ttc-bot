@@ -2,16 +2,12 @@
 // Module declarations
 // -------------------
 
-/*mod typemap {
-    pub mod config;
-    pub mod types;
-}*/
 mod groups {
     pub mod admin;
-    //    pub mod config;
+    pub mod config;
     pub mod general;
     pub mod localisation;
-    // pub mod moderation;
+    pub mod moderation;
     pub mod support;
 }
 mod utils {
@@ -23,10 +19,6 @@ mod events {
     pub mod interactions;
     pub mod listener;
 }
-mod client {
-    pub mod event_handler;
-    //    pub mod hooks;
-}
 mod types;
 
 // ----------------------
@@ -36,7 +28,7 @@ mod types;
 use clap::{App, Arg};
 use futures::lock::Mutex;
 use futures::stream::StreamExt;
-use poise::serenity_prelude::GatewayIntents;
+use poise::serenity_prelude::{Activity, Color, GatewayIntents};
 use poise::Command;
 use regex::Regex;
 use serde_yaml::Value;
@@ -46,6 +38,8 @@ use sqlx::postgres::PgPoolOptions;
 use std::io::Read;
 use std::{collections::HashSet, fs::File, sync::Arc};
 use types::{Context, Data, Error};
+
+use crate::types::Config;
 //use typemap::types::*;
 // ------------
 // Help message
@@ -74,6 +68,37 @@ This is an example bot made to showcase features of my custom Discord bot framew
     )
     .await?;
     Ok(())
+}
+
+async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
+    // This is our custom error handler
+    // They are many errors that can occur, so we only handle the ones we want to customize
+    // and forward the rest to the default handler
+    match error {
+        poise::FrameworkError::Setup { error } => panic!("Failed to start bot: {:?}", error),
+        poise::FrameworkError::Command { error, ctx } => {
+            log::warn!("Error in command `{}`: {:?}", ctx.command().name, error,);
+            match ctx
+                .send(|m| {
+                    m.embed(|e| {
+                        e.title("An error occurred.")
+                            .description(format!("{:?}", error))
+                            .color(Color::RED)
+                    })
+                    .ephemeral(true)
+                })
+                .await
+            {
+                Ok(_) => (),
+                Err(why) => log::error!("Failed to send error message: {:?}", why),
+            }
+        }
+        error => {
+            if let Err(e) = poise::builtins::on_error(error).await {
+                log::error!("Error while handling error: {}", e)
+            }
+        }
+    }
 }
 
 #[tokio::main]
@@ -194,9 +219,27 @@ async fn main() {
         }
     }
 
-    log::info!("Got here");
+    if matches.is_present("write-db") {
+        let config = Config {
+            support_channel: support_channel_id as i64,
+            verified_role: verified_role_id as i64,
+            moderator_role: moderator_role_id as i64,
+            conveyance_channels: conveyance_channel_ids,
+            conveyance_blacklisted_channels: conveyance_blacklisted_channel_ids,
+            welcome_channel: welcome_channel_id as i64,
+            welcome_messages,
+        };
 
-    poise::Framework::build()
+        match config.save_in_db(&pool).await {
+            Ok(_) => (),
+            Err(why) => {
+                log::error!("Failed to write config into the database: {}", why);
+                return;
+            }
+        }
+    }
+
+    let framework = poise::Framework::build()
         .token(token)
         .client_settings(move |client| client.application_id(application_id))
         .intents(
@@ -207,7 +250,8 @@ async fn main() {
         .user_data_setup(move |ctx, ready, framework| {
             Box::pin(async move {
                 log::info!("Ready I guess?");
-                log::info!("{:?}", ready);
+                ctx.set_activity(Activity::listening("Kirottu's noises of anguish"))
+                    .await;
                 Ok(Data {
                     users_currently_questioned: Mutex::new(Vec::new()),
                     pool: pool,
@@ -221,6 +265,7 @@ async fn main() {
                 groups::admin::register(),
                 groups::general::ping(),
                 groups::localisation::translate(),
+                groups::localisation::translate_to_en(),
                 groups::support::solve(),
                 Command {
                     subcommands: vec![groups::support::title(), groups::support::id()],
@@ -235,9 +280,10 @@ async fn main() {
             listener: |ctx, event, framework, data| {
                 Box::pin(events::listener::listener(ctx, event, framework, data))
             },
+            on_error: |error| Box::pin(on_error(error)),
             ..Default::default()
         })
-        .run()
+        .build()
         .await
         .unwrap();
 
