@@ -10,7 +10,7 @@ use poise::serenity_prelude::{Color, RoleId, User};
     slash_command,
     prefix_command,
     category = "Moderation",
-    check = "is_mod",
+    required_permissions = "BAN_MEMBERS",
     guild_only
 )]
 async fn ban(

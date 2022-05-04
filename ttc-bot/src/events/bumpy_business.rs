@@ -4,7 +4,7 @@ use poise::serenity_prelude::{Color, Context, Mentionable, Message, MessageType,
 
 use crate::types::Data;
 
-pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
+pub async fn message(ctx: &Context, msg: &Message) {
     match msg.kind {
         MessageType::ChatInputCommand => {
             if msg.interaction.as_ref().unwrap().name == "bump" {
@@ -29,7 +29,8 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
                                     return;
                                 }
                             }
-                            tokio::time::sleep(Duration::from_secs(10)).await;
+                            // 2 hours
+                            tokio::time::sleep(Duration::from_secs(7200)).await;
                             match msg.channel_id.send_message(
                                 ctx, 
                                 |m| 

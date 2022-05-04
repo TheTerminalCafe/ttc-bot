@@ -32,18 +32,6 @@ struct BadWord {
 pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
     let pool = &data.pool;
 
-    let bad_words: Vec<BadWord> =
-        match sqlx::query_as!(BadWord, r#"SELECT (word) FROM ttc_bad_words"#)
-            .fetch_all(pool)
-            .await
-        {
-            Ok(bad_words) => bad_words,
-            Err(why) => {
-                log::error!("Failed to get bad words from the database: {}", why);
-                return;
-            }
-        };
-
     let mut id = match sqlx::query_as!(
         CurrentIndex,
         r#"SELECT current_id FROM ttc_conveyance_state"#
@@ -96,66 +84,6 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
         Err(why) => {
             log::error!("Writing to database failed: {}", why);
             return;
-        }
-    }
-
-    for word in &bad_words {
-        if msg
-            .content
-            .to_lowercase()
-            .contains(&word.word.to_lowercase())
-        {
-            match msg.delete(ctx).await {
-                Ok(_) => {
-                    let mut member = match msg.member(ctx).await {
-                        Ok(member) => member,
-                        Err(why) => {
-                            log::error!("Error getting member from message: {}", why);
-                            return;
-                        }
-                    };
-
-                    match member
-                        .disable_communication_until_datetime(
-                            ctx,
-                            Timestamp::from(Utc::now() + chrono::Duration::hours(2)),
-                        )
-                        .await
-                    {
-                        Ok(_) => (),
-                        Err(why) => {
-                            log::error!("Error time outing member: {}", why);
-                            return;
-                        }
-                    }
-
-                    let mut embed = CreateEmbed::default();
-                    embed
-                        .title("Bad word detected!")
-                        .description(
-                            format!(
-                                "User {} has said a bad word (||{}||). They have been timed out for 2 hours. Full message is available below/above, thank me later.",
-                                msg.author.tag(),
-                                word.word
-                            )
-                        )
-                        .color(Color::RED);
-
-                    match alert_mods(ctx, embed, data).await {
-                        Ok(_) => (),
-                        Err(why) => {
-                            log::error!("Error sending messages: {}", why);
-                            return;
-                        }
-                    }
-
-                    break;
-                }
-                Err(why) => {
-                    log::error!("Error deleting message: {}", why);
-                    return;
-                }
-            };
         }
     }
 }
