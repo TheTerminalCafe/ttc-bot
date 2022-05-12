@@ -13,6 +13,7 @@ mod commands {
 mod utils {
     pub mod helper_functions;
     pub mod macros;
+    pub mod autocomplete_functions;
 }
 mod events {
     pub mod bumpy_business;

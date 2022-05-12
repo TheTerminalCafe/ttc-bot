@@ -1,13 +1,10 @@
-use std::time::Duration;
-
 use crate::{
-    command_error, get_config,
+    command_error,
     types::{Context, Error},
-    utils::helper_functions::*,
 };
 use chrono::{DateTime, Utc};
 use poise::{
-    serenity_prelude::{Color, CreateEmbed, Embed, GuildChannel, Message, UserId},
+    serenity_prelude::{Color, CreateEmbed},
     CreateReply,
 };
 

@@ -1,9 +1,8 @@
-use crate::{command_error, Context, Error};
-use futures::{Stream, StreamExt};
+use crate::{command_error, Context, Error, utils::autocomplete_functions::language_autocomplete};
 use poise::serenity_prelude::{Color, Message};
 use serde_json::Value;
 
-const LANGUAGE_CODES: [(&str, &str); 104] = [
+pub const LANGUAGE_CODES: [(&str, &str); 104] = [
     ("af", "Afrikaans"),
     ("sq", "Albanian"),
     ("am", "Amharic"),
@@ -169,11 +168,6 @@ pub async fn translate_to_en(
     Ok(())
 }
 
-async fn language_autocomplete(_: Context<'_>, partial: String) -> impl Stream<Item = String> {
-    futures::stream::iter(LANGUAGE_CODES)
-        .filter(move |code| futures::future::ready(code.1.starts_with(&partial)))
-        .map(|code| code.1.to_string())
-}
 
 // Function to translate the text
 async fn translate_text(

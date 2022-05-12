@@ -1,10 +1,7 @@
 use crate::{
-    command_error, get_config,
-    types::{Context, Error},
-    utils::helper_functions::embed_msg,
+    types::{Context, Error}, utils::autocomplete_functions::member_autocomplete,
 };
-use chrono::{Duration, Utc};
-use poise::serenity_prelude::{Color, RoleId, User};
+use poise::serenity_prelude::{Color, User, UserId, Member};
 
 #[poise::command(
     slash_command,
@@ -15,13 +12,13 @@ use poise::serenity_prelude::{Color, RoleId, User};
 )]
 async fn ban(
     ctx: Context<'_>,
-    #[description = "User to ban"] user: User,
+    #[description = "User to ban"] #[autocomplete = "member_autocomplete"] member: Member,
     #[description = "Reason"] reason: Option<String>,
 ) -> Result<(), Error> {
     // Get the user mentioned in the command
 
     // Make sure people do not ban themselves
-    if user == *ctx.author() {
+    if member.user == *ctx.author() {
         ctx.send(|m| {
             m.embed(|e| {
                 e.title("That's a bad idea")
@@ -38,33 +35,27 @@ async fn ban(
 
     match reason {
         Some(reason) => {
-            ctx.guild()
-                .unwrap()
-                .ban_with_reason(ctx.discord(), &user, 0, &reason)
-                .await?;
+            member.ban_with_reason(ctx.discord(), 0, reason).await?;
         }
         None => {
-            ctx.guild().unwrap().ban(ctx.discord(), &user, 0).await?;
+            member.ban(ctx.discord(), 0).await?;
         }
     }
 
     ctx.send(|m| {
         m.embed(|e| {
             e.title("Banhammer has been swung.")
-                .description(format!("{} has been banned.", user.tag()))
+                .description(format!("{} has been banned.", member.user.tag()))
                 .color(Color::RED)
         })
-        .ephemeral(true)
     })
     .await?;
 
     Ok(())
 }
 
-/*#[command]
-#[num_args(1)]
-#[required_permissions(BAN_MEMBERS)]
-async fn pardon(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+/*#[poise::command(slash_command, prefix_command, category = "Moderation", required_permissions = "BAN_MEMBERS", guild_only)]
+async fn pardon(ctx: Context<'_>, #[description = "The user id to pardon"] user: UserId) -> Result<(), Error> {
     let user = args.single::<UserId>()?.to_user(ctx).await?;
 
     if user == msg.author {
@@ -342,7 +333,7 @@ async fn create_selfroles(ctx: &Context, msg: &Message, mut args: Args) -> Comma
     Ok(())
 }*/
 
-async fn is_mod(ctx: Context<'_>) -> Result<bool, Error> {
+/*async fn is_mod(ctx: Context<'_>) -> Result<bool, Error> {
     let config = get_config!(ctx.data(), {
         return Err(Error::from("Database error.".to_string()));
     });
@@ -351,4 +342,4 @@ async fn is_mod(ctx: Context<'_>) -> Result<bool, Error> {
         Some(member) => member.roles.contains(&RoleId(config.moderator_role as u64)),
         None => false,
     })
-}
+}*/
