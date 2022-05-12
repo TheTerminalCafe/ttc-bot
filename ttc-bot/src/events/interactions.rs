@@ -98,7 +98,7 @@ pub async fn interaction_create(ctx: &Context, intr: Interaction) {
 
 // Module for the separate interaction functions, to keep the main interaction functions clean
 mod interactions {
-    use chrono::Utc;
+    use chrono::{Utc};
     use rand::prelude::SliceRandom;
     use serenity::{
         builder::CreateEmbed,
@@ -138,6 +138,19 @@ mod interactions {
         .await?;
 
         let config = get_config!(ctx, { return command_error!("Failed to get config") });
+
+        if Utc::now() - intr.member.clone().unwrap().user.created_at() < chrono::Duration::days(7) {
+            intr.edit_original_interaction_response(
+                ctx, 
+                |i| {
+                    i.create_embed(|e| 
+                        e.title("An error occurred")
+                        .description("Something went wrong.")
+                        .color(Color::RED))
+                    }
+                )
+                .await?;
+        }
 
         // Check if the user already has the verified role
         if !intr
