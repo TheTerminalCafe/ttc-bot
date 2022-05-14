@@ -31,7 +31,6 @@ mod types;
 use clap::{App, Arg};
 use futures::lock::Mutex;
 use futures::stream::StreamExt;
-use futures::TryFutureExt;
 use poise::serenity_prelude::{Activity, Color, GatewayIntents};
 use poise::Command;
 use regex::Regex;
@@ -278,6 +277,7 @@ async fn main() {
                 // Localisation commands
                 commands::localisation::translate(),
                 // Moderation commands
+                commands::moderation::kick(),
                 commands::moderation::ban(),
                 commands::moderation::pardon(),
                 // Support commands

@@ -1,5 +1,5 @@
-use futures::{FutureExt, StreamExt};
-use poise::serenity_prelude::{Color, Member, User};
+use futures::StreamExt;
+use poise::serenity_prelude::{Color, User};
 
 use crate::types::{Context, Error};
 use std::iter::Iterator;
