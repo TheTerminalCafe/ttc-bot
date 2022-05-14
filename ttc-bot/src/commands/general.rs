@@ -79,30 +79,39 @@ pub async fn harold(
     #[description = "User to calculate harold percentage of"] user: User,
 ) -> Result<(), Error> {
     ctx.defer().await?;
-    let mut messages: u64 = 0;
-    let mut harold_messages: u64 = 0;
+    let mut user_messages: u64 = 0;
+    let mut user_harold_messages: u64 = 0;
+    let mut global_messages: u64 = 0;
+    let mut global_harold_messages: u64 = 0;
     for (channel_id, _) in ctx.guild().unwrap().channels {
-        while let Some(message) = channel_id.messages_iter(ctx.discord()).boxed().next().await {
+        let mut messages = channel_id.messages_iter(ctx.discord()).boxed();
+        while let Some(message) = messages.next().await {
             match message {
                 Ok(message) => {
+                    global_messages += 1;
+                    if message.content.contains(":helpmeplz:") {
+                        global_harold_messages += 1;
+                    }
                     if message.author == user {
-                        messages += 1;
+                        user_messages += 1;
                         if message.content.contains(":helpmeplz:") {
-                            harold_messages += 1;
+                            user_harold_messages += 1;
                         }
                     }
-                    log::info!("Still alive!");
                 }
-                Err(why) => log::error!("Bruh {}", why),
+                Err(why) => log::error!("Something went wrong when getting message: {}", why),
             }
         }
     }
 
     ctx.say(format!(
-        "Messages: {}, Harold messages: {}, Percentage: {}",
-        messages,
-        harold_messages,
-        (harold_messages as f64 / messages as f64) * 100.0
+        "Messages: {}, Harold messages: {}, Percentage: {}, Global messages: {}, Global harold messages: {}, Global percentage: {}",
+        user_messages,
+        user_harold_messages,
+        (user_harold_messages as f64 / user_messages as f64) * 100.0,
+        global_messages,
+        global_harold_messages,
+        (global_harold_messages as f64 / global_messages as f64) * 100.0,
     ))
     .await?;
 
