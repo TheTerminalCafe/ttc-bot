@@ -150,6 +150,7 @@ mod interactions {
                     }
                 )
                 .await?;
+            return Ok(());
         }
 
         // Check if the user already has the verified role
