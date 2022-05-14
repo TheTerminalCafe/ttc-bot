@@ -269,8 +269,6 @@ async fn main() {
             commands: vec![
                 help(),
                 // Admin commands
-                commands::moderation::ban(),
-                commands::moderation::pardon(),
                 commands::admin::register(),
                 commands::admin::shutdown(),
                 // General commands
@@ -281,6 +279,7 @@ async fn main() {
                 commands::localisation::translate(),
                 // Moderation commands
                 commands::moderation::ban(),
+                commands::moderation::pardon(),
                 // Support commands
                 commands::support::solve(),
                 Command {
