@@ -13,8 +13,6 @@ pub async fn ban(
     #[description = "User to ban"] member: Member,
     #[description = "Reason"] reason: Option<String>,
 ) -> Result<(), Error> {
-    // Get the user mentioned in the command
-
     // Make sure people do not ban themselves
     if member.user == *ctx.author() {
         ctx.send(|m| {
@@ -30,7 +28,6 @@ pub async fn ban(
     }
 
     // Ban the person depending on if a reason was supplied
-
     match reason {
         Some(reason) => {
             member.ban_with_reason(ctx.discord(), 0, reason).await?;
