@@ -29,6 +29,7 @@ mod types;
 // ----------------------
 
 use clap::{App, Arg};
+use futures::TryFutureExt;
 use futures::lock::Mutex;
 use futures::stream::StreamExt;
 use poise::serenity_prelude::{Activity, Color, GatewayIntents};
@@ -288,18 +289,26 @@ async fn main() {
             on_error: |error| Box::pin(on_error(error)),
             ..Default::default()
         })
-        .run()
+        .build()
         .await
         .unwrap();
 
-    //handle.close();
+    let signals = Signals::new(TERM_SIGNALS).unwrap();
+
+    let handle = signals.handle();
+
+    tokio::spawn(signal_hook_task(signals, framework.shard_manager()));
+    
+    framework.start().await.unwrap();
+
+    handle.close();
 
     log::info!("Bot shut down");
 }
 
 async fn signal_hook_task(
     mut signals: Signals,
-    shard_mgr: Arc<Mutex<poise::serenity_prelude::ShardManager>>,
+    shard_mgr: Arc<poise::serenity_prelude::Mutex<poise::serenity_prelude::ShardManager>>,
 ) {
     while let Some(_) = signals.next().await {
         log::info!("A termination signal received, exiting...");

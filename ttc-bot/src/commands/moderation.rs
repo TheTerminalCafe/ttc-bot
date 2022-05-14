@@ -1,5 +1,5 @@
 use crate::{
-    types::{Context, Error}, utils::autocomplete_functions::member_autocomplete,
+    types::{Context, Error},
 };
 use poise::serenity_prelude::{Color, User, UserId, Member};
 
@@ -12,7 +12,7 @@ use poise::serenity_prelude::{Color, User, UserId, Member};
 )]
 pub async fn ban(
     ctx: Context<'_>,
-    #[description = "User to ban"] #[autocomplete = "member_autocomplete"] member: Member,
+    #[description = "User to ban"] member: Member,
     #[description = "Reason"] reason: Option<String>,
 ) -> Result<(), Error> {
     // Get the user mentioned in the command
