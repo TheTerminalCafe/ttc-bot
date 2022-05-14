@@ -1,4 +1,4 @@
-use crate::{get_config, types::Data, utils::helper_functions::alert_mods};
+use crate::{get_config, types::Data};
 use chrono::{DateTime, Utc};
 use poise::serenity_prelude::*;
 use rand::prelude::SliceRandom;
@@ -17,10 +17,6 @@ struct CachedMessage {
     message_time: Option<DateTime<Utc>>,
     content: Option<String>,
     attachments: Option<String>,
-}
-
-struct BadWord {
-    word: String,
 }
 
 // --------------------------------
@@ -149,7 +145,6 @@ pub async fn message_delete(
             .send_message(ctx, |m| {
                 m.embed(|e| {
                     e.title("Message deleted")
-                        .author(|a| a.name(&user.name).icon_url(user.face()))
                         .color(Color::GOLD)
                         .field("User", user.tag(), true)
                         .field("UserId", user.id, true)
@@ -168,6 +163,17 @@ pub async fn message_delete(
                 return;
             }
         }
+    }
+}
+
+pub async fn message_delete_bulk(
+    ctx: &Context,
+    channel_id: &ChannelId,
+    deleted_message_ids: &Vec<MessageId>,
+    data: &Data,
+) {
+    for id in deleted_message_ids {
+        message_delete(ctx, channel_id, id, data).await;
     }
 }
 

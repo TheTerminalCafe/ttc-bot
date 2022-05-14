@@ -4,6 +4,11 @@ use crate::{
     command_error, get_config, utils::helper_functions::embed_msg, types::Context,
 };
 
+#[poise::command(slash_command, prefix_command, owner_only)]
+pub async fn get(ctx: Context<'_>, #[description = "Name of the property"] property: String) -> Result<(), Error> {
+    Ok(())
+}
+
 /*#[poise::command(slash_command, prefix_command, owner_only)]
 async fn set(ctx: Context<'_>, #[description = "The name of the value"] property: String, #[description = "Value to set it to"]) -> CommandResult {
     args.quoted();

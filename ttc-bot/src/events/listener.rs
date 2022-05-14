@@ -1,7 +1,7 @@
 use poise::{
     serenity_prelude::Context,
     Event::{self, *},
-    Framework,
+    FrameworkContext,
 };
 
 use crate::types::{Data, Error};
@@ -9,7 +9,7 @@ use crate::types::{Data, Error};
 pub async fn listener(
     ctx: &Context,
     event: &Event<'_>,
-    _: &Framework<Data, Error>,
+    _: FrameworkContext<'_, Data, Error>,
     data: &Data,
 ) -> Result<(), Error> {
     match event {
@@ -24,6 +24,19 @@ pub async fn listener(
         } => {
             crate::events::conveyance::message_delete(ctx, channel_id, deleted_message_id, data)
                 .await;
+        }
+        MessageDeleteBulk {
+            channel_id,
+            multiple_deleted_messages_ids,
+            guild_id: _,
+        } => {
+            crate::events::conveyance::message_delete_bulk(
+                ctx,
+                channel_id,
+                multiple_deleted_messages_ids,
+                data,
+            )
+            .await;
         }
         MessageUpdate {
             old_if_available,

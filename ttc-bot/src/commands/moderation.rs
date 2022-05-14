@@ -1,7 +1,5 @@
-use crate::{
-    types::{Context, Error},
-};
-use poise::serenity_prelude::{Color, User, UserId, Member};
+use crate::types::{Context, Error};
+use poise::serenity_prelude::{Color, Member};
 
 #[poise::command(
     slash_command,

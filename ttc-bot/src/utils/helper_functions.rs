@@ -3,10 +3,8 @@ use poise::serenity_prelude::{
 };
 
 use crate::{
-    command_error,
-    commands::support::SupportThread,
-    get_config,
-    types::{self, Data, Error},
+    command_error, get_config,
+    types::{Data, Error},
 };
 use std::{sync::Arc, time::Duration};
 

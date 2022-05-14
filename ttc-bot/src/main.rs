@@ -11,9 +11,9 @@ mod commands {
     pub mod support;
 }
 mod utils {
+    pub mod autocomplete_functions;
     pub mod helper_functions;
     pub mod macros;
-    pub mod autocomplete_functions;
 }
 mod events {
     pub mod bumpy_business;
@@ -29,7 +29,6 @@ mod types;
 // ----------------------
 
 use clap::{App, Arg};
-use futures::TryFutureExt;
 use futures::lock::Mutex;
 use futures::stream::StreamExt;
 use poise::serenity_prelude::{Activity, Color, GatewayIntents};
@@ -86,7 +85,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
                 .send(|m| {
                     m.embed(|e| {
                         e.title("An error occurred.")
-                            .description(format!("{:?}", error))
+                            .description(format!("{}", error))
                             .color(Color::RED)
                     })
                     .ephemeral(true)
@@ -223,6 +222,7 @@ async fn main() {
         }
     }
 
+    // Write the config to the database if correct argument is present
     if matches.is_present("write-db") {
         let config = Config {
             support_channel: support_channel_id as i64,
@@ -243,6 +243,7 @@ async fn main() {
         }
     }
 
+    // Create the framework of the bot
     let framework = poise::Framework::build()
         .token(token)
         .client_settings(move |client| client.application_id(application_id))
@@ -266,12 +267,18 @@ async fn main() {
         .options(poise::FrameworkOptions {
             commands: vec![
                 help(),
-                commands::moderation::ban(),
+                // Admin commands
                 commands::admin::register(),
+                commands::admin::shutdown(),
+                // General commands
                 commands::general::ping(),
-                commands::general::bump(),
+                commands::general::userinfo(),
+                commands::general::harold(),
+                // Localisation commands
                 commands::localisation::translate(),
-                commands::localisation::translate_to_en(),
+                // Moderation commands
+                commands::moderation::ban(),
+                // Support commands
                 commands::support::solve(),
                 Command {
                     subcommands: vec![commands::support::title(), commands::support::id()],
@@ -293,14 +300,17 @@ async fn main() {
         .await
         .unwrap();
 
+    // Handling termination signals gracefully, listen for them and shut down the bot if one is received
     let signals = Signals::new(TERM_SIGNALS).unwrap();
-
     let handle = signals.handle();
 
+    // Spawn the listening task
     tokio::spawn(signal_hook_task(signals, framework.shard_manager()));
-    
+
+    // Run the bot
     framework.start().await.unwrap();
 
+    // Close the listening task, to make the bot actually shut down
     handle.close();
 
     log::info!("Bot shut down");

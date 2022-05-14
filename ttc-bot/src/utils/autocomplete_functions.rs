@@ -1,5 +1,4 @@
 use futures::{Stream, StreamExt};
-use poise::serenity_prelude::Member;
 
 use crate::types::Context;
 

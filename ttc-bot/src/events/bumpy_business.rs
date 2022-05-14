@@ -2,8 +2,6 @@ use std::time::Duration;
 
 use poise::serenity_prelude::{Color, Context, Mentionable, Message, MessageType, Timestamp};
 
-use crate::types::Data;
-
 pub async fn message(ctx: &Context, msg: &Message) {
     match msg.kind {
         MessageType::ChatInputCommand => {
