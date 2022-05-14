@@ -265,6 +265,7 @@ async fn main() {
         .options(poise::FrameworkOptions {
             commands: vec![
                 help(),
+                commands::moderation::ban(),
                 commands::admin::register(),
                 commands::general::ping(),
                 commands::general::bump(),

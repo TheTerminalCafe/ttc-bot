@@ -10,7 +10,7 @@ use poise::serenity_prelude::{Color, User, UserId, Member};
     required_permissions = "BAN_MEMBERS",
     guild_only
 )]
-async fn ban(
+pub async fn ban(
     ctx: Context<'_>,
     #[description = "User to ban"] #[autocomplete = "member_autocomplete"] member: Member,
     #[description = "Reason"] reason: Option<String>,
