@@ -159,3 +159,36 @@ pub async fn alert_mods(ctx: &Context, embed: CreateEmbed, data: &Data) -> Resul
 
     Ok(())
 }
+
+pub fn format_duration(dur: &chrono::Duration) -> String {
+    let mut result = String::new();
+    let mut raw = dur.num_seconds();
+    let seconds = raw % 60;
+    raw /= 60;
+    let minutes = raw % 60;
+    raw /= 60;
+    let hours = raw % 24;
+    raw /= 24;
+    let days = raw;
+    match days {
+        0 => {}
+        1 => result = format!("{} {} Day ", result, days),
+        _ => result = format!("{} {} Days ", result, days),
+    }
+    match hours {
+        0 => {}
+        1 => result = format!("{} {} Hour ", result, hours),
+        _ => result = format!("{} {} Hours ", result, hours),
+    }
+    match minutes {
+        0 => {}
+        1 => result = format!("{} {} Minute ", result, minutes),
+        _ => result = format!("{} {} Minutes ", result, minutes),
+    }
+    match seconds {
+        0 => {}
+        1 => result = format!("{} {} Second", result, seconds),
+        _ => result = format!("{} {} Seconds", result, seconds),
+    }
+    result.trim_end().to_owned()
+}

@@ -1,5 +1,9 @@
-use crate::types::{Context, Error};
-use poise::serenity_prelude::{Color, Member, UserId};
+use crate::{
+    types::{Context, Error},
+    utils::helper_functions::format_duration,
+};
+use chrono::{Duration, Utc};
+use poise::serenity_prelude::{Color, Member, Timestamp, UserId};
 
 #[poise::command(
     slash_command,
@@ -13,8 +17,6 @@ pub async fn ban(
     #[description = "User to ban"] member: Member,
     #[description = "Reason"] reason: Option<String>,
 ) -> Result<(), Error> {
-    // Get the user mentioned in the command
-
     // Make sure people do not ban themselves
     if member.user == *ctx.author() {
         ctx.send(|m| {
@@ -30,7 +32,6 @@ pub async fn ban(
     }
 
     // Ban the person depending on if a reason was supplied
-
     match reason {
         Some(reason) => {
             member.ban_with_reason(ctx.discord(), 0, reason).await?;
@@ -137,97 +138,97 @@ pub async fn kick(
     Ok(())
 }
 
-/*
-#[command]
-#[min_args(2)]
-async fn timeout(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let user_id = args.single::<UserId>()?;
-
-    let duration_str = args.rest();
-    let duration = match Duration::from_std(match parse_duration::parse(duration_str) {
-        Ok(duration) => duration,
-        Err(why) => {
-            return command_error!("Error parsing duration: {}", why);
-        }
-    }) {
-        Ok(duration) => duration,
-        Err(why) => {
-            return command_error!("Error parsing duration: {}", why);
-        }
-    };
-
-    let guild_id = msg.guild_id.unwrap();
-
-    let mut member = guild_id.member(ctx, user_id).await?;
-
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn timeout(
+    ctx: Context<'_>,
+    #[description = "The member to timeout"] mut member: Member,
+    #[description = "Time to timeout user"]
+    #[rename = "duration"]
+    duration_str: String,
+) -> Result<(), Error> {
+    let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
     member
-        .disable_communication_until_datetime(ctx, Utc::now() + duration)
+        .disable_communication_until_datetime(
+            ctx.discord(),
+            Timestamp::parse(&(Utc::now() + duration).to_rfc3339())?,
+        )
         .await?;
 
-    embed_msg(
-        ctx,
-        &msg.channel_id,
-        Some("User timed out"),
-        Some(&format!(
-            "User {} timed out for {}",
-            member.user.tag(),
-            duration
-        )),
-        Some(Color::RED),
-        None,
-    )
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("User timed out")
+                .description(format!(
+                    "User {} timed out for {}",
+                    member.user.tag(),
+                    format_duration(&duration)
+                ))
+                .color(Color::RED)
+        })
+    })
     .await?;
 
     Ok(())
 }
 
-#[command]
-#[num_args(1)]
-#[description("Delete multiple messages")]
-#[required_permissions(MANAGE_MESSAGES)]
-#[usage("<number of messages to delete>")]
-async fn purge(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let amount = args.single::<u64>()?;
-
-    if amount > 100 {
-        return command_error!("Unable to delete more than 100 items");
-    } else if amount == 0 {
-        return command_error!("Unable to delete 0 items");
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MANAGE_MESSAGES",
+    guild_only
+)]
+pub async fn purge(
+    ctx: Context<'_>,
+    #[description = "Amount"] mut amount: u64,
+) -> Result<(), Error> {
+    if amount == 0 {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("It's useless to delete 0 messages")
+                    .description("Why would you want to do that?")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
     }
 
-    let messages = msg
-        .channel_id
-        .messages(ctx, |retriever| retriever.before(msg.id).limit(amount))
+    if amount > 100 {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("Can't delete over 100 messages")
+                    .description("Setting amount to 100")
+                    .color(Color::RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        amount = 100;
+    }
+    let messages = ctx
+        .channel_id()
+        .messages(ctx.discord(), |b| b.before(ctx.id()).limit(amount))
         .await?;
 
-    msg.channel_id.delete_messages(ctx, messages).await?;
-
-    let reply = msg
-        .reply(
-            ctx,
-            format!(
-                "Deleted {} messages. This message will self destruct in 5 seconds.",
-                amount
-            ),
-        )
+    ctx.channel_id()
+        .delete_messages(ctx.discord(), messages)
         .await?;
 
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
-    msg.channel_id
-        .delete_messages(ctx, vec![msg.id, reply.id])
-        .await?;
-
-    Ok(())
-}*/
-
-/*async fn is_mod(ctx: Context<'_>) -> Result<bool, Error> {
-    let config = get_config!(ctx.data(), {
-        return Err(Error::from("Database error.".to_string()));
-    });
-
-    Ok(match ctx.author_member().await {
-        Some(member) => member.roles.contains(&RoleId(config.moderator_role as u64)),
-        None => false,
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Deleted")
+                .description(format!("Deleted {} messages", amount))
+                .color(Color::FOOYOO)
+        })
+        .ephemeral(true)
     })
-}*/
+    .await?;
+    Ok(())
+}
