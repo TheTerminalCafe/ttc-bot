@@ -1,7 +1,5 @@
 use futures::{lock::Mutex, StreamExt};
-use poise::serenity_prelude::{
-    Color, CreateEmbed, CreateMessage, Embed, Mentionable, User, UserId,
-};
+use poise::serenity_prelude::{Color, CreateEmbed, User, UserId};
 use tokio::time::Instant;
 
 use crate::types::{Context, Error};
@@ -109,7 +107,6 @@ pub async fn harold(
 
     for (channel_id, _) in channels {
         let ctx = ctx.discord().clone();
-        let user = user.clone();
         let progress_message = progress_message.clone();
         let channel_amount = channel_amount.clone();
         let channel_progress = channel_progress.clone();
