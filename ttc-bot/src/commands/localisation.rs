@@ -1,4 +1,4 @@
-use crate::{command_error, Context, Error, utils::autocomplete_functions::language_autocomplete};
+use crate::{command_error, utils::autocomplete_functions::language_autocomplete, Context, Error};
 use poise::serenity_prelude::{Color, Message};
 use serde_json::Value;
 
@@ -109,6 +109,7 @@ pub const LANGUAGE_CODES: [(&str, &str); 104] = [
     ("zu", "Zulu"),
 ];
 
+// TODO: Add help
 #[poise::command(slash_command, prefix_command, category = "Localisation")]
 pub async fn translate(
     ctx: Context<'_>,
@@ -167,7 +168,6 @@ pub async fn translate_to_en(
 
     Ok(())
 }
-
 
 // Function to translate the text
 async fn translate_text(
