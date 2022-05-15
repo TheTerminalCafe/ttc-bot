@@ -270,6 +270,9 @@ async fn main() {
                 // Admin commands
                 commands::admin::register(),
                 commands::admin::shutdown(),
+                commands::admin::create_verification(),
+                commands::admin::create_selfroles(),
+                commands::admin::create_support_ticket_button(),
                 // General commands
                 commands::general::ping(),
                 commands::general::userinfo(),
