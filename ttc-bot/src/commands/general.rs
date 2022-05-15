@@ -1,22 +1,28 @@
-
+use crate::types::{Context, Data, Error};
 use futures::{lock::Mutex, StreamExt};
-use poise::serenity_prelude::{Color, CreateEmbed, User, UserId};
-use tokio::time::Instant;
-
-use crate::types::{Context, Error};
+use itertools::Itertools;
+use poise::{
+    serenity_prelude::{Color, CreateEmbed, User, UserId},
+    Command,
+};
 use std::{collections::HashMap, iter::Iterator, sync::Arc};
+use tokio::time::Instant;
 // ----------------------
 // General group commands
 // ----------------------
 
-#[poise::command(slash_command)]
+#[poise::command(prefix_command, slash_command, category = "General")]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     ctx.say("pong").await?;
 
     Ok(())
 }
 
-#[poise::command(slash_command, context_menu_command = "User info")]
+#[poise::command(
+    slash_command,
+    context_menu_command = "User info",
+    category = "General"
+)]
 pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> Result<(), Error> {
     ctx.defer().await?;
 
@@ -70,7 +76,13 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, guild_only, global_cooldown = 600)]
+#[poise::command(
+    slash_command,
+    prefix_command,
+    guild_only,
+    global_cooldown = 600,
+    category = "General"
+)]
 pub async fn harold(
     ctx: Context<'_>,
     #[description = "User to calculate harold percentage of"] user: Option<User>,
@@ -360,5 +372,34 @@ pub async fn harold(
         .send_message(ctx.discord(), |m| m.set_embeds(embeds))
         .await?;
 
+    Ok(())
+}
+
+#[poise::command(prefix_command, slash_command, category = "General")]
+pub async fn help(
+    ctx: Context<'_>,
+    #[description = "A single command to view help of"]
+    #[autocomplete = "poise::builtins::autocomplete_command"]
+    command: Option<String>,
+) -> Result<(), Error> {
+    match command {
+        Some(command) => {}
+        None => {
+            let commands = &ctx.framework().options().commands;
+
+            let mut categories: HashMap<&str, Vec<&Command<Data, Error>>> = HashMap::new();
+
+            for command in commands {
+                let category = command.category.unwrap_or("General");
+                let mut commands = categories.entry(category).or_insert(Vec::new());
+                commands.push(command);
+            }
+            categories = categories
+                .keys()
+                .sorted()
+                .map(|key| (*key, categories[key].clone()))
+                .collect();
+        }
+    }
     Ok(())
 }

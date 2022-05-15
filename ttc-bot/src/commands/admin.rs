@@ -9,7 +9,13 @@ use crate::{
     types::{self, Context, Error},
 };
 
-#[poise::command(prefix_command, slash_command, owners_only)]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    owners_only,
+    hide_in_help,
+    category = "Admin"
+)]
 pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
     ctx.send(|m| m.embed(|e| e.title("Goodbye!").color(Color::PURPLE)))
         .await?;
@@ -24,14 +30,20 @@ pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(prefix_command, owners_only, hide_in_help)]
+#[poise::command(prefix_command, owners_only, hide_in_help, category = "Admin")]
 pub async fn register(ctx: types::Context<'_>) -> Result<(), types::Error> {
     log::info!("Registering slash commands");
     poise::builtins::register_application_commands(ctx, false).await?;
     Ok(())
 }
 
-#[poise::command(prefix_command, slash_command, owners_only)]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    owners_only,
+    hide_in_help,
+    category = "Admin"
+)]
 pub async fn create_verification(
     ctx: Context<'_>,
     #[description = "Channel to send it in"] channel_id: ChannelId,
@@ -65,7 +77,13 @@ pub async fn create_verification(
     Ok(())
 }
 
-#[poise::command(prefix_command, slash_command, owners_only)]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    owners_only,
+    hide_in_help,
+    category = "Admin"
+)]
 pub async fn create_selfroles(
     ctx: Context<'_>,
     #[description = "Channel to send it in"] channel_id: ChannelId,
@@ -144,7 +162,13 @@ pub async fn create_selfroles(
     Ok(())
 }
 
-#[poise::command(prefix_command, slash_command, owners_only)]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    owners_only,
+    hide_in_help,
+    category = "Admin"
+)]
 pub async fn create_support_ticket_button(
     ctx: Context<'_>,
     #[description = "Channel to send it in"] channel_id: ChannelId,

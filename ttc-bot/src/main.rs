@@ -52,27 +52,6 @@ use crate::types::Config;
 // Initialization code & Entry point
 // ---------------------------------
 
-#[poise::command(prefix_command, track_edits, slash_command)]
-async fn help(
-    ctx: Context<'_>,
-    #[description = "Specific command to show help about"]
-    #[autocomplete = "poise::builtins::autocomplete_command"]
-    command: Option<String>,
-) -> Result<(), Error> {
-    poise::builtins::help(
-        ctx,
-        command.as_deref(),
-        poise::builtins::HelpConfiguration {
-            extra_text_at_bottom: "\
-This is an example bot made to showcase features of my custom Discord bot framework",
-            show_context_menu_commands: true,
-            ..Default::default()
-        },
-    )
-    .await?;
-    Ok(())
-}
-
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // This is our custom error handler
     // They are many errors that can occur, so we only handle the ones we want to customize
@@ -266,7 +245,6 @@ async fn main() {
         })
         .options(poise::FrameworkOptions {
             commands: vec![
-                help(),
                 // Admin commands
                 commands::admin::register(),
                 commands::admin::shutdown(),
@@ -277,6 +255,7 @@ async fn main() {
                 commands::general::ping(),
                 commands::general::userinfo(),
                 commands::general::harold(),
+                commands::general::help(),
                 // Localisation commands
                 commands::localisation::translate(),
                 // Moderation commands
@@ -293,7 +272,7 @@ async fn main() {
                 },
             ],
             prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some("!".to_string()),
+                prefix: Some("ttc!".to_string()),
                 ..Default::default()
             },
             owners: owners,

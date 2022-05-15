@@ -259,8 +259,7 @@ pub async fn message_update(
                     }
                     // Fall back to the event in case all other methods fail
                     Err(why) => {
-                        log::error!("Error getting message: {}", why);
-                        log::debug!("Edited message content got based on raw event");
+                        log::warn!("Error getting message: {}", why);
 
                         let mut content_safe =
                             content_safe(ctx, &content, &ContentSafeOptions::default(), &[]);
