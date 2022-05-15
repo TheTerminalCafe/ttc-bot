@@ -176,51 +176,6 @@ pub async fn timeout(
     Ok(())
 }
 
-/*
-#[command]
-#[min_args(2)]
-async fn timeout(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let user_id = args.single::<UserId>()?;
-
-    let duration_str = args.rest();
-    let duration = match Duration::from_std(match parse_duration::parse(duration_str) {
-        Ok(duration) => duration,
-        Err(why) => {
-            return command_error!("Error parsing duration: {}", why);
-        }
-    }) {
-        Ok(duration) => duration,
-        Err(why) => {
-            return command_error!("Error parsing duration: {}", why);
-        }
-    };
-
-    let guild_id = msg.guild_id.unwrap();
-
-    let mut member = guild_id.member(ctx, user_id).await?;
-
-    member
-        .disable_communication_until_datetime(ctx, Utc::now() + duration)
-        .await?;
-
-    embed_msg(
-        ctx,
-        &msg.channel_id,
-        Some("User timed out"),
-        Some(&format!(
-            "User {} timed out for {}",
-            member.user.tag(),
-            duration
-        )),
-        Some(Color::RED),
-        None,
-    )
-    .await?;
-
-    Ok(())
-}
-*/
-
 #[poise::command(
     slash_command,
     prefix_command,
