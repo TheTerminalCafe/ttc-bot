@@ -4,7 +4,10 @@
 
 use poise::serenity_prelude::{ButtonStyle, ChannelId, Color, CreateSelectMenu, Role, RoleId};
 
-use crate::types::{self, Context, Error};
+use crate::{
+    get_config,
+    types::{self, Context, Error},
+};
 
 #[poise::command(prefix_command, slash_command, owners_only)]
 pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
@@ -134,6 +137,51 @@ pub async fn create_selfroles(
         m.embed(|e| {
             e.title("Self-role menu created")
                 .description(format!("Self-role menu created in <#{}>.", channel_id))
+        })
+    })
+    .await?;
+
+    Ok(())
+}
+
+#[poise::command(prefix_command, slash_command, owners_only)]
+pub async fn create_support_ticket_button(
+    ctx: Context<'_>,
+    #[description = "Channel to send it in"] channel_id: ChannelId,
+    #[description = "Description for the support system"] description: String,
+) -> Result<(), Error> {
+    let config = get_config!(ctx.data(), {
+        return Err(Error::from("Unable to obtain config"));
+    });
+
+    channel_id
+        .send_message(ctx.discord(), |m| {
+            m.embed(|e| {
+                e.color(Color::FOOYOO)
+                    .title("Support tickets")
+                    .description(format!(
+                        "{}\n\nAll support tickets are created in <#{}>",
+                        description, config.support_channel
+                    ))
+            })
+            .components(|c| {
+                c.create_action_row(|a| {
+                    a.create_button(|b| {
+                        b.label("Click here to create a support ticket")
+                            .custom_id("ttc-bot-ticket-button")
+                            .style(ButtonStyle::Primary)
+                    })
+                })
+            })
+        })
+        .await?;
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Support button created").description(format!(
+                "Support ticket button created in <#{}>",
+                channel_id
+            ))
         })
     })
     .await?;
