@@ -177,47 +177,66 @@ async fn timeout(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 
     Ok(())
 }
+*/
 
-#[command]
-#[num_args(1)]
-#[description("Delete multiple messages")]
-#[required_permissions(MANAGE_MESSAGES)]
-#[usage("<number of messages to delete>")]
-async fn purge(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let amount = args.single::<u64>()?;
-
-    if amount > 100 {
-        return command_error!("Unable to delete more than 100 items");
-    } else if amount == 0 {
-        return command_error!("Unable to delete 0 items");
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MANAGE_MESSAGES",
+    guild_only
+)]
+pub async fn purge(
+    ctx: Context<'_>,
+    #[description = "Amount"] mut amount: u64,
+) -> Result<(), Error> {
+    if amount == 0 {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("It's useless to delete 0 messages")
+                    .description("Why would you want to do that?")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
     }
 
-    let messages = msg
-        .channel_id
-        .messages(ctx, |retriever| retriever.before(msg.id).limit(amount))
+    if amount > 100 {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("Can't delete over 100 messages")
+                    .description("Setting amount to 100")
+                    .color(Color::RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        amount = 100;
+    }
+    let messages = ctx
+        .channel_id()
+        .messages(ctx.discord(), |b| b.before(ctx.id()).limit(amount))
         .await?;
 
-    msg.channel_id.delete_messages(ctx, messages).await?;
-
-    let reply = msg
-        .reply(
-            ctx,
-            format!(
-                "Deleted {} messages. This message will self destruct in 5 seconds.",
-                amount
-            ),
-        )
+    ctx.channel_id()
+        .delete_messages(ctx.discord(), messages)
         .await?;
 
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
-    msg.channel_id
-        .delete_messages(ctx, vec![msg.id, reply.id])
-        .await?;
-
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Deleted")
+                .description(format!("Deleted {} messages", amount))
+                .color(Color::FOOYOO)
+        })
+        .ephemeral(true)
+    })
+    .await?;
     Ok(())
 }
 
+/*
 #[command]
 #[num_args(1)]
 #[description(

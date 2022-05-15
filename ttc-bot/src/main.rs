@@ -277,6 +277,7 @@ async fn main() {
                 // Localisation commands
                 commands::localisation::translate(),
                 // Moderation commands
+                commands::moderation::purge(),
                 commands::moderation::kick(),
                 commands::moderation::ban(),
                 commands::moderation::pardon(),
