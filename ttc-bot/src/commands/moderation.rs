@@ -1,5 +1,9 @@
-use crate::types::{Context, Error};
-use poise::serenity_prelude::{Color, Member, UserId};
+use crate::{
+    types::{Context, Error},
+    utils::helper_functions::format_duration,
+};
+use chrono::{Duration, Utc};
+use poise::serenity_prelude::{Color, Member, Timestamp, UserId};
 
 #[poise::command(
     slash_command,
@@ -131,6 +135,44 @@ pub async fn kick(
         })
     })
     .await?;
+    Ok(())
+}
+
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn timeout(
+    ctx: Context<'_>,
+    #[description = "The member to timeout"] mut member: Member,
+    #[description = "Time to timeout user"]
+    #[rename = "duration"]
+    duration_str: String,
+) -> Result<(), Error> {
+    let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
+    member
+        .disable_communication_until_datetime(
+            ctx.discord(),
+            Timestamp::parse(&(Utc::now() + duration).to_rfc3339())?,
+        )
+        .await?;
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("User timed out")
+                .description(format!(
+                    "User {} timed out for {}",
+                    member.user.tag(),
+                    format_duration(&duration)
+                ))
+                .color(Color::RED)
+        })
+    })
+    .await?;
+
     Ok(())
 }
 
