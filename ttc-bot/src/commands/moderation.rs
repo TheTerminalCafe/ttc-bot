@@ -1,5 +1,5 @@
 use crate::types::{Context, Error};
-use poise::serenity_prelude::{Color, Member};
+use poise::serenity_prelude::{Color, Member, UserId};
 
 #[poise::command(
     slash_command,
@@ -52,87 +52,92 @@ pub async fn ban(
     Ok(())
 }
 
-/*#[poise::command(slash_command, prefix_command, category = "Moderation", required_permissions = "BAN_MEMBERS", guild_only)]
-async fn pardon(ctx: Context<'_>, #[description = "The user id to pardon"] user: UserId) -> Result<(), Error> {
-    let user = args.single::<UserId>()?.to_user(ctx).await?;
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "BAN_MEMBERS",
+    guild_only
+)]
+pub async fn pardon(
+    ctx: Context<'_>,
+    #[description = "The user id to pardon"] user: UserId,
+) -> Result<(), Error> {
+    let author = ctx.author();
 
-    if user == msg.author {
-        embed_msg(
-            ctx,
-            &msg.channel_id,
-            Some("I doubt there is a need for that"),
-            Some("Why are you trying to unban yourself, why?"),
-            Some(Color::DARK_RED),
-            None,
-        )
+    if author.id == user {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("I doubt there is a need for that")
+                    .description("Why are you trying to unban yourself, why?")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
         .await?;
         return Ok(());
     }
 
-    let guild_id = msg.guild_id.unwrap();
+    ctx.guild_id().unwrap().unban(&ctx.discord(), user).await?;
 
-    guild_id.unban(ctx, user.id).await?;
-
-    embed_msg(
-        ctx,
-        &msg.channel_id,
-        Some("User forgiven"),
-        Some(&format!("User {} has been unbanned", user.tag())),
-        Some(Color::FOOYOO),
-        None,
-    )
+    let tag = user.to_user(ctx.discord()).await?.tag();
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("User forgiven")
+                .description(format!("User {} has been unbanned", tag))
+                .color(Color::FOOYOO)
+        })
+    })
     .await?;
-
     Ok(())
 }
 
-#[command]
-#[min_args(1)]
-#[max_args(2)]
-#[required_permissions(KICK_MEMBERS)]
-async fn kick(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let user = args.single::<UserId>()?.to_user(ctx).await?;
-
-    if user == msg.author {
-        embed_msg(
-            ctx,
-            &msg.channel_id,
-            Some("That's a bad idea."),
-            Some("You really should not try to kick yourself."),
-            Some(Color::DARK_RED),
-            None,
-        )
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "KICK_MEMBERS",
+    guild_only
+)]
+pub async fn kick(
+    ctx: Context<'_>,
+    #[description = "User to kick"] member: Member,
+    #[description = "Reason"] reason: Option<String>,
+) -> Result<(), Error> {
+    let author: Member = ctx.author_member().await.unwrap();
+    if author.user == member.user {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("That's a bad idea.")
+                    .description("You really should not try to kick yourself.")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
         .await?;
         return Ok(());
     }
 
-    let guild_id = msg.guild_id.unwrap();
+    match reason {
+        Some(r) => member.kick_with_reason(ctx.discord(), &r).await?,
+        None => member.kick(ctx.discord()).await?,
+    }
 
-    match args.parse::<String>() {
-        Ok(reason) => {
-            guild_id
-                .kick_with_reason(ctx, user.clone(), &reason)
-                .await?
-        }
-        Err(_) => guild_id.kick(ctx, user.clone()).await?,
-    };
-
-    embed_msg(
-        ctx,
-        &msg.channel_id,
-        Some("The boot of justice has decided."),
-        Some(&format!(
-            "{} kicked. I hope justice has been made.",
-            user.tag()
-        )),
-        Some(Color::RED),
-        None,
-    )
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("The boot of justice has decided.")
+                .description(format!(
+                    "{} kicked. I hope justice has been made.",
+                    member.user.tag()
+                ))
+                .color(Color::RED)
+        })
+    })
     .await?;
-
     Ok(())
 }
 
+/*
 #[command]
 #[min_args(2)]
 async fn timeout(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
