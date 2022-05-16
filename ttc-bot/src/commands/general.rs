@@ -1,6 +1,5 @@
 use crate::types::{Context, Data, Error};
 use futures::{lock::Mutex, StreamExt};
-use itertools::Itertools;
 use poise::{
     serenity_prelude::{Color, CreateEmbed, User, UserId},
     Command,

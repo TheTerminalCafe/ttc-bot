@@ -130,6 +130,21 @@ mod interactions {
         .await?;
 
         let config = get_config!(data, { return command_error!("Failed to get config") });
+        
+        // Make sure accounts that enter are older than 7 days
+        if Utc::now().timestamp() - intr.member.clone().unwrap().user.created_at().unix_timestamp() < chrono::Duration::days(7).num_seconds() {
+            intr.edit_original_interaction_response(
+                ctx, 
+                |i| {
+                    i.embed(|e| 
+                        e.title("An error occurred")
+                        .description("Something went wrong.")
+                        .color(Color::RED))
+                    }
+                )
+                .await?;
+            return Ok(());
+        }
 
         // Check if the user already has the verified role
         if !intr

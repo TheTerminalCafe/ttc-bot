@@ -2023,7 +2023,6 @@ dependencies = [
  "dotenv",
  "env_logger",
  "futures",
- "itertools",
  "log",
  "parse_duration",
  "poise",
