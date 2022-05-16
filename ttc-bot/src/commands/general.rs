@@ -11,6 +11,10 @@ use tokio::time::Instant;
 // General group commands
 // ----------------------
 
+/// Ping command
+///
+/// Command that the bot will respond to with "pong"
+/// ``pong``
 #[poise::command(prefix_command, slash_command, category = "General")]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     ctx.say("pong").await?;
@@ -18,6 +22,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+// TODO: Add help
 #[poise::command(
     slash_command,
     context_menu_command = "User info",
@@ -76,6 +81,7 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
     Ok(())
 }
 
+// TODO: Add help
 #[poise::command(
     slash_command,
     prefix_command,
@@ -375,6 +381,10 @@ pub async fn harold(
     Ok(())
 }
 
+/// Help for all or individual commands
+///
+/// Command to get help for a specific or all commands
+/// ``help [command (optional)]``
 #[poise::command(prefix_command, slash_command, category = "General")]
 pub async fn help(
     ctx: Context<'_>,
@@ -384,7 +394,34 @@ pub async fn help(
 ) -> Result<(), Error> {
     ctx.defer().await?;
     match command {
-        Some(command) => {}
+        Some(command) => {
+            // Remove whitespaces that could come from automatic whitespaces on e.g. mobile devices
+            let command = command.trim();
+            for help_option in ctx.framework().options().commands.iter() {
+                if &help_option.name == &command {
+                    let (desc, color) = match help_option.multiline_help {
+                        Some(s) => (s(), Color::FOOYOO),
+                        None => (format!("No help available for {}", &command), Color::RED),
+                    };
+                    ctx.send(|m| {
+                        m.embed(|e| e.title(&command).description(desc).color(color))
+                            .ephemeral(true)
+                    })
+                    .await?;
+                    return Ok(());
+                }
+            }
+            // The user called help for something that doesn't exist
+            ctx.send(|m| {
+                m.embed(|e| {
+                    e.title("No help available")
+                        .description(format!("Couldn't find \"{}\" in commands. You probably specified a command that isn't existing", command))
+                        .color(Color::RED)
+                })
+                .ephemeral(true)
+            })
+            .await?;
+        }
         None => {
             let commands = &ctx.framework().options().commands;
 

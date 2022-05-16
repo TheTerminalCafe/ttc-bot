@@ -42,6 +42,7 @@ impl PartialEq for ThreadId {
 // Support group commands
 // ----------------------
 
+// TODO: Add help
 #[poise::command(
     slash_command,
     prefix_command,

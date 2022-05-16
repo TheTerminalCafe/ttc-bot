@@ -9,6 +9,10 @@ use crate::{
     types::{self, Context, Error},
 };
 
+/// Shutdown the bot
+///
+/// Command to shut down the bot
+/// ``shutdown``
 #[poise::command(
     prefix_command,
     slash_command,
@@ -30,6 +34,10 @@ pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Register slash commands
+///
+/// Command to register the slash commands
+/// ``register``
 #[poise::command(prefix_command, owners_only, hide_in_help, category = "Admin")]
 pub async fn register(ctx: types::Context<'_>) -> Result<(), types::Error> {
     log::info!("Registering slash commands");
@@ -37,6 +45,10 @@ pub async fn register(ctx: types::Context<'_>) -> Result<(), types::Error> {
     Ok(())
 }
 
+/// Create verification button
+///
+/// Command to create the verification button
+/// ``create_verification [channel_id]``
 #[poise::command(
     prefix_command,
     slash_command,
@@ -77,6 +89,10 @@ pub async fn create_verification(
     Ok(())
 }
 
+/// Create selfroles message
+///
+/// Command to create message for managing permissions
+/// ``create_verification [channel_id] [roles (seperated by commas)]``
 #[poise::command(
     prefix_command,
     slash_command,
@@ -162,6 +178,12 @@ pub async fn create_selfroles(
     Ok(())
 }
 
+/// Create support ticket button
+///
+/// Command to create the button for support tickets
+/// ``create_support_ticket_button [channel_id] [description]``
+///
+/// ``description`` is the description of the embed
 #[poise::command(
     prefix_command,
     slash_command,

@@ -5,6 +5,10 @@ use crate::{
 use chrono::{Duration, Utc};
 use poise::serenity_prelude::{Color, Member, Timestamp, UserId};
 
+/// Ban an member
+///
+/// Command to ban a member
+/// ``ban [member] [reason (optional)]``
 #[poise::command(
     slash_command,
     prefix_command,
@@ -53,6 +57,10 @@ pub async fn ban(
     Ok(())
 }
 
+/// Unban an user
+///
+/// Command to unban an user by id
+/// ``unban [user]``
 #[poise::command(
     slash_command,
     prefix_command,
@@ -93,6 +101,10 @@ pub async fn pardon(
     Ok(())
 }
 
+/// Kick a member
+///
+/// Command to kick a member
+/// ``kick [member] [reason (optional)]``
 #[poise::command(
     slash_command,
     prefix_command,
@@ -138,6 +150,13 @@ pub async fn kick(
     Ok(())
 }
 
+/// Timeout a member
+///
+/// Command to timeout a member
+/// ``timeout [member] [duration]``
+///
+/// ``duration`` is a human-readable string like \
+/// ``1h``
 #[poise::command(
     slash_command,
     prefix_command,
@@ -176,6 +195,10 @@ pub async fn timeout(
     Ok(())
 }
 
+/// Purge messages
+///
+/// Delete a certian amount of messages (max 100)
+/// ``purge [amount]``
 #[poise::command(
     slash_command,
     prefix_command,
