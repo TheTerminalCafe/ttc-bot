@@ -432,17 +432,17 @@ pub async fn help(
                 let commands = categories.entry(category).or_insert(Vec::new());
                 commands.push(command);
             }
-            categories = categories
-                .keys()
-                .sorted()
-                .map(|key| (*key, categories[key].clone()))
-                .collect();
+            let mut sorted_categories = categories
+                .iter()
+                .map(|(k, v)| (*k, v))
+                .collect::<Vec<(&str, &Vec<&Command<Data, Error>>)>>();
+            sorted_categories.sort_by(|a, b| a.0.cmp(b.0));
 
             ctx.send(|m| {
                 m.embed(|e| {
                     e.title("Help")
-                        .fields(categories.iter().map(|(category, commands)| {
-                            let mut commands = commands.clone();
+                        .fields(sorted_categories.iter().map(|(category, commands)| {
+                            let mut commands = (*commands).clone();
                             commands.sort_by(|a, b| a.name.cmp(b.name));
                             let mut command_string = String::new();
                             for command in commands {
