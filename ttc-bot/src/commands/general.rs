@@ -382,6 +382,7 @@ pub async fn help(
     #[autocomplete = "poise::builtins::autocomplete_command"]
     command: Option<String>,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
     match command {
         Some(command) => {}
         None => {
@@ -391,7 +392,7 @@ pub async fn help(
 
             for command in commands {
                 let category = command.category.unwrap_or("General");
-                let mut commands = categories.entry(category).or_insert(Vec::new());
+                let commands = categories.entry(category).or_insert(Vec::new());
                 commands.push(command);
             }
             categories = categories
@@ -399,6 +400,34 @@ pub async fn help(
                 .sorted()
                 .map(|key| (*key, categories[key].clone()))
                 .collect();
+
+            ctx.send(|m| {
+                m.embed(|e| {
+                    e.title("Help")
+                        .fields(categories.iter().map(|(category, commands)| {
+                            let mut commands = commands.clone();
+                            commands.sort_by(|a, b| a.name.cmp(b.name));
+                            let mut command_string = String::new();
+                            for command in commands {
+                                if command.hide_in_help {
+                                    continue;
+                                }
+                                command_string.push_str(&format!(
+                                    "{}: {}\n",
+                                    command.name,
+                                    command.inline_help.unwrap_or("No help available")
+                                ));
+                            }
+                            if command_string.len() == 0 {
+                                command_string = "No commands available".to_string();
+                            }
+                            (category, command_string, false)
+                        }))
+                        .color(Color::FOOYOO)
+                })
+                .ephemeral(true)
+            })
+            .await?;
         }
     }
     Ok(())
