@@ -109,7 +109,10 @@ pub const LANGUAGE_CODES: [(&str, &str); 104] = [
     ("zu", "Zulu"),
 ];
 
-// TODO: Add help
+/// Translation command
+///
+/// Translates the provided text into the specified language.
+/// ``translate [language] [text]``
 #[poise::command(slash_command, prefix_command, category = "Localisation")]
 pub async fn translate(
     ctx: Context<'_>,

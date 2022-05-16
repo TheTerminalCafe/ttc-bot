@@ -32,7 +32,6 @@ use clap::{App, Arg};
 use futures::lock::Mutex;
 use futures::stream::StreamExt;
 use poise::serenity_prelude::{Activity, Color, GatewayIntents};
-use poise::Command;
 use regex::Regex;
 use serde_yaml::Value;
 use signal_hook::consts::TERM_SIGNALS;
@@ -266,10 +265,7 @@ async fn main() {
                 commands::moderation::pardon(),
                 // Support commands
                 commands::support::solve(),
-                Command {
-                    subcommands: vec![commands::support::title(), commands::support::id()],
-                    ..commands::support::search()
-                },
+                commands::support::search(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("ttc!".to_string()),

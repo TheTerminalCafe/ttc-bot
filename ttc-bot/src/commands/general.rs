@@ -13,15 +13,17 @@ use tokio::time::Instant;
 /// Ping command
 ///
 /// Command that the bot will respond to with "pong"
-/// ``pong``
+/// ``ping``
 #[poise::command(prefix_command, slash_command, category = "General")]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     ctx.say("pong").await?;
 
     Ok(())
 }
-
-// TODO: Add help
+/// User info for a user
+///
+/// Can be used to get the user info of the specified user. A context menu command is also available
+/// ``userinfo [user]``
 #[poise::command(
     slash_command,
     context_menu_command = "User info",
@@ -80,7 +82,14 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
     Ok(())
 }
 
-// TODO: Add help
+/// Harold.
+///
+/// Count the harolds of the server and the specified user, if provided. The leaderboard flag will toggle these 3 leaderboards:
+/// 1. Harold message count
+/// 2. Harold message percentage (of all messages by user)
+/// 3. Messages sent in total
+/// **NOTE**: This command will take a long time to run, so grab some popcorn while you let it run.
+/// ``harold [member (optional)] [leaderboard (True or False)]``
 #[poise::command(
     slash_command,
     prefix_command,
@@ -449,7 +458,7 @@ pub async fn help(
                                     continue;
                                 }
                                 command_string.push_str(&format!(
-                                    "{}: {}\n",
+                                    "``{}``: {}\n",
                                     command.name,
                                     command.inline_help.unwrap_or("No help available")
                                 ));

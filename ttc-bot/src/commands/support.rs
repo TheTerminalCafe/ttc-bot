@@ -42,7 +42,11 @@ impl PartialEq for ThreadId {
 // Support group commands
 // ----------------------
 
-// TODO: Add help
+/// Close the current support thread
+///
+/// Marks the current support threads as solved, and archives it.
+/// **NOTE**: This command is only available in support threads.
+/// ``solve``
 #[poise::command(
     slash_command,
     prefix_command,
@@ -121,29 +125,46 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Search for a support ticket
+///
+/// Search for a support ticket based on either title, id or both.
+/// **NOTE**: Either id or title must be provided.
+/// ``search [id (optional)] [title (optional)]``
 #[poise::command(slash_command, prefix_command, category = "Support")]
-pub async fn search(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Search")
-                .description("Search for a support ticket by its ID or title.")
-                .color(Color::FOOYOO)
-                .field("Usage", "`search <id|title> <argument>`", false)
-        })
-        .ephemeral(true)
-    })
-    .await?;
+pub async fn search(
+    ctx: Context<'_>,
+    #[description = "Id to search for"]
+    #[min = 0]
+    id: Option<u32>,
+    #[description = "Title to search for"] title: Option<String>,
+) -> Result<(), Error> {
+    // Let's keep count so we know if one of them was around
+    let mut options_used = 0;
+
+    match id {
+        Some(id) => {
+            search_id(ctx, id).await?;
+            options_used += 1;
+        }
+        None => (),
+    }
+    match title {
+        Some(title) => {
+            search_title(ctx, title).await?;
+            options_used += 1;
+        }
+        None => (),
+    }
+    if options_used == 0 {
+        return Err(Error::from(
+            "Please provide either an id or a title to search for.",
+        ));
+    }
 
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, category = "Support")]
-pub async fn title(
-    ctx: Context<'_>,
-    #[description = "Search for an issue based on a title"] title: String,
-) -> Result<(), Error> {
-    ctx.defer().await?;
-
+async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
     let pool = &ctx.data().pool;
 
     // Loop through the arguments and with each iteration search for them from the database, if
@@ -178,15 +199,7 @@ pub async fn title(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, category = "Support")]
-pub async fn id(
-    ctx: Context<'_>,
-    #[description = "The numerical id for the thread"]
-    #[min = 0]
-    id: u32,
-) -> Result<(), Error> {
-    ctx.defer().await?;
-
+async fn search_id(ctx: Context<'_>, id: u32) -> Result<(), Error> {
     let pool = &ctx.data().pool;
 
     // Get the support ticket from the database
