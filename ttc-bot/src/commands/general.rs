@@ -29,7 +29,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
     category = "General"
 )]
 pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> Result<(), Error> {
-    ctx.defer().await?;
+    ctx.defer_ephemeral().await?;
 
     let (nickname, joined_at, roles) = match ctx.guild() {
         Some(guild) => {
@@ -392,7 +392,7 @@ pub async fn help(
     #[autocomplete = "poise::builtins::autocomplete_command"]
     command: Option<String>,
 ) -> Result<(), Error> {
-    ctx.defer().await?;
+    ctx.defer_ephemeral().await?;
     match command {
         Some(command) => {
             // Remove whitespaces that could come from automatic whitespaces on e.g. mobile devices

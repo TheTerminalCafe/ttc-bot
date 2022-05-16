@@ -63,7 +63,10 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
                     }
                 }
 
-                match thread.edit_thread(&ctx, |t| t.archived(true)).await {
+                match thread
+                    .edit_thread(&ctx, |t| t.archived(true).locked(true))
+                    .await
+                {
                     Ok(_) => (),
                     Err(why) => {
                         log::error!("Thread archival failed: {}", why);
