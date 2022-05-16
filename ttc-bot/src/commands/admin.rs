@@ -34,7 +34,6 @@ pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-// FIXME: Check for permissions
 /// Register slash commands
 ///
 /// Command to register the slash commands
@@ -46,7 +45,6 @@ pub async fn register(ctx: types::Context<'_>) -> Result<(), types::Error> {
     Ok(())
 }
 
-// FIXME: Check for permissions
 /// Create verification button
 ///
 /// Command to create the verification button
@@ -91,7 +89,6 @@ pub async fn create_verification(
     Ok(())
 }
 
-// FIXME: Check for permissions
 /// Create selfroles message
 ///
 /// Command to create message for managing permissions
