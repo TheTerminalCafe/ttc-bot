@@ -398,29 +398,16 @@ pub async fn help(
             let command = command.trim();
             for help_option in ctx.framework().options().commands.iter() {
                 if &help_option.name == &command {
-                    match help_option.multiline_help {
-                        Some(s) => {
-                            ctx.send(|m| {
-                                m.embed(|e| e.title(command).description(s()).color(Color::FOOYOO))
-                                    .ephemeral(true)
-                            })
-                            .await?;
-                            return Ok(());
-                        }
-                        None => {
-                            ctx.send(|m| {
-                                m.embed(|e| {
-                                    e.title(&command)
-                                        .description(format!("No help available for {}", &command))
-                                        .color(Color::RED)
-                                })
-                                .ephemeral(true)
-                            })
-                            .await?;
-                            log::error!("No multiline help for {} available", command);
-                            return Ok(());
-                        }
-                    }
+                    let (desc, color) = match help_option.multiline_help {
+                        Some(s) => (s(), Color::FOOYOO),
+                        None => (format!("No help available for {}", &command), Color::RED),
+                    };
+                    ctx.send(|m| {
+                        m.embed(|e| e.title(&command).description(desc).color(color))
+                            .ephemeral(true)
+                    })
+                    .await?;
+                    return Ok(());
                 }
             }
             // The user called help for something that doesn't exist
