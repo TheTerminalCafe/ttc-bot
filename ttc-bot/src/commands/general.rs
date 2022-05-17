@@ -25,6 +25,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 /// Can be used to get the user info of the specified user. A context menu command is also available
 /// ``userinfo [user]``
 #[poise::command(
+    prefix_command,
     slash_command,
     context_menu_command = "User info",
     category = "General"
