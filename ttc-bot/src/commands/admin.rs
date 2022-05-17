@@ -59,8 +59,6 @@ pub async fn create_verification(
     ctx: Context<'_>,
     #[description = "Channel to send it in"] channel: GuildChannel,
 ) -> Result<(), Error> {
-    ctx.defer().await?;
-
     channel
         .send_message(ctx.discord(), |m| {
             m.embed(|e| e.color(Color::FOOYOO).title("Be sure to follow the rules!"))
@@ -104,7 +102,6 @@ pub async fn create_selfroles(
     #[description = "Channel to send it in"] channel: GuildChannel,
     #[description = "List of roles separated by commas"] roles_string: String,
 ) -> Result<(), Error> {
-    ctx.defer().await?;
     // Get the channel and guild ids
     let guild_id = ctx.guild_id().unwrap();
 

@@ -145,6 +145,8 @@ where
     Ok(content)
 }
 
+// May be useful later, but is not right now
+#[allow(dead_code)]
 pub async fn alert_mods(ctx: &Context, embed: CreateEmbed, data: &Data) -> Result<(), Error> {
     let config = get_config!(data, { return command_error!("Database error.") });
 
