@@ -2,7 +2,7 @@
 // Admin group commands
 // --------------------
 
-use poise::serenity_prelude::{ButtonStyle, ChannelId, Color, CreateSelectMenu, Role, RoleId};
+use poise::serenity_prelude::{ButtonStyle, Color, CreateSelectMenu, GuildChannel, Role, RoleId};
 
 use crate::{
     get_config,
@@ -58,11 +58,11 @@ pub async fn register(ctx: types::Context<'_>) -> Result<(), types::Error> {
 )]
 pub async fn create_verification(
     ctx: Context<'_>,
-    #[description = "Channel to send it in"] channel_id: ChannelId,
+    #[description = "Channel to send it in"] channel: GuildChannel,
 ) -> Result<(), Error> {
     ctx.defer().await?;
 
-    channel_id
+    channel
         .send_message(ctx.discord(), |m| {
             m.embed(|e| e.color(Color::FOOYOO).title("Be sure to follow the rules!"))
                 .components(|c| {
@@ -80,7 +80,7 @@ pub async fn create_verification(
     ctx.send(|m| {
         m.embed(|e| {
             e.title("Verification created")
-                .description(format!("Verification prompt created in <#{}>.", channel_id))
+                .description(format!("Verification prompt created in <#{}>.", channel.id))
                 .color(Color::FOOYOO)
         })
     })
@@ -102,7 +102,7 @@ pub async fn create_verification(
 )]
 pub async fn create_selfroles(
     ctx: Context<'_>,
-    #[description = "Channel to send it in"] channel_id: ChannelId,
+    #[description = "Channel to send it in"] channel: GuildChannel,
     #[description = "List of roles separated by commas"] roles_string: String,
 ) -> Result<(), Error> {
     ctx.defer().await?;
@@ -159,7 +159,7 @@ pub async fn create_selfroles(
     });
 
     // Create the menu in the specified channel
-    channel_id
+    channel
         .send_message(ctx.discord(), |m| {
             m.components(|c| c.create_action_row(|a| a.add_select_menu(menu)))
                 .embed(|e| e.title("Manage your self roles here").color(Color::PURPLE))
@@ -170,7 +170,7 @@ pub async fn create_selfroles(
     ctx.send(|m| {
         m.embed(|e| {
             e.title("Self-role menu created")
-                .description(format!("Self-role menu created in <#{}>.", channel_id))
+                .description(format!("Self-role menu created in <#{}>.", channel.id))
         })
     })
     .await?;
@@ -193,14 +193,14 @@ pub async fn create_selfroles(
 )]
 pub async fn create_support_ticket_button(
     ctx: Context<'_>,
-    #[description = "Channel to send it in"] channel_id: ChannelId,
+    #[description = "Channel to send it in"] channel: GuildChannel,
     #[description = "Description for the support system"] description: String,
 ) -> Result<(), Error> {
     let config = get_config!(ctx.data(), {
         return Err(Error::from("Unable to obtain config"));
     });
 
-    channel_id
+    channel
         .send_message(ctx.discord(), |m| {
             m.embed(|e| {
                 e.color(Color::FOOYOO)
@@ -226,7 +226,7 @@ pub async fn create_support_ticket_button(
         m.embed(|e| {
             e.title("Support button created").description(format!(
                 "Support ticket button created in <#{}>",
-                channel_id
+                channel.id
             ))
         })
     })
