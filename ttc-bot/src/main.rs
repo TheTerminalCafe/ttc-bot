@@ -42,43 +42,115 @@ use std::{collections::HashSet, fs::File, sync::Arc};
 use types::{Context, Data, Error};
 
 use crate::types::Config;
-//use typemap::types::*;
-// ------------
-// Help message
-// ------------
-
-// ---------------------------------
-// Initialization code & Entry point
-// ---------------------------------
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // This is our custom error handler
     // They are many errors that can occur, so we only handle the ones we want to customize
     // and forward the rest to the default handler
-    match error {
+    let (ctx, title, description) = match error {
         poise::FrameworkError::Setup { error } => panic!("Failed to start bot: {:?}", error),
         poise::FrameworkError::Command { error, ctx } => {
             log::warn!("Error in command `{}`: {:?}", ctx.command().name, error,);
-            match ctx
-                .send(|m| {
-                    m.embed(|e| {
-                        e.title("An error occurred.")
-                            .description(format!("{}", error))
-                            .color(Color::RED)
-                    })
-                    .ephemeral(true)
-                })
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => log::error!("Failed to send error message: {:?}", why),
-            }
+            (
+                ctx,
+                "An error occurred",
+                format!(
+                    "An error occurred in command `{}`: {}, user: {}",
+                    ctx.command().name,
+                    error,
+                    ctx.author().tag()
+                ),
+            )
+        }
+        poise::FrameworkError::MissingUserPermissions {
+            missing_permissions,
+            ctx,
+        } => {
+            log::warn!(
+                "Missing permissions for command `{}`: {:?}, user: {}",
+                ctx.command().name,
+                missing_permissions,
+                ctx.author().tag()
+            );
+            (
+                ctx,
+                "Missing permissions",
+                match missing_permissions {
+                    Some(permissions) => format!(
+                        "You are missing the following permissions for command `{}`: {}",
+                        ctx.command().name,
+                        permissions
+                    ),
+                    None => format!("You may be missing permissions for command `{}`. Not executing for safety.", ctx.command().name),
+            })
+        }
+        poise::FrameworkError::NotAnOwner { ctx } => {
+            log::warn!(
+                "User `{}` is not an owner, command called: `{}`",
+                ctx.author().tag(),
+                ctx.command().name
+            );
+            (
+                ctx,
+                "Not an owner",
+                format!("This command is for owners only."),
+            )
+        }
+        poise::FrameworkError::ArgumentParse { error, input, ctx } => {
+            log::warn!(
+                "Error parsing arguments for command `{}`: {:?}, input: {:?}, user: {}",
+                ctx.command().name,
+                error,
+                input,
+                ctx.author().tag()
+            );
+            (
+                ctx,
+                "Error parsing arguments",
+                format!(
+                    "Error parsing arguments for command `{}`: {}, input: {:?}, user: {}",
+                    ctx.command().name,
+                    error,
+                    input,
+                    ctx.author().tag()
+                ),
+            )
+        }
+        poise::FrameworkError::CommandCheckFailed { error, ctx } => {
+            log::warn!(
+                "Command check failed for command `{}`: {:?}, user: {}",
+                ctx.command().name,
+                error,
+                ctx.author().tag()
+            );
+            (
+                ctx,
+                "Command check failed",
+                format!(
+                    "Command check failed for command `{}`: {:?}, user: {}",
+                    ctx.command().name,
+                    error,
+                    ctx.author().tag()
+                ),
+            )
         }
         error => {
             if let Err(e) = poise::builtins::on_error(error).await {
                 log::error!("Error while handling error: {}", e)
             }
+            return;
         }
+    };
+
+    match ctx
+        .send(|m| {
+            m.embed(|e| e.title(title).description(description).color(Color::RED))
+                .ephemeral(true)
+        })
+        .await
+    {
+        Ok(_) => (),
+        Err(why) => log::error!("Error sending error reply message: {}", why),
     }
 }
 
