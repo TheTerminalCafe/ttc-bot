@@ -1,4 +1,14 @@
+use futures::lock::Mutex;
+use poise::serenity_prelude::UserId;
 use sqlx::PgPool;
+
+pub struct Data {
+    pub users_currently_questioned: Mutex<Vec<UserId>>,
+    pub pool: PgPool,
+    pub thread_name_regex: regex::Regex,
+}
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
+pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 #[derive(Debug, Clone)]
 pub struct Config {

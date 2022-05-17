@@ -1,17 +1,7 @@
-use crate::{get_config, typemap::types::PgPoolType, utils::helper_functions::alert_mods};
+use crate::{get_config, types::Data};
 use chrono::{DateTime, Utc};
-use serenity::{
-    builder::CreateEmbed,
-    client::Context,
-    model::{
-        channel::Message,
-        event::MessageUpdateEvent,
-        guild::Member,
-        id::{ChannelId, MessageId, UserId},
-        prelude::User,
-    },
-    utils::{content_safe, Color, ContentSafeOptions},
-};
+use poise::serenity_prelude::*;
+use rand::prelude::SliceRandom;
 
 // Types for fetching/writing data from/to SQL database
 struct CurrentIndex {
@@ -29,31 +19,14 @@ struct CachedMessage {
     attachments: Option<String>,
 }
 
-struct BadWord {
-    word: String,
-}
-
 // --------------------------------
 // Functions for conveyance logging
 // --------------------------------
 
 // Store 500 most recent messages seen by this bot in a cache for informing when it had been
 // deleted
-pub async fn message(ctx: &Context, msg: &Message) {
-    let data = ctx.data.read().await;
-    let pool = data.get::<PgPoolType>().unwrap();
-
-    let bad_words: Vec<BadWord> =
-        match sqlx::query_as!(BadWord, r#"SELECT (word) FROM ttc_bad_words"#)
-            .fetch_all(pool)
-            .await
-        {
-            Ok(bad_words) => bad_words,
-            Err(why) => {
-                log::error!("Failed to get bad words from the database: {}", why);
-                return;
-            }
-        };
+pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
+    let pool = &data.pool;
 
     let mut id = match sqlx::query_as!(
         CurrentIndex,
@@ -83,7 +56,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
         msg.channel_id.0 as i64,
         msg.author.id.0 as i64,
         Utc::now(),
-        msg.content_safe(ctx).await,
+        msg.content_safe(ctx),
         msg.attachments.iter().map(|a| a.url.clone()).collect::<Vec<String>>().join(" "),
         id.current_id
     )
@@ -109,76 +82,17 @@ pub async fn message(ctx: &Context, msg: &Message) {
             return;
         }
     }
-
-    // Drop the lock as we are done with it
-    std::mem::drop(data);
-
-    for word in &bad_words {
-        if msg
-            .content
-            .to_lowercase()
-            .contains(&word.word.to_lowercase())
-        {
-            match msg.delete(ctx).await {
-                Ok(_) => {
-                    let mut member = match msg.member(ctx).await {
-                        Ok(member) => member,
-                        Err(why) => {
-                            log::error!("Error getting member from message: {}", why);
-                            return;
-                        }
-                    };
-
-                    match member
-                        .disable_communication_until_datetime(
-                            ctx,
-                            Utc::now() + chrono::Duration::hours(2),
-                        )
-                        .await
-                    {
-                        Ok(_) => (),
-                        Err(why) => {
-                            log::error!("Error time outing member: {}", why);
-                            return;
-                        }
-                    }
-
-                    let mut embed = CreateEmbed::default();
-                    embed
-                        .title("Bad word detected!")
-                        .description(
-                            format!(
-                                "User {} has said a bad word (||{}||). They have been timed out for 2 hours. Full message is available below/above, thank me later.",
-                                msg.author.tag(),
-                                word.word
-                            )
-                        )
-                        .color(Color::RED);
-
-                    match alert_mods(ctx, embed).await {
-                        Ok(_) => (),
-                        Err(why) => {
-                            log::error!("Error sending messages: {}", why);
-                            return;
-                        }
-                    }
-
-                    break;
-                }
-                Err(why) => {
-                    log::error!("Error deleting message: {}", why);
-                    return;
-                }
-            };
-        }
-    }
 }
 
 // Send logging messages when messages are deleted
-pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_message_id: &MessageId) {
-    let config = get_config!(ctx);
-    let data = ctx.data.read().await;
-    let pool = data.get::<PgPoolType>().unwrap();
+pub async fn message_delete(
+    ctx: &Context,
+    channel_id: &ChannelId,
+    deleted_message_id: &MessageId,
+    data: &Data,
+) {
+    let config = get_config!(data);
+    let pool = &data.pool;
 
     // Get the cached message from the database
     let msg = match sqlx::query_as!(
@@ -231,7 +145,6 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
             .send_message(ctx, |m| {
                 m.embed(|e| {
                     e.title("Message deleted")
-                        .author(|a| a.name(&user.name).icon_url(user.face()))
                         .color(Color::GOLD)
                         .field("User", user.tag(), true)
                         .field("UserId", user.id, true)
@@ -253,14 +166,26 @@ pub async fn message_delete(ctx: &Context, channel_id: &ChannelId, deleted_messa
     }
 }
 
+pub async fn message_delete_bulk(
+    ctx: &Context,
+    channel_id: &ChannelId,
+    deleted_message_ids: &Vec<MessageId>,
+    data: &Data,
+) {
+    for id in deleted_message_ids {
+        message_delete(ctx, channel_id, id, data).await;
+    }
+}
+
 // Send logging messages when a message is edited
 pub async fn message_update(
     ctx: &Context,
-    old: Option<Message>,
-    new: Option<Message>,
+    old: &Option<Message>,
+    new: &Option<Message>,
     event: &MessageUpdateEvent,
+    data: &Data,
 ) {
-    let config = get_config!(ctx);
+    let config = get_config!(data);
     // Make sure the channel isn't blacklisted from conveyance
     if config
         .conveyance_blacklisted_channels
@@ -293,7 +218,7 @@ pub async fn message_update(
     // Make sure the contents actually have values
     match old {
         Some(old) => {
-            let mut content_safe = old.content_safe(ctx).await;
+            let mut content_safe = old.content_safe(ctx);
             content_safe.truncate(1024);
             if content_safe == "" {
                 content_safe = "None".to_string();
@@ -313,7 +238,7 @@ pub async fn message_update(
                 Some(new) => {
                     log::debug!("Edited message content got based on provided `new` argument");
 
-                    let mut content_safe = new.content_safe(ctx).await;
+                    let mut content_safe = new.content_safe(ctx);
                     content_safe.truncate(1024);
                     if content_safe == "" {
                         content_safe = "None".to_string();
@@ -325,7 +250,7 @@ pub async fn message_update(
                     Ok(new) => {
                         log::debug!("Edited message content got based on provided message got from the channel_id");
 
-                        let mut content_safe = new.content_safe(ctx).await;
+                        let mut content_safe = new.content_safe(ctx);
                         content_safe.truncate(1024);
                         if content_safe == "" {
                             content_safe = "None".to_string();
@@ -334,11 +259,10 @@ pub async fn message_update(
                     }
                     // Fall back to the event in case all other methods fail
                     Err(why) => {
-                        log::error!("Error getting message: {}", why);
-                        log::debug!("Edited message content got based on raw event");
+                        log::warn!("Error getting message: {}", why);
 
                         let mut content_safe =
-                            content_safe(ctx, &content, &ContentSafeOptions::default()).await;
+                            content_safe(ctx, &content, &ContentSafeOptions::default(), &[]);
                         content_safe.truncate(1024);
                         if content_safe == "" {
                             content_safe = "None".to_string();
@@ -367,10 +291,10 @@ pub async fn message_update(
     }
 }
 
-pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
-    let config = get_config!(ctx);
+pub async fn guild_member_addition(ctx: &Context, new_member: &Member, data: &Data) {
+    let config = get_config!(data);
 
-    /*let welcome_message = config
+    let welcome_message = config
         .welcome_messages
         .choose(&mut rand::thread_rng())
         .unwrap();
@@ -385,7 +309,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
             log::error!("Error sending message: {}", why);
             return;
         }
-    }*/
+    }
 
     for channel in &config.conveyance_channels {
         match ChannelId(*channel as u64)
@@ -409,19 +333,13 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member) {
     }
 }
 
-pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Member>) {
-    let config = get_config!(ctx);
-    /*let config = {
-        let data = ctx.data.read().await;
-        let pool = data.get::<PgPoolType>().unwrap();
-        match Config::get_from_db(pool).await {
-            Ok(config) => config,
-            Err(why) => {
-                log::error!("Error getting config from database: {}", why);
-                return;
-            }
-        }
-    };*/
+pub async fn guild_member_removal(
+    ctx: &Context,
+    user: &User,
+    member: &Option<Member>,
+    data: &Data,
+) {
+    let config = get_config!(data);
 
     let joined_at = match member {
         Some(member) => match member.joined_at {
@@ -449,8 +367,8 @@ pub async fn guild_member_removal(ctx: &Context, user: &User, member: Option<Mem
         }
     }
 }
-pub async fn guild_ban_addition(ctx: &Context, banned_user: User) {
-    let config = get_config!(ctx);
+pub async fn guild_ban_addition(ctx: &Context, banned_user: &User, data: &Data) {
+    let config = get_config!(data);
 
     for channel in &config.conveyance_channels {
         match ChannelId(*channel as u64)
@@ -473,8 +391,8 @@ pub async fn guild_ban_addition(ctx: &Context, banned_user: User) {
     }
 }
 
-pub async fn guild_ban_removal(ctx: &Context, unbanned_user: User) {
-    let config = get_config!(ctx);
+pub async fn guild_ban_removal(ctx: &Context, unbanned_user: &User, data: &Data) {
+    let config = get_config!(data);
 
     for channel in &config.conveyance_channels {
         match ChannelId(*channel as u64)
@@ -497,18 +415,18 @@ pub async fn guild_ban_removal(ctx: &Context, unbanned_user: User) {
     }
 }
 
-pub async fn guild_member_update(ctx: &Context, old: Option<Member>, new: Member) {
-    let config = get_config!(ctx);
+pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Member, data: &Data) {
+    let config = get_config!(data);
 
     let (old_nickname, old_roles, old_timeouted) = match old {
         Some(old) => {
-            let old_nickname = match old.nick {
+            let old_nickname = match old.nick.clone() {
                 Some(nick) => nick,
                 None => "None".to_string(),
             };
             let old_timeouted = match old.communication_disabled_until {
                 Some(comm_disabled) => {
-                    if comm_disabled < Utc::now() {
+                    if comm_disabled.unix_timestamp() < Timestamp::now().unix_timestamp() {
                         false
                     } else {
                         true
@@ -517,19 +435,19 @@ pub async fn guild_member_update(ctx: &Context, old: Option<Member>, new: Member
                 None => false,
             };
 
-            (old_nickname, old.roles, Some(old_timeouted))
+            (old_nickname, old.roles.clone(), Some(old_timeouted))
         }
         None => ("N/A".to_string(), Vec::new(), None),
     };
 
-    let new_nickname = match new.nick {
+    let new_nickname = match new.nick.clone() {
         Some(nick) => nick,
         None => "None".to_string(),
     };
-    let new_roles = new.roles;
+    let new_roles = new.roles.clone();
     let new_timeouted = match new.communication_disabled_until {
         Some(comm_disabled) => {
-            if comm_disabled < Utc::now() {
+            if comm_disabled.unix_timestamp() < Timestamp::now().unix_timestamp() {
                 false
             } else {
                 true
