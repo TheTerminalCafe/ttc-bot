@@ -1,16 +1,8 @@
-use crate::command_error;
+use crate::{command_error, utils::autocomplete_functions::language_autocomplete, Context, Error};
+use poise::serenity_prelude::{Color, Message};
 use serde_json::Value;
-use serenity::{
-    client::Context,
-    framework::standard::{
-        macros::{command, group},
-        Args, CommandResult, CommandError,
-    },
-    model::channel::Message,
-    utils::Color,
-};
 
-const LANGUAGE_CODES: [(&str, &str); 104] = [
+pub const LANGUAGE_CODES: [(&str, &str); 104] = [
     ("af", "Afrikaans"),
     ("sq", "Albanian"),
     ("am", "Amharic"),
@@ -117,82 +109,74 @@ const LANGUAGE_CODES: [(&str, &str); 104] = [
     ("zu", "Zulu"),
 ];
 
-#[group]
-#[commands(translate, impersonate)]
-struct Localisation;
-
-#[command]
-#[description("Translates a message to the specified language")]
-#[usage("<language> <text>")]
-#[min_args(2)]
-#[example("en Hello world")]
-#[aliases("tr")]
-async fn translate(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+/// Translation command
+///
+/// Translates the provided text into the specified language.
+/// ``translate [language] [text]``
+#[poise::command(slash_command, prefix_command, category = "Localisation")]
+pub async fn translate(
+    ctx: Context<'_>,
+    #[description = "Target language"]
+    #[autocomplete = "language_autocomplete"]
+    lang: String,
+    #[description = "The text to translate"] text_to_translate: String,
+) -> Result<(), Error> {
     // Get the language code and the text to translate
-    let lang = args.single::<String>()?;
-    let text_to_translate = args.rest().to_string();
 
-    let (translated_text, source_lang) = translate_text(lang.clone(), &text_to_translate).await?;
+    ctx.defer().await?;
 
-    // Get the author's nickname or username
-    let author_name = msg
-        .author_nick(ctx)
-        .await
-        .unwrap_or(msg.author.name.clone());
+    let (source_lang, translated_text) = translate_text(lang.clone(), &text_to_translate).await?;
 
     // Send the translated message
-    msg.channel_id
-        .send_message(ctx, |m| {
-            m.embed(|e| {
-                e.title("Translated Message")
-                    .author(|a| a.name(author_name).icon_url(msg.author.face()))
-                    .description(format!("{} -> {}", source_lang, lang))
-                    .field("Original Message", text_to_translate, false)
-                    .field("Translated Message", translated_text, false)
-                    .color(Color::FOOYOO)
-            })
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Translated Message")
+                .description(format!("{} -> {}", source_lang, lang))
+                .field("Original Message", text_to_translate, false)
+                .field("Translated Message", translated_text, false)
+                .color(Color::FOOYOO)
         })
-        .await?;
+        .ephemeral(true)
+    })
+    .await?;
 
     Ok(())
 }
 
-#[command]
-#[description("Translates a message to the specified language (Impersonation mode)")]
-#[usage("<language> <text>")]
-#[min_args(2)]
-#[example("en Hello world")]
-#[aliases("imp")]
-async fn impersonate(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let lang = args.single::<String>()?;
-    let text_to_translate = args.rest().to_string();
+#[poise::command(
+    context_menu_command = "Translate to English",
+    category = "Localisation"
+)]
+pub async fn translate_to_en(
+    ctx: Context<'_>,
+    #[description = "Message to translate"] msg: Message,
+) -> Result<(), Error> {
+    // Get the language code and the text to translate
 
-    let (translated_text, source_lang) = translate_text(lang.clone(), &text_to_translate).await?;
+    ctx.defer().await?;
 
-    // Get the author's nickname or username
-    let author_name = msg
-        .author_nick(ctx)
-        .await
-        .unwrap_or(msg.author.name.clone());
+    let (source_lang, translated_text) = translate_text("en".to_string(), &msg.content).await?;
 
-    
-    // Impersonate the user
-    let webhook = msg.channel_id.create_webhook(ctx,format!("{} ({}->{})", author_name, source_lang, lang)).await?;
-
-    // Send the message
-    webhook.execute(ctx, false, |w| 
-        w.content(translated_text)
-        .avatar_url(msg.author.avatar_url().unwrap_or(msg.author.default_avatar_url()
-    ))).await?;
-
-    // Clean up afterwards
-    msg.delete(ctx).await?;
-    webhook.delete(ctx).await?;
+    // Send the translated message
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Translated Message")
+                .description(format!("{} -> English", source_lang))
+                .field("Original Message", msg.content, false)
+                .field("Translated Message", translated_text, false)
+                .color(Color::FOOYOO)
+        })
+    })
+    .await?;
 
     Ok(())
 }
 
-async fn translate_text(mut lang: String, text_to_translate: &str) -> Result<(String, String), CommandError> {
+// Function to translate the text
+async fn translate_text(
+    mut lang: String,
+    text_to_translate: &str,
+) -> Result<(String, String), Error> {
     let mut language_found = false;
 
     // Check if the language code is valid
@@ -256,7 +240,7 @@ async fn translate_text(mut lang: String, text_to_translate: &str) -> Result<(St
             }
         });
     }
-    
+
     // Get the source language
     let source_lang = match body[2].as_str() {
         Some(lang) => lang,
@@ -265,5 +249,5 @@ async fn translate_text(mut lang: String, text_to_translate: &str) -> Result<(St
         }
     };
 
-    Ok((translated_text, source_lang.to_string()))
+    Ok((source_lang.to_string(), translated_text))
 }

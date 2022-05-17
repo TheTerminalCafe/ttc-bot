@@ -2,61 +2,157 @@
 // Module declarations
 // -------------------
 
-mod typemap {
-    pub mod config;
-    pub mod types;
-}
-mod groups {
+mod commands {
     pub mod admin;
-    pub mod config;
+    //pub mod config;
     pub mod general;
     pub mod localisation;
     pub mod moderation;
     pub mod support;
 }
 mod utils {
+    pub mod autocomplete_functions;
     pub mod helper_functions;
     pub mod macros;
 }
 mod events {
+    pub mod bumpy_business;
     pub mod conveyance;
     pub mod interactions;
+    pub mod listener;
+    pub mod support;
 }
-mod client {
-    pub mod event_handler;
-    pub mod hooks;
-}
+mod types;
 
 // ----------------------
 // Imports from libraries
 // ----------------------
 
 use clap::{App, Arg};
+use futures::lock::Mutex;
 use futures::stream::StreamExt;
+use poise::serenity_prelude::{Activity, Color, GatewayIntents};
 use regex::Regex;
 use serde_yaml::Value;
-use serenity::{
-    client::{
-        bridge::gateway::{GatewayIntents, ShardManager},
-        Client,
-    },
-    framework::standard::StandardFramework,
-    model::id::UserId,
-};
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook_tokio::Signals;
 use sqlx::postgres::PgPoolOptions;
 use std::io::Read;
 use std::{collections::HashSet, fs::File, sync::Arc};
-use tokio::sync::Mutex;
-use typemap::types::*;
-// ------------
-// Help message
-// ------------
+use types::{Context, Data, Error};
 
-// ---------------------------------
-// Initialization code & Entry point
-// ---------------------------------
+use crate::types::Config;
+
+async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
+    // This is our custom error handler
+    // They are many errors that can occur, so we only handle the ones we want to customize
+    // and forward the rest to the default handler
+    let (ctx, title, description) = match error {
+        poise::FrameworkError::Setup { error } => panic!("Failed to start bot: {:?}", error),
+        poise::FrameworkError::Command { error, ctx } => {
+            log::warn!("Error in command `{}`: {:?}", ctx.command().name, error,);
+            (
+                ctx,
+                "An error occurred",
+                format!(
+                    "An error occurred in command `{}`: {}, user: {}",
+                    ctx.command().name,
+                    error,
+                    ctx.author().tag()
+                ),
+            )
+        }
+        poise::FrameworkError::MissingUserPermissions {
+            missing_permissions,
+            ctx,
+        } => {
+            log::warn!(
+                "Missing permissions for command `{}`: {:?}, user: {}",
+                ctx.command().name,
+                missing_permissions,
+                ctx.author().tag()
+            );
+            (
+                ctx,
+                "Missing permissions",
+                match missing_permissions {
+                    Some(permissions) => format!(
+                        "You are missing the following permissions for command `{}`: {}",
+                        ctx.command().name,
+                        permissions
+                    ),
+                    None => format!("You may be missing permissions for command `{}`. Not executing for safety.", ctx.command().name),
+            })
+        }
+        poise::FrameworkError::NotAnOwner { ctx } => {
+            log::warn!(
+                "User `{}` is not an owner, command called: `{}`",
+                ctx.author().tag(),
+                ctx.command().name
+            );
+            (
+                ctx,
+                "Not an owner",
+                format!("This command is for owners only."),
+            )
+        }
+        poise::FrameworkError::ArgumentParse { error, input, ctx } => {
+            log::warn!(
+                "Error parsing arguments for command `{}`: {:?}, input: {:?}, user: {}",
+                ctx.command().name,
+                error,
+                input,
+                ctx.author().tag()
+            );
+            (
+                ctx,
+                "Error parsing arguments",
+                format!(
+                    "Error parsing arguments for command `{}`: {}, input: {:?}, user: {}",
+                    ctx.command().name,
+                    error,
+                    input,
+                    ctx.author().tag()
+                ),
+            )
+        }
+        poise::FrameworkError::CommandCheckFailed { error, ctx } => {
+            log::warn!(
+                "Command check failed for command `{}`: {:?}, user: {}",
+                ctx.command().name,
+                error,
+                ctx.author().tag()
+            );
+            (
+                ctx,
+                "Command check failed",
+                format!(
+                    "Command check failed for command `{}`: {:?}, user: {}",
+                    ctx.command().name,
+                    error,
+                    ctx.author().tag()
+                ),
+            )
+        }
+        error => {
+            if let Err(e) = poise::builtins::on_error(error).await {
+                log::error!("Error while handling error: {}", e)
+            }
+            return;
+        }
+    };
+
+    match ctx
+        .send(|m| {
+            m.embed(|e| e.title(title).description(description).color(Color::RED))
+                .ephemeral(true)
+        })
+        .await
+    {
+        Ok(_) => (),
+        Err(why) => log::error!("Error sending error reply message: {}", why),
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -134,7 +230,7 @@ async fn main() {
     let mut owners = HashSet::new();
 
     for owner in config["owners"].as_sequence().unwrap() {
-        owners.insert(UserId(owner.as_u64().unwrap()));
+        owners.insert(poise::serenity_prelude::UserId(owner.as_u64().unwrap()));
     }
 
     // Create the connection to the database
@@ -143,20 +239,6 @@ async fn main() {
         .connect(sqlx_config)
         .await
         .unwrap();
-
-    if matches.is_present("write-db") {
-        let config = typemap::config::Config {
-            support_channel: support_channel_id as i64,
-            conveyance_channels: conveyance_channel_ids,
-            conveyance_blacklisted_channels: conveyance_blacklisted_channel_ids,
-            welcome_channel: welcome_channel_id as i64,
-            verified_role: verified_role_id as i64,
-            moderator_role: moderator_role_id as i64,
-            welcome_messages,
-        };
-
-        config.save_in_db(&pool).await.unwrap();
-    }
 
     if matches.is_present("bad-words") {
         let mut file = File::open(matches.value_of("bad-words").unwrap()).unwrap();
@@ -190,62 +272,108 @@ async fn main() {
         }
     }
 
-    // Create the framework of the bot
-    let framework = StandardFramework::new()
-        .configure(|c| c.prefix("ttc!").owners(owners))
-        .help(&client::hooks::HELP)
-        .unrecognised_command(client::hooks::unknown_command)
-        .on_dispatch_error(client::hooks::dispatch_error)
-        .after(client::hooks::after)
-        .group(&groups::general::GENERAL_GROUP)
-        .group(&groups::support::SUPPORT_GROUP)
-        .group(&groups::admin::ADMIN_GROUP)
-        .group(&groups::config::CONFIG_GROUP)
-        .group(&groups::moderation::MODERATION_GROUP)
-        .group(&groups::localisation::LOCALISATION_GROUP);
+    // Write the config to the database if correct argument is present
+    if matches.is_present("write-db") {
+        let config = Config {
+            support_channel: support_channel_id as i64,
+            verified_role: verified_role_id as i64,
+            moderator_role: moderator_role_id as i64,
+            conveyance_channels: conveyance_channel_ids,
+            conveyance_blacklisted_channels: conveyance_blacklisted_channel_ids,
+            welcome_channel: welcome_channel_id as i64,
+            welcome_messages,
+        };
 
-    // Create the bot client
-    let mut client = Client::builder(token)
-        .application_id(application_id)
-        .event_handler(client::event_handler::Handler)
-        .cache_settings(|c| c.max_messages(50))
-        .framework(framework)
-        .intents(GatewayIntents::non_privileged() | GatewayIntents::GUILD_MEMBERS)
-        .await
-        .expect("Error creating client");
-
-    // Initial data for the bot
-    {
-        let mut data = client.data.write().await;
-        data.insert::<ShardManagerType>(client.shard_manager.clone());
-        data.insert::<ThreadNameRegexType>(Regex::new("[^a-zA-Z0-9 ]").unwrap());
-        data.insert::<UsersCurrentlyQuestionedType>(Vec::new());
-        data.insert::<PgPoolType>(pool);
+        match config.save_in_db(&pool).await {
+            Ok(_) => (),
+            Err(why) => {
+                log::error!("Failed to write config into the database: {}", why);
+                return;
+            }
+        }
     }
 
-    let signals = match Signals::new(TERM_SIGNALS) {
-        Ok(signals) => signals,
-        Err(why) => {
-            log::error!("Failed to create signal hook: {}", why);
-            return;
-        }
-    };
+    // Create the framework of the bot
+    let framework = poise::Framework::build()
+        .token(token)
+        .client_settings(move |client| client.application_id(application_id))
+        .intents(
+            GatewayIntents::non_privileged()
+                | GatewayIntents::GUILD_MEMBERS
+                | GatewayIntents::MESSAGE_CONTENT,
+        )
+        .user_data_setup(move |ctx, ready, _| {
+            Box::pin(async move {
+                log::info!("Ready! Logged in as {}", ready.user.tag());
+                ctx.set_activity(Activity::listening("Kirottu's screaming"))
+                    .await;
+                Ok(Data {
+                    users_currently_questioned: Mutex::new(Vec::new()),
+                    pool: pool,
+                    thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
+                })
+            })
+        })
+        .options(poise::FrameworkOptions {
+            commands: vec![
+                // Admin commands
+                commands::admin::manage_commands(),
+                commands::admin::shutdown(),
+                commands::admin::create_verification(),
+                commands::admin::create_selfroles(),
+                commands::admin::create_support_ticket_button(),
+                // General commands
+                commands::general::ping(),
+                commands::general::userinfo(),
+                commands::general::harold(),
+                commands::general::help(),
+                // Localisation commands
+                commands::localisation::translate(),
+                // Moderation commands
+                commands::moderation::purge(),
+                commands::moderation::timeout(),
+                commands::moderation::kick(),
+                commands::moderation::ban(),
+                commands::moderation::pardon(),
+                // Support commands
+                commands::support::solve(),
+                commands::support::search(),
+            ],
+            prefix_options: poise::PrefixFrameworkOptions {
+                prefix: Some("ttc!".to_string()),
+                ..Default::default()
+            },
+            owners: owners,
+            listener: |ctx, event, framework, data| {
+                Box::pin(events::listener::listener(ctx, event, framework, data))
+            },
+            on_error: |error| Box::pin(on_error(error)),
+            ..Default::default()
+        })
+        .build()
+        .await
+        .unwrap();
 
+    // Handling termination signals gracefully, listen for them and shut down the bot if one is received
+    let signals = Signals::new(TERM_SIGNALS).unwrap();
     let handle = signals.handle();
 
-    tokio::spawn(signal_hook_task(signals, client.shard_manager.clone()));
+    // Spawn the listening task
+    tokio::spawn(signal_hook_task(signals, framework.shard_manager()));
 
-    match client.start().await {
-        Ok(_) => (),
-        Err(why) => log::error!("An error occurred when starting the client: {}", why),
-    }
+    // Run the bot
+    framework.start().await.unwrap();
 
+    // Close the listening task, to make the bot actually shut down
     handle.close();
 
     log::info!("Bot shut down");
 }
 
-async fn signal_hook_task(mut signals: Signals, shard_mgr: Arc<Mutex<ShardManager>>) {
+async fn signal_hook_task(
+    mut signals: Signals,
+    shard_mgr: Arc<poise::serenity_prelude::Mutex<poise::serenity_prelude::ShardManager>>,
+) {
     while let Some(_) = signals.next().await {
         log::info!("A termination signal received, exiting...");
         shard_mgr.lock().await.shutdown_all().await;

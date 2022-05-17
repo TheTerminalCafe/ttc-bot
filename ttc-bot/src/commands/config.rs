@@ -1,26 +1,16 @@
-use serenity::{
-    client::Context,
-    framework::standard::{
-        macros::{command, group},
-        Args, CommandError, CommandResult,
-    },
-    model::channel::Message,
-    utils::Color,
-};
+use poise::serenity_prelude::{Color, Message};
 
 use crate::{
-    command_error, get_config, typemap::types::PgPoolType, utils::helper_functions::embed_msg,
+    command_error, get_config, utils::helper_functions::embed_msg, types::Context,
 };
 
-#[group]
-#[owners_only]
-#[prefix("config")]
-#[commands(set, get)]
-struct Config;
+#[poise::command(slash_command, prefix_command, owner_only)]
+pub async fn get(ctx: Context<'_>, #[description = "Name of the property"] property: String) -> Result<(), Error> {
+    Ok(())
+}
 
-#[command]
-#[min_args(2)]
-async fn set(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+/*#[poise::command(slash_command, prefix_command, owner_only)]
+async fn set(ctx: Context<'_>, #[description = "The name of the value"] property: String, #[description = "Value to set it to"]) -> CommandResult {
     args.quoted();
     // Get the config from the database
     let mut config = get_config!(ctx, { return command_error!("Database error.") });
@@ -169,4 +159,4 @@ async fn get(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     .await?;
 
     Ok(())
-}
+}*/
