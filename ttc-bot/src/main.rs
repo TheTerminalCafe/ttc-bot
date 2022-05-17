@@ -317,7 +317,7 @@ async fn main() {
         .options(poise::FrameworkOptions {
             commands: vec![
                 // Admin commands
-                commands::admin::register(),
+                commands::admin::manage_commands(),
                 commands::admin::shutdown(),
                 commands::admin::create_verification(),
                 commands::admin::create_selfroles(),

@@ -39,9 +39,8 @@ pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
 /// Command to register the slash commands
 /// ``register``
 #[poise::command(prefix_command, owners_only, hide_in_help, category = "Admin")]
-pub async fn register(ctx: types::Context<'_>) -> Result<(), types::Error> {
-    log::info!("Registering slash commands");
-    poise::builtins::register_application_commands(ctx, false).await?;
+pub async fn manage_commands(ctx: types::Context<'_>) -> Result<(), types::Error> {
+    poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
 }
 
