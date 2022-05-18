@@ -1,7 +1,6 @@
 use crate::{get_config, types::Data};
 use chrono::{DateTime, Utc};
 use poise::serenity_prelude::*;
-use rand::prelude::SliceRandom;
 
 // Types for fetching/writing data from/to SQL database
 struct CurrentIndex {
@@ -293,23 +292,6 @@ pub async fn message_update(
 
 pub async fn guild_member_addition(ctx: &Context, new_member: &Member, data: &Data) {
     let config = get_config!(data);
-
-    let welcome_message = config
-        .welcome_messages
-        .choose(&mut rand::thread_rng())
-        .unwrap();
-    let welcome_message = welcome_message.replace("%user%", &new_member.mention().to_string());
-
-    match ChannelId(config.welcome_channel as u64)
-        .send_message(ctx, |m| m.content(welcome_message))
-        .await
-    {
-        Ok(_) => (),
-        Err(why) => {
-            log::error!("Error sending message: {}", why);
-            return;
-        }
-    }
 
     for channel in &config.conveyance_channels {
         match ChannelId(*channel as u64)
