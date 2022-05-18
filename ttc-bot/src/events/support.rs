@@ -6,7 +6,6 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
     // Make sure the updated part is the archived value
 
     if thread.thread_metadata.unwrap().archived {
-        log::info!("Got here 3");
         let pool = &data.pool;
 
         // Get the current thread info from the database
