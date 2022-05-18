@@ -1,9 +1,10 @@
 use futures::lock::Mutex;
-use poise::serenity_prelude::UserId;
+use poise::serenity_prelude::{Message, UserId};
 use sqlx::PgPool;
 
 pub struct Data {
     pub users_currently_questioned: Mutex<Vec<UserId>>,
+    pub harold_message: Mutex<Option<Message>>,
     pub pool: PgPool,
     pub thread_name_regex: regex::Regex,
 }
