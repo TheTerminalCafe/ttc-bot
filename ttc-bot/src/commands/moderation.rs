@@ -171,6 +171,20 @@ pub async fn timeout(
     #[rename = "duration"]
     duration_str: String,
 ) -> Result<(), Error> {
+    let author: Member = ctx.author_member().await.unwrap();
+    if author.user == member.user {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("That's a bad idea.")
+                    .description("If you don't want to speak you can, you know, just not do that.")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+
     let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
     member
         .disable_communication_until_datetime(
