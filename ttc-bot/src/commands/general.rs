@@ -91,13 +91,7 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
 /// 3. Messages sent in total
 /// **NOTE**: This command will take a long time to run, so grab some popcorn while you let it run.
 /// ``harold [member (optional)] [leaderboard (True or False)]``
-#[poise::command(
-    slash_command,
-    prefix_command,
-    guild_only,
-    global_cooldown = 600,
-    category = "General"
-)]
+#[poise::command(slash_command, prefix_command, guild_only, category = "General")]
 pub async fn harold(
     ctx: Context<'_>,
     #[description = "User to calculate harold percentage of"] user: Option<User>,
