@@ -78,7 +78,16 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
             db_thread.unarchivals += 1;
 
             // Inform the author of the issue about the unarchival
-            match thread.send_message(ctx, |m| m.embed(|e| e.title("Thread unarchived").description("Thread archival prevented, if the issue is solved mark it as such with `ttc!support solve`.")).content(format!("<@{}>", db_thread.user_id)))
+            match thread.send_message(
+                ctx, 
+                |m| m.embed(
+                    |e| 
+                        e.title("Thread unarchived")
+                            .description("Thread archival prevented, if the issue is solved mark it as such with the slash command `solve`, or `ttc!solve`.")
+                    )
+                    .content(format!("<@{}>", db_thread.user_id)
+                )
+            )
             .await
             {
                 Ok(_) => (),
