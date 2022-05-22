@@ -179,7 +179,6 @@ pub async fn message_delete_bulk(
 // Send logging messages when a message is edited
 pub async fn message_update(
     ctx: &Context,
-    old: &Option<Message>,
     new: &Option<Message>,
     event: &MessageUpdateEvent,
     data: &Data,
@@ -192,6 +191,8 @@ pub async fn message_update(
     {
         return;
     }
+
+    let pool = &data.pool;
 
     // Create the embed outside the closures to allow for async calls
     let mut message_embed = CreateEmbed::default();
@@ -214,23 +215,34 @@ pub async fn message_update(
     // Add the channel embed here to preserve the proper
     message_embed.field("Channel", format!("<#{}>", &event.channel_id.0), false);
 
-    // Make sure the contents actually have values
-    match old {
-        Some(old) => {
-            let mut content_safe = old.content_safe(ctx);
-            content_safe.truncate(1024);
-            if content_safe == "" {
-                content_safe = "None".to_string();
+    // Get the cached message from the database
+    let old_content = match sqlx::query_as!(
+        CachedMessage,
+        r#"SELECT * FROM ttc_message_cache WHERE message_id = $1 AND channel_id = $2"#,
+        event.id.0 as i64,
+        event.channel_id.0 as i64
+    )
+    .fetch_one(pool)
+    .await
+    {
+        Ok(msg) => match msg.content {
+            Some(content) => content,
+            None => "Not available.".to_string(),
+        },
+        Err(why) => {
+            match why {
+                sqlx::Error::RowNotFound => {
+                    log::info!("Could not locate deleted message in database");
+                }
+                _ => log::error!("Error reading message from message cache database: {}", why),
             }
-            message_embed.field("Old", content_safe, false);
+            "Not available.".to_string()
         }
-        None => {
-            message_embed.field("Old", "No old message content available", false);
-        }
-    }
+    };
+    message_embed.field("Old", old_content, false);
 
     // Make sure the event is about the content being edited
-    match &event.content {
+    let new_content = match &event.content {
         Some(content) => {
             // Check if the new message is available
             match new {
@@ -242,7 +254,7 @@ pub async fn message_update(
                     if content_safe == "" {
                         content_safe = "None".to_string();
                     }
-                    message_embed.field("New", content_safe, false);
+                    content_safe
                 }
                 // Try to fetch the new message from the api
                 None => match event.channel_id.message(ctx, event.id).await {
@@ -254,7 +266,7 @@ pub async fn message_update(
                         if content_safe == "" {
                             content_safe = "None".to_string();
                         }
-                        message_embed.field("New", content_safe, false);
+                        content_safe
                     }
                     // Fall back to the event in case all other methods fail
                     Err(why) => {
@@ -266,12 +278,29 @@ pub async fn message_update(
                         if content_safe == "" {
                             content_safe = "None".to_string();
                         }
-                        message_embed.field("New", content_safe, false);
+                        content_safe
                     }
                 },
             }
         }
         None => {
+            return;
+        }
+    };
+
+    message_embed.field("New", &new_content, false);
+
+    match sqlx::query!(
+        r#"UPDATE ttc_message_cache SET content = $1 WHERE message_id = $2"#,
+        new_content,
+        event.id.0 as i64
+    )
+    .execute(pool)
+    .await
+    {
+        Ok(_) => (),
+        Err(why) => {
+            log::error!("Error updating message cache: {}", why);
             return;
         }
     }
