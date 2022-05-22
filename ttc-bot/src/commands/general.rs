@@ -83,6 +83,63 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
     Ok(())
 }
 
+/// Server info
+///
+/// Can be used to get server info
+/// ``serverinfo``
+#[poise::command(prefix_command, slash_command, guild_only, category = "General")]
+pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
+    let guild = ctx.guild().unwrap();
+    let guild_id_part = guild.id.to_partial_guild_with_counts(ctx.discord()).await?;
+    let online_members = match guild_id_part.approximate_presence_count {
+        Some(s) => s.to_string(),
+        None => String::from("N/A"),
+    };
+    let icon = guild.icon_url().unwrap_or(String::from("N/A"));
+    let mut emojis_default = String::new();
+    let mut emojis_nitro = String::new();
+    for emoji in guild.emojis(ctx.discord()).await? {
+        if emoji.animated {
+            emojis_nitro = format!("{} <a:{}:{}>", emojis_nitro, emoji.name, emoji.id.0);
+        } else {
+            emojis_default = format!("{} <:{}:{}>", emojis_default, emoji.name, emoji.id.0);
+        }
+    }
+    let mut roles = guild
+        .roles
+        .iter()
+        .filter(|role| role.1.name != "@everyone")
+        .map(|role| format!("<@&{}>, ", role.0 .0))
+        .collect::<String>();
+    // Remove the trailing ", "
+    roles.pop();
+    roles.pop();
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.author(|a| a.name(&guild.name))
+                .field("Guild name", &guild.name, false)
+                .field("Server owner", format!("<@{}>", guild.owner_id.0), false)
+                .field(
+                    "Online Members",
+                    format!("{}/{}", online_members, guild.member_count),
+                    false,
+                )
+                .field("Default Emojis", emojis_default, true)
+                .field("Nitro Emojis", emojis_nitro, true)
+                .field("Roles", roles, false)
+                .field("Icon URL", &icon, false)
+                .color(Color::BLITZ_BLUE)
+                .thumbnail(&icon)
+        })
+        .ephemeral(true)
+    })
+    .await?;
+
+    Ok(())
+}
+
 /// Harold.
 ///
 /// Count the harolds of the server and the specified user, if provided. The leaderboard flag will toggle these 3 leaderboards:
