@@ -197,7 +197,6 @@ async fn translate_text(
             "Language not found. Please use the language code or the language name"
         );
     }
-
     // Turn the provided info into a URI
     let uri = format!(
         "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={}&dt=t&q={}",

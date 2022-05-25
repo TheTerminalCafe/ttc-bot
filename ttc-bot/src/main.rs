@@ -326,6 +326,7 @@ async fn main() {
                 // General commands
                 commands::general::ping(),
                 commands::general::userinfo(),
+                commands::general::serverinfo(),
                 commands::general::harold(),
                 commands::general::help(),
                 // Localisation commands
