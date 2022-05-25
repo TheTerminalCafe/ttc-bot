@@ -57,6 +57,7 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                         {
                             Ok(_) => (),
                             Err(why) => {
+                                log::error!("Error completing ticket button interaction: {}", why);
                                 {
                                     let mut users_currently_questioned = data.users_currently_questioned.lock().await;
                                     users_currently_questioned.retain(|uid| uid != &intr.user.id);

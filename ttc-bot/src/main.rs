@@ -309,6 +309,7 @@ async fn main() {
                     .await;
                 Ok(Data {
                     users_currently_questioned: Mutex::new(Vec::new()),
+                    harold_message: Mutex::new(None),
                     pool: pool,
                     thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
                 })

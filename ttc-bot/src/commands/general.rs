@@ -148,13 +148,7 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
 /// 3. Messages sent in total
 /// **NOTE**: This command will take a long time to run, so grab some popcorn while you let it run.
 /// ``harold [member (optional)] [leaderboard (True or False)]``
-#[poise::command(
-    slash_command,
-    prefix_command,
-    guild_only,
-    global_cooldown = 600,
-    category = "General"
-)]
+#[poise::command(slash_command, prefix_command, guild_only, category = "General")]
 pub async fn harold(
     ctx: Context<'_>,
     #[description = "User to calculate harold percentage of"] user: Option<User>,
@@ -162,10 +156,32 @@ pub async fn harold(
     #[flag]
     leaderboard: bool,
 ) -> Result<(), Error> {
+    {
+        let harold_message = ctx.data().harold_message.lock().await;
+        match &*harold_message {
+            Some(message) => {
+                ctx.send(|m| {
+                    m.embed(|e| {
+                        e.title("Harolds are already being calculated")
+                            .description(format!(
+                                "You can view current progress at this message: {}",
+                                message.link()
+                            ))
+                            .color(Color::RED)
+                    })
+                    .ephemeral(true)
+                })
+                .await?;
+                return Ok(());
+            }
+            None => (),
+        }
+    }
+
     ctx.send(|m| {
         m.embed(|e| {
             e.title("Started harold counting process.")
-                .description("This could take a while.")
+                .description("This could take a while. Grab some popcorn and wait.")
                 .color(Color::BLITZ_BLUE)
         })
     })
@@ -181,6 +197,13 @@ pub async fn harold(
             })
             .await?,
     ));
+
+    // Set the lock to avoid running multiple concurrent instances of this command
+    {
+        let mut harold_message = ctx.data().harold_message.lock().await;
+        *harold_message = Some(progress_message.lock().await.clone());
+    }
+
     let channel_progress = Arc::new(Mutex::new(0));
 
     let mut handles = Vec::new();
@@ -443,6 +466,12 @@ pub async fn harold(
     ctx.channel_id()
         .send_message(ctx.discord(), |m| m.set_embeds(embeds))
         .await?;
+
+    // Reset it after it is done
+    {
+        let mut harold_message = ctx.data().harold_message.lock().await;
+        *harold_message = None;
+    }
 
     Ok(())
 }
