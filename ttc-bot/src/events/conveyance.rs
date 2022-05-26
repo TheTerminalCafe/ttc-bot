@@ -226,7 +226,13 @@ pub async fn message_update(
     .await
     {
         Ok(msg) => match msg.content {
-            Some(content) => content,
+            Some(content) => {
+                if content.len() > 0 {
+                    content
+                } else {
+                    "None".to_string()
+                }
+            }
             None => "Not available.".to_string(),
         },
         Err(why) => {
