@@ -10,7 +10,7 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
 
     let (webhook, beelate) = {
         let mut beezone_channels = data.beezone_channels.lock().await;
-        if beezone_channels.contains_key(&msg.channel_id) && msg.author.discriminator != 0 {
+        if beezone_channels.contains_key(&msg.channel_id) && !msg.author.bot {
             let beezone_channel = beezone_channels.get_mut(&msg.channel_id).unwrap();
             if beezone_channel.timestamp > msg.timestamp {
                 // Async message deletion
