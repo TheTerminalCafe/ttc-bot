@@ -16,6 +16,7 @@ pub async fn listener(
         Message { new_message } => {
             crate::events::conveyance::message(ctx, new_message, data).await;
             crate::events::bumpy_business::message(ctx, new_message).await;
+            crate::events::bee::message(ctx, new_message, data).await;
         }
         MessageDelete {
             channel_id,

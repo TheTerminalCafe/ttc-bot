@@ -12,10 +12,13 @@ mod commands {
 }
 mod utils {
     pub mod autocomplete_functions;
+    pub mod bee_script;
+    pub mod bee_utils;
     pub mod helper_functions;
     pub mod macros;
 }
 mod events {
+    pub mod bee;
     pub mod bumpy_business;
     pub mod conveyance;
     pub mod interactions;
@@ -29,14 +32,14 @@ mod types;
 // ----------------------
 
 use clap::{App, Arg};
-use futures::lock::Mutex;
 use futures::stream::StreamExt;
-use poise::serenity_prelude::{Activity, Color, GatewayIntents};
+use poise::serenity_prelude::{Activity, Color, GatewayIntents, Mutex};
 use regex::Regex;
 use serde_yaml::Value;
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook_tokio::Signals;
 use sqlx::postgres::PgPoolOptions;
+use std::collections::HashMap;
 use std::io::Read;
 use std::{collections::HashSet, fs::File, sync::Arc};
 use types::{Context, Data, Error};
@@ -310,6 +313,7 @@ async fn main() {
                 Ok(Data {
                     users_currently_questioned: Mutex::new(Vec::new()),
                     harold_message: Mutex::new(None),
+                    beeified_users: Mutex::new(HashMap::new()),
                     pool: pool,
                     thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
                 })
@@ -336,6 +340,8 @@ async fn main() {
                 commands::moderation::kick(),
                 commands::moderation::ban(),
                 commands::moderation::pardon(),
+                commands::moderation::beeify(),
+                commands::moderation::unbeeify(),
                 // Support commands
                 commands::support::solve(),
                 commands::support::search(),

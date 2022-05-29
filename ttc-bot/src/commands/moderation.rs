@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     types::{Context, Error},
     utils::helper_functions::format_duration,
@@ -211,7 +213,7 @@ pub async fn timeout(
 
 /// Purge messages
 ///
-/// Delete a certian amount of messages (max 100)
+/// Delete a certain amount of messages (max 100)
 /// ``purge [amount]``
 #[poise::command(
     slash_command,
@@ -267,5 +269,110 @@ pub async fn purge(
         .ephemeral(true)
     })
     .await?;
+    Ok(())
+}
+
+/// Beeify a member
+///
+/// Command to beeify a member
+/// ``beeify [member] [duration]``
+///
+/// ``duration`` is a human-readable string like \
+/// ``1h``
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn beeify(
+    ctx: Context<'_>,
+    #[description = "User to beeify"] user: Member,
+    #[description = "The time to beeify the user for"]
+    #[rename = "duration"]
+    duration_str: String,
+) -> Result<(), Error> {
+    let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
+    let timestamp: Timestamp = (Utc::now() + duration).into();
+
+    let mut beeified_users = ctx.data().beeified_users.lock().await;
+
+    if beeified_users.contains_key(&user.user.id) {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("Already beeified")
+                    .description("This user is already beeified")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+
+    beeified_users.insert(user.user.id, (timestamp, HashMap::new()));
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Beeified")
+                .description(format!(
+                    "User {} beeified for {}",
+                    user.user.tag(),
+                    format_duration(&duration)
+                ))
+                .color(Color::FOOYOO)
+        })
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Unbeeify a member
+///
+/// Command to unbeeify a member
+/// ``unbeeify [member]``
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn unbeeify(
+    ctx: Context<'_>,
+    #[description = "User to unbeeify"] user: Member,
+) -> Result<(), Error> {
+    let mut beeified_users = ctx.data().beeified_users.lock().await;
+
+    if !beeified_users.contains_key(&user.user.id) {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("Not beeified")
+                    .description("This user is not beeified")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+
+    for (_, webhook) in &beeified_users[&user.user.id].1 {
+        webhook.delete(ctx.discord()).await?;
+    }
+
+    beeified_users.remove(&user.user.id);
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Unbeeified")
+                .description(format!("User {} unbeeified", user.user.tag()))
+                .color(Color::FOOYOO)
+        })
+    })
+    .await?;
+
     Ok(())
 }

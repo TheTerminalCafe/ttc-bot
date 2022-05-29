@@ -1,10 +1,12 @@
-use futures::lock::Mutex;
-use poise::serenity_prelude::{Message, UserId};
+use std::collections::HashMap;
+
+use poise::serenity_prelude::{ChannelId, Message, Mutex, Timestamp, UserId, Webhook};
 use sqlx::PgPool;
 
 pub struct Data {
     pub users_currently_questioned: Mutex<Vec<UserId>>,
     pub harold_message: Mutex<Option<Message>>,
+    pub beeified_users: Mutex<HashMap<UserId, (Timestamp, HashMap<ChannelId, Webhook>)>>,
     pub pool: PgPool,
     pub thread_name_regex: regex::Regex,
 }
