@@ -97,39 +97,107 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
         None => String::from("N/A"),
     };
     let icon = guild.icon_url().unwrap_or(String::from("N/A"));
-    let mut emojis_default = String::new();
-    let mut emojis_nitro = String::new();
-    for emoji in guild.emojis(ctx.discord()).await? {
-        if emoji.animated {
-            emojis_nitro = format!("{} <a:{}:{}>", emojis_nitro, emoji.name, emoji.id.0);
-        } else {
-            emojis_default = format!("{} <:{}:{}>", emojis_default, emoji.name, emoji.id.0);
-        }
+    let emojis = guild.emojis(ctx.discord()).await?;
+    let mut fields: Vec<(String, String, bool)> = Vec::new();
+
+    fields.push(("Guild name".to_string(), guild.name.clone(), false));
+    fields.push((
+        "Server owner".to_string(),
+        format!("<@{}>", guild.owner_id.0),
+        false,
+    ));
+    fields.push((
+        "Online Members".to_string(),
+        format!("{}/{}", online_members, guild.member_count),
+        false,
+    ));
+
+    let mut tmp = String::new();
+    let mut count = 1;
+    emojis
+        .iter()
+        .filter(|emoji| !(emoji.animated))
+        .for_each(|emoji| {
+            let t = format!("{}<:{}:{}> ", tmp, emoji.name, emoji.id.0);
+            if t.len() > 1024 {
+                fields.push((
+                    format!("Custom Emojis {}", count).to_string(),
+                    tmp.clone(),
+                    false,
+                ));
+                tmp = format!("<:{}:{}> ", emoji.name, emoji.id.0);
+                count += 1;
+            } else {
+                tmp = t;
+            }
+        });
+    if count > 1 {
+        fields.push((
+            format!("Custom Emojis {}", count).to_string(),
+            tmp.clone(),
+            false,
+        ));
+    } else {
+        fields.push(("Custom Emojis".to_string(), tmp.clone(), false));
     }
-    let mut roles = guild
+
+    tmp = String::new();
+    count = 1;
+    emojis
+        .iter()
+        .filter(|emoji| emoji.animated)
+        .for_each(|emoji| {
+            let t = format!("{}<a:{}:{}> ", tmp, emoji.name, emoji.id.0);
+            if t.len() > 1024 {
+                fields.push((
+                    format!("Animated Emojis {}", count).to_string(),
+                    tmp.clone(),
+                    false,
+                ));
+                tmp = format!("<a:{}:{}> ", emoji.name, emoji.id.0);
+                count += 1;
+            } else {
+                tmp = t;
+            }
+        });
+    if count > 1 {
+        fields.push((
+            format!("Animated Emojis {}", count).to_string(),
+            tmp.clone(),
+            false,
+        ));
+    } else {
+        fields.push(("Animated Emojis".to_string(), tmp.clone(), false));
+    }
+
+    tmp = String::new();
+    count = 1;
+    guild
         .roles
         .iter()
         .filter(|role| role.1.name != "@everyone")
-        .map(|role| format!("<@&{}>, ", role.0 .0))
-        .collect::<String>();
-    // Remove the trailing ", "
-    roles.pop();
-    roles.pop();
+        .for_each(|role| {
+            let t = format!("{}<@&{}> ", tmp, role.0 .0);
+            if t.len() > 1024 {
+                fields.push((format!("Roles {}", count).to_string(), tmp.clone(), false));
+                tmp = format!("{}<@&{}> ", tmp, role.0 .0);
+                count += 1;
+            } else {
+                tmp = t;
+            }
+        });
+    if count > 1 {
+        fields.push((format!("Roles {}", count).to_string(), tmp.clone(), false));
+    } else {
+        fields.push(("Roles".to_string(), tmp.clone(), false));
+    }
+
+    fields.push(("Icon URL".to_string(), icon.clone(), false));
 
     ctx.send(|m| {
         m.embed(|e| {
             e.author(|a| a.name(&guild.name))
-                .field("Guild name", &guild.name, false)
-                .field("Server owner", format!("<@{}>", guild.owner_id.0), false)
-                .field(
-                    "Online Members",
-                    format!("{}/{}", online_members, guild.member_count),
-                    false,
-                )
-                .field("Default Emojis", emojis_default, true)
-                .field("Nitro Emojis", emojis_nitro, true)
-                .field("Roles", roles, false)
-                .field("Icon URL", &icon, false)
+                .fields(fields)
                 .color(Color::BLITZ_BLUE)
                 .thumbnail(&icon)
         })
