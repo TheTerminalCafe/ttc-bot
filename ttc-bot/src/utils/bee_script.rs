@@ -1,5 +1,4 @@
-pub const BEE_SCRIPT: &str = r#"
-According to all known laws of aviation, there is no way a bee should be able to fly.
+pub const BEE_SCRIPT: &str = r#"According to all known laws of aviation, there is no way a bee should be able to fly.
 Its wings are too small to get its fat little body off the ground.
 The bee, of course, flies anyway because bees don't care what humans think is impossible.
 Yellow, black. Yellow, black. Yellow, black. Yellow, black.
@@ -1361,5 +1360,4 @@ Hold it. Let's just stop for a second. Hold it.
 I'm sorry. I'm sorry, everyone. Can we stop here?
 I'm not making a major life decision during a production number!
 All right. Take ten, everybody. Wrap it up, guys.
-I had virtually no rehearsal for that.
-"#;
+I had virtually no rehearsal for that."#;
