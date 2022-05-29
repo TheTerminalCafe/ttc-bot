@@ -1,8 +1,12 @@
-use crate::{command_error, utils::autocomplete_functions::language_autocomplete, Context, Error};
+use crate::{
+    command_error,
+    utils::{autocomplete_functions::language_autocomplete, bee_utils},
+    Context, Error,
+};
 use poise::serenity_prelude::{Color, Message};
 use serde_json::Value;
 
-pub const LANGUAGE_CODES: [(&str, &str); 104] = [
+pub const LANGUAGE_CODES: [(&str, &str); 105] = [
     ("af", "Afrikaans"),
     ("sq", "Albanian"),
     ("am", "Amharic"),
@@ -107,6 +111,7 @@ pub const LANGUAGE_CODES: [(&str, &str); 104] = [
     ("yi", "Yiddish"),
     ("yo", "Yoruba"),
     ("zu", "Zulu"),
+    ("bee", "Beemovie"),
 ];
 
 /// Translation command
@@ -196,6 +201,10 @@ async fn translate_text(
         return command_error!(
             "Language not found. Please use the language code or the language name"
         );
+    }
+
+    if lang == "bee" {
+        return Ok((lang, bee_utils::beelate(text_to_translate)));
     }
 
     // Turn the provided info into a URI

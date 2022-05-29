@@ -2035,6 +2035,7 @@ dependencies = [
  "signal-hook",
  "signal-hook-tokio",
  "sqlx",
+ "strsim 0.10.0",
  "tokio",
 ]
 

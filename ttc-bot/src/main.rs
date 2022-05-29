@@ -314,6 +314,7 @@ async fn main() {
                     users_currently_questioned: Mutex::new(Vec::new()),
                     harold_message: Mutex::new(None),
                     beeified_users: Mutex::new(HashMap::new()),
+                    beezone_channels: Mutex::new(HashMap::new()),
                     pool: pool,
                     thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
                 })
@@ -342,6 +343,8 @@ async fn main() {
                 commands::moderation::pardon(),
                 commands::moderation::beeify(),
                 commands::moderation::unbeeify(),
+                commands::moderation::beezone(),
+                commands::moderation::unbeezone(),
                 // Support commands
                 commands::support::solve(),
                 commands::support::search(),

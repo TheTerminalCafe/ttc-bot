@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use crate::{
     types::{Context, Error},
-    utils::helper_functions::format_duration,
+    utils::{
+        bee_utils::{BeeifiedUser, BeezoneChannel},
+        helper_functions::format_duration,
+    },
 };
 use chrono::{Duration, Utc};
 use poise::serenity_prelude::{Color, Member, Timestamp, UserId};
@@ -275,7 +278,7 @@ pub async fn purge(
 /// Beeify a member
 ///
 /// Command to beeify a member
-/// ``beeify [member] [duration]``
+/// ``beeify [member] [duration] [beelate]``
 ///
 /// ``duration`` is a human-readable string like \
 /// ``1h``
@@ -292,6 +295,7 @@ pub async fn beeify(
     #[description = "The time to beeify the user for"]
     #[rename = "duration"]
     duration_str: String,
+    #[description = "Whether to use beelate or not"] beelate: bool,
 ) -> Result<(), Error> {
     let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
     let timestamp: Timestamp = (Utc::now() + duration).into();
@@ -311,7 +315,10 @@ pub async fn beeify(
         return Ok(());
     }
 
-    beeified_users.insert(user.user.id, (timestamp, HashMap::new()));
+    beeified_users.insert(
+        user.user.id,
+        BeeifiedUser::new(timestamp, HashMap::new(), beelate),
+    );
 
     ctx.send(|m| {
         m.embed(|e| {
@@ -359,7 +366,7 @@ pub async fn unbeeify(
         return Ok(());
     }
 
-    for (_, webhook) in &beeified_users[&user.user.id].1 {
+    for (_, webhook) in &beeified_users[&user.user.id].webhooks {
         webhook.delete(ctx.discord()).await?;
     }
 
@@ -369,6 +376,104 @@ pub async fn unbeeify(
         m.embed(|e| {
             e.title("Unbeeified")
                 .description(format!("User {} unbeeified", user.user.tag()))
+                .color(Color::FOOYOO)
+        })
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Beezone.
+///
+/// Turn the current channel into instant chaos.
+/// ``beezone``
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn beezone(
+    ctx: Context<'_>,
+    #[description = "The time to cause chaos for"]
+    #[rename = "duration"]
+    duration_str: String,
+    #[description = "Whether to use beelate or not"] beelate: bool,
+) -> Result<(), Error> {
+    let mut beezone_channels = ctx.data().beezone_channels.lock().await;
+
+    if beezone_channels.contains_key(&ctx.channel_id()) {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("Already beezoned")
+                    .description("This channel is already beezoned")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+    let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
+    let timestamp: Timestamp = (Utc::now() + duration).into();
+
+    beezone_channels.insert(ctx.channel_id(), BeezoneChannel::new(timestamp, beelate));
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Beezoned")
+                .description(format!(
+                    "Channel {} beezoned for {}",
+                    ctx.channel_id(),
+                    format_duration(&duration)
+                ))
+                .color(Color::FOOYOO)
+        })
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Unbeezone
+///
+/// Turn the current channel back into normal.
+/// ``unbeezone``
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn unbeezone(ctx: Context<'_>) -> Result<(), Error> {
+    let mut beezone_channels = ctx.data().beezone_channels.lock().await;
+
+    if !beezone_channels.contains_key(&ctx.channel_id()) {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("Not beezoned")
+                    .description("This channel is not beezoned")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+
+    match &beezone_channels[&ctx.channel_id()].webhook {
+        Some(webhook) => webhook.delete(ctx.discord()).await?,
+        None => log::warn!("No beezone webhook found for channel {}", ctx.channel_id()),
+    }
+    beezone_channels.remove(&ctx.channel_id());
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Unbeezoned")
+                .description(format!("Channel {} unbeezoned", ctx.channel_id()))
                 .color(Color::FOOYOO)
         })
     })
