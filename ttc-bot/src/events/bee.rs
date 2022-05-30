@@ -10,116 +10,62 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
 
     let (webhook, beelate) = {
         let mut beezone_channels = data.beezone_channels.lock().await;
+        let mut beeified_users = data.beeified_users.lock().await;
         if beezone_channels.contains_key(&msg.channel_id) && !msg.author.bot {
-            let beezone_channel = beezone_channels.get_mut(&msg.channel_id).unwrap();
-            if beezone_channel.timestamp > msg.timestamp {
-                // Async message deletion
-                let msg = msg.clone();
-                let ctx = ctx.clone();
-                tokio::spawn(async move {
-                    match msg.delete(ctx).await {
-                        Ok(_) => (),
-                        Err(why) => {
-                            log::error!("Error deleting message: {}", why);
-                        }
-                    }
-                });
-            } else {
-                match &beezone_channel.webhook {
-                    Some(webhook) => match webhook.delete(ctx).await {
-                        Ok(_) => (),
-                        Err(why) => {
-                            log::error!("Error deleting webhook: {}", why);
-                        }
-                    },
-                    None => log::warn!("No webhook found for beezone channel"),
-                }
+            // Unwrapping is fine as we have already verified it is in the map
+            let beezone_channel = beezone_channels.get(&msg.channel_id).unwrap();
+
+            // If we are past the timestamp
+            if beezone_channel.timestamp < msg.timestamp {
                 beezone_channels.remove(&msg.channel_id);
                 return;
             }
+
             (
-                match &beezone_channel.webhook {
+                match data.webhooks.lock().await.get(&msg.channel_id) {
                     Some(webhook) => webhook.clone(),
                     None => {
-                        let webhook = match msg.channel_id.create_webhook(ctx, "Beezone").await {
-                            Ok(webhook) => webhook,
-                            Err(why) => {
-                                log::error!("Failed to create webhook: {}", why);
-                                return;
-                            }
-                        };
-
-                        beezone_channel.webhook = Some(webhook.clone());
-                        webhook
+                        log::error!("No webhook found for channel {}, if this channel is a new one please restart the bot.", msg.channel_id);
+                        return;
                     }
                 },
                 beezone_channel.beelate,
             )
-        } else {
-            let mut beeified_users = data.beeified_users.lock().await;
-            if beeified_users.contains_key(&msg.author.id) {
-                let beeified_user = beeified_users.get_mut(&msg.author.id).unwrap();
-                if beeified_user.timestamp > msg.timestamp {
-                    // Async message deletion
-                    let msg = msg.clone();
-                    let ctx = ctx.clone();
-                    tokio::spawn(async move {
-                        match msg.delete(ctx).await {
-                            Ok(_) => (),
-                            Err(why) => {
-                                log::error!("Error deleting message: {}", why);
-                            }
-                        }
-                    });
-                } else {
-                    for (_, webhook) in &beeified_user.webhooks {
-                        match webhook.delete(ctx).await {
-                            Ok(_) => (),
-                            Err(why) => {
-                                log::error!("Error deleting webhook: {:?}", why);
-                                return;
-                            }
-                        }
-                    }
-                    beeified_users.remove(&msg.author.id);
-                    return;
-                }
+        } else if beeified_users.contains_key(&msg.author.id) {
+            let beeified_user = beeified_users.get(&msg.author.id).unwrap();
 
-                if beeified_user.webhooks.contains_key(&msg.channel_id) {
-                    (
-                        beeified_user.webhooks[&msg.channel_id].clone(),
-                        beeified_user.beelate,
-                    )
-                } else {
-                    let webhook = match msg
-                        .channel_id
-                        .create_webhook(
-                            ctx,
-                            &msg.author
-                                .nick_in(ctx, guild_id)
-                                .await
-                                .unwrap_or(msg.author.name.clone()),
-                        )
-                        .await
-                    {
-                        Ok(webhook) => webhook,
-                        Err(why) => {
-                            log::error!("Failed to create webhook: {}", why);
-                            return;
-                        }
-                    };
-
-                    beeified_user.webhooks.insert(msg.channel_id, webhook);
-                    (
-                        beeified_user.webhooks[&msg.channel_id].clone(),
-                        beeified_user.beelate,
-                    )
-                }
-            } else {
+            if beeified_user.timestamp < msg.timestamp {
+                beeified_users.remove(&msg.author.id);
                 return;
             }
+
+            (
+                match data.webhooks.lock().await.get(&msg.channel_id) {
+                    Some(webhook) => webhook.clone(),
+                    None => {
+                        log::error!("No webhook found for channel {}, if this channel is a new one please restart the bot.", msg.channel_id);
+                        return;
+                    }
+                },
+                beeified_user.beelate,
+            )
+        } else {
+            return;
         }
     };
+
+    {
+        let msg = msg.clone();
+        let ctx = ctx.clone();
+        tokio::spawn(async move {
+            match msg.delete(ctx).await {
+                Ok(_) => (),
+                Err(why) => {
+                    log::error!("Error deleting message: {}", why);
+                }
+            }
+        });
+    }
 
     let content = if beelate {
         bee_utils::beelate(&msg.content)

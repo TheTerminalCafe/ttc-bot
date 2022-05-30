@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use crate::utils::bee_script;
 use lazy_static::lazy_static;
-use poise::serenity_prelude::{ChannelId, Timestamp, UserId, Webhook};
+use poise::serenity_prelude::Timestamp;
 use rand::Rng;
 
 lazy_static! {
@@ -11,35 +9,23 @@ lazy_static! {
 
 pub struct BeeifiedUser {
     pub timestamp: Timestamp,
-    pub webhooks: HashMap<ChannelId, Webhook>,
     pub beelate: bool,
 }
 
 pub struct BeezoneChannel {
     pub timestamp: Timestamp,
-    pub webhook: Option<Webhook>,
-    pub users: Vec<UserId>,
     pub beelate: bool,
 }
 
 impl BeeifiedUser {
-    pub fn new(timestamp: Timestamp, webhooks: HashMap<ChannelId, Webhook>, beelate: bool) -> Self {
-        Self {
-            timestamp,
-            webhooks,
-            beelate,
-        }
+    pub fn new(timestamp: Timestamp, beelate: bool) -> Self {
+        Self { timestamp, beelate }
     }
 }
 
 impl BeezoneChannel {
     pub fn new(timestamp: Timestamp, beelate: bool) -> Self {
-        Self {
-            timestamp,
-            webhook: None,
-            users: Vec::new(),
-            beelate,
-        }
+        Self { timestamp, beelate }
     }
 }
 

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     types::{Context, Error},
     utils::{
@@ -315,10 +313,7 @@ pub async fn beeify(
         return Ok(());
     }
 
-    beeified_users.insert(
-        user.user.id,
-        BeeifiedUser::new(timestamp, HashMap::new(), beelate),
-    );
+    beeified_users.insert(user.user.id, BeeifiedUser::new(timestamp, beelate));
 
     ctx.send(|m| {
         m.embed(|e| {
@@ -364,10 +359,6 @@ pub async fn unbeeify(
         })
         .await?;
         return Ok(());
-    }
-
-    for (_, webhook) in &beeified_users[&user.user.id].webhooks {
-        webhook.delete(ctx.discord()).await?;
     }
 
     beeified_users.remove(&user.user.id);
@@ -464,10 +455,6 @@ pub async fn unbeezone(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     }
 
-    match &beezone_channels[&ctx.channel_id()].webhook {
-        Some(webhook) => webhook.delete(ctx.discord()).await?,
-        None => log::warn!("No beezone webhook found for channel {}", ctx.channel_id()),
-    }
     beezone_channels.remove(&ctx.channel_id());
 
     ctx.send(|m| {

@@ -33,7 +33,7 @@ mod types;
 
 use clap::{App, Arg};
 use futures::stream::StreamExt;
-use poise::serenity_prelude::{Activity, Color, GatewayIntents, Mutex};
+use poise::serenity_prelude::{Activity, ChannelId, Color, GatewayIntents, Mutex};
 use regex::Regex;
 use serde_yaml::Value;
 use signal_hook::consts::TERM_SIGNALS;
@@ -310,11 +310,26 @@ async fn main() {
                 log::info!("Ready! Logged in as {}", ready.user.tag());
                 ctx.set_activity(Activity::listening("Kirottu's screaming"))
                     .await;
+
+                let query = sqlx::query!(r#"SELECT * FROM ttc_webhooks"#)
+                    .fetch_all(&pool)
+                    .await?;
+
+                let mut webhooks = HashMap::new();
+
+                for record in &query {
+                    webhooks.insert(
+                        ChannelId(record.channel_id as u64),
+                        ctx.http.get_webhook_from_url(&record.webhook_url).await?,
+                    );
+                }
+
                 Ok(Data {
                     users_currently_questioned: Mutex::new(Vec::new()),
                     harold_message: Mutex::new(None),
                     beeified_users: Mutex::new(HashMap::new()),
                     beezone_channels: Mutex::new(HashMap::new()),
+                    webhooks: Mutex::new(webhooks),
                     pool: pool,
                     thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
                 })
@@ -328,6 +343,7 @@ async fn main() {
                 commands::admin::create_verification(),
                 commands::admin::create_selfroles(),
                 commands::admin::create_support_ticket_button(),
+                commands::admin::create_webhooks(),
                 // General commands
                 commands::general::ping(),
                 commands::general::userinfo(),
