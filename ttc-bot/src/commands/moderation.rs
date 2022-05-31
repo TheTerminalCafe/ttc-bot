@@ -298,6 +298,19 @@ pub async fn beeify(
     let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
     let timestamp: Timestamp = (Utc::now() + duration).into();
 
+    if user.user.bot {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("That's a bad idea.")
+                    .description("Bots can't be beeified.")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+
     let mut beeified_users = ctx.data().beeified_users.lock().await;
 
     if beeified_users.contains_key(&user.user.id) {
