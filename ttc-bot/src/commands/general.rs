@@ -1,4 +1,7 @@
-use crate::types::{Context, Data, Error};
+use crate::{
+    types::{Context, Data, Error},
+    utils::helper_functions::format_datetime,
+};
 use futures::{lock::Mutex, StreamExt};
 use poise::{
     serenity_prelude::{Color, CreateEmbed, User, UserId},
@@ -39,7 +42,7 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
                 Ok(member) => {
                     let nick = member.nick.clone().unwrap_or("None".to_string());
                     let joined_at = match member.joined_at {
-                        Some(joined_at) => format!("{}", joined_at),
+                        Some(joined_at) => format_datetime(&joined_at),
                         None => "N/A".to_string(),
                     };
                     let mut roles = match member.roles(ctx.discord()) {
@@ -70,7 +73,7 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
             e.author(|a| a.name(user.tag()).icon_url(user.face()))
                 .field("User ID", user.id.0, true)
                 .field("Nickname", nickname, true)
-                .field("Created At", user.id.created_at(), false)
+                .field("Created At", format_datetime(&user.id.created_at()), false)
                 .field("Joined At", joined_at, false)
                 .field("Roles", roles, false)
                 .field("Icon URL", user.face(), false)

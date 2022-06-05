@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use poise::serenity_prelude::{
     ChannelId, Color, Context, CreateEmbed, CreateMessage, Message, User,
 };
@@ -193,4 +194,13 @@ pub fn format_duration(dur: &chrono::Duration) -> String {
         _ => result = format!("{} {} Seconds", result, seconds),
     }
     result.trim_end().to_owned()
+}
+
+pub fn format_datetime(timestamp: &DateTime<Utc>) -> String {
+    format!(
+        "{} ({})",
+        timestamp.format("%d.%m.%Y at %H:%M:%S"),
+        timestamp.timezone()
+    )
+    .to_owned()
 }

@@ -1,6 +1,7 @@
 use crate::{
     command_error,
     types::{Context, Error},
+    utils::helper_functions::format_datetime,
 };
 use chrono::{DateTime, Utc};
 use poise::{
@@ -371,6 +372,6 @@ fn support_ticket_embed<'a>(
             format!("Solved: {}", thread.incident_solved,),
             false,
         )
-        .field("Timestamp:", thread.incident_time, false)
+        .field("Timestamp:", format_datetime(&thread.incident_time), false)
         .field("Thread:", format!("<#{}>", thread.thread_id), false)
 }

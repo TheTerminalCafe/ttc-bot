@@ -1,4 +1,4 @@
-use crate::{get_config, types::Data};
+use crate::{get_config, types::Data, utils::helper_functions::format_datetime};
 use chrono::{DateTime, Utc};
 use poise::serenity_prelude::*;
 
@@ -147,7 +147,11 @@ pub async fn message_delete(
                         .color(Color::GOLD)
                         .field("User", user.tag(), true)
                         .field("UserId", user.id, true)
-                        .field("Message sent at", msg.message_time.unwrap(), false)
+                        .field(
+                            "Message sent at",
+                            format_datetime(&msg.message_time.unwrap()),
+                            false,
+                        )
                         .field("Channel", format!("<#{}>", msg.channel_id.unwrap()), true)
                         .field("Content", content.clone(), false)
                         .field("Attachments", attachments.clone(), false)
