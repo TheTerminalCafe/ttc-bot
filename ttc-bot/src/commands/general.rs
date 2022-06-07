@@ -1,4 +1,7 @@
-use crate::types::{Context, Data, Error};
+use crate::{
+    types::{Context, Data, Error},
+    utils::helper_functions::format_datetime,
+};
 use futures::{lock::Mutex, StreamExt};
 use poise::{
     serenity_prelude::{Color, CreateEmbed, User, UserId},
@@ -39,7 +42,7 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
                 Ok(member) => {
                     let nick = member.nick.clone().unwrap_or("None".to_string());
                     let joined_at = match member.joined_at {
-                        Some(joined_at) => format!("{}", joined_at),
+                        Some(joined_at) => format_datetime(&joined_at),
                         None => "N/A".to_string(),
                     };
                     let mut roles = match member.roles(ctx.discord()) {
@@ -70,11 +73,136 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
             e.author(|a| a.name(user.tag()).icon_url(user.face()))
                 .field("User ID", user.id.0, true)
                 .field("Nickname", nickname, true)
-                .field("Created At", user.id.created_at(), false)
+                .field("Created At", format_datetime(&user.id.created_at()), false)
                 .field("Joined At", joined_at, false)
                 .field("Roles", roles, false)
                 .field("Icon URL", user.face(), false)
                 .color(Color::BLITZ_BLUE)
+        })
+        .ephemeral(true)
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Server info
+///
+/// Can be used to get server info
+/// ``serverinfo``
+#[poise::command(prefix_command, slash_command, guild_only, category = "General")]
+pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
+    let guild = ctx.guild().unwrap();
+    let guild_id_part = guild.id.to_partial_guild_with_counts(ctx.discord()).await?;
+    let online_members = match guild_id_part.approximate_presence_count {
+        Some(s) => s.to_string(),
+        None => String::from("N/A"),
+    };
+    let icon = guild.icon_url().unwrap_or(String::from("N/A"));
+    let emojis = guild.emojis(ctx.discord()).await?;
+    let mut fields: Vec<(String, String, bool)> = Vec::new();
+
+    fields.push(("Guild name".to_string(), guild.name.clone(), false));
+    fields.push((
+        "Server owner".to_string(),
+        format!("<@{}>", guild.owner_id.0),
+        false,
+    ));
+    fields.push((
+        "Online Members".to_string(),
+        format!("{}/{}", online_members, guild.member_count),
+        false,
+    ));
+
+    let mut tmp = String::new();
+    let mut count = 1;
+    emojis
+        .iter()
+        .filter(|emoji| !(emoji.animated))
+        .for_each(|emoji| {
+            let t = format!("{}<:{}:{}> ", tmp, emoji.name, emoji.id.0);
+            if t.len() > 1024 {
+                fields.push((
+                    format!("Custom Emojis {}", count).to_string(),
+                    tmp.clone(),
+                    false,
+                ));
+                tmp = format!("<:{}:{}> ", emoji.name, emoji.id.0);
+                count += 1;
+            } else {
+                tmp = t;
+            }
+        });
+    if count > 1 {
+        fields.push((
+            format!("Custom Emojis {}", count).to_string(),
+            tmp.clone(),
+            false,
+        ));
+    } else {
+        fields.push(("Custom Emojis".to_string(), tmp.clone(), false));
+    }
+
+    tmp = String::new();
+    count = 1;
+    emojis
+        .iter()
+        .filter(|emoji| emoji.animated)
+        .for_each(|emoji| {
+            let t = format!("{}<a:{}:{}> ", tmp, emoji.name, emoji.id.0);
+            if t.len() > 1024 {
+                fields.push((
+                    format!("Animated Emojis {}", count).to_string(),
+                    tmp.clone(),
+                    false,
+                ));
+                tmp = format!("<a:{}:{}> ", emoji.name, emoji.id.0);
+                count += 1;
+            } else {
+                tmp = t;
+            }
+        });
+    if count > 1 {
+        fields.push((
+            format!("Animated Emojis {}", count).to_string(),
+            tmp.clone(),
+            false,
+        ));
+    } else {
+        fields.push(("Animated Emojis".to_string(), tmp.clone(), false));
+    }
+
+    tmp = String::new();
+    count = 1;
+    guild
+        .roles
+        .iter()
+        .filter(|role| role.1.name != "@everyone")
+        .for_each(|role| {
+            let t = format!("{}<@&{}> ", tmp, role.0 .0);
+            if t.len() > 1024 {
+                fields.push((format!("Roles {}", count).to_string(), tmp.clone(), false));
+                tmp = format!("{}<@&{}> ", tmp, role.0 .0);
+                count += 1;
+            } else {
+                tmp = t;
+            }
+        });
+    if count > 1 {
+        fields.push((format!("Roles {}", count).to_string(), tmp.clone(), false));
+    } else {
+        fields.push(("Roles".to_string(), tmp.clone(), false));
+    }
+
+    fields.push(("Icon URL".to_string(), icon.clone(), false));
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.author(|a| a.name(&guild.name))
+                .fields(fields)
+                .color(Color::BLITZ_BLUE)
+                .thumbnail(&icon)
         })
         .ephemeral(true)
     })

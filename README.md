@@ -92,4 +92,4 @@ Thanks to these people we are able to develop this project 😉😉
 Thanks for using out software. See you in the discord server.
 # Made with 💛 and code
 
-[Discord](https://discord.gg/qsBmyM9) [TheTerminalCafe](our%20website%20link)
+[Discord](https://discord.gg/qsBmyM9)

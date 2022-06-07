@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use poise::serenity_prelude::{
     ChannelId, Color, Context, CreateEmbed, CreateMessage, Message, User, Webhook,
 };
@@ -233,4 +234,13 @@ pub async fn get_webhook(
             webhook
         }
     })
+}
+  
+pub fn format_datetime(timestamp: &DateTime<Utc>) -> String {
+    format!(
+        "{} ({})",
+        timestamp.format("%d.%m.%Y at %H:%M:%S"),
+        timestamp.timezone()
+    )
+    .to_owned()
 }

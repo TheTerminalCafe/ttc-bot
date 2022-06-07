@@ -40,12 +40,11 @@ pub async fn listener(
             .await;
         }
         MessageUpdate {
-            old_if_available,
+            old_if_available: _,
             new,
             event,
         } => {
-            crate::events::conveyance::message_update(ctx, old_if_available, new, event, data)
-                .await;
+            crate::events::conveyance::message_update(ctx, new, event, data).await;
         }
         GuildMemberAddition { new_member } => {
             crate::events::conveyance::guild_member_addition(ctx, new_member, data).await;
