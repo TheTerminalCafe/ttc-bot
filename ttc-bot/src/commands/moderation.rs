@@ -1,6 +1,9 @@
 use crate::{
     types::{Context, Error},
-    utils::helper_functions::format_duration,
+    utils::{
+        bee_utils::{BeeifiedUser, BeezoneChannel},
+        helper_functions::format_duration,
+    },
 };
 use chrono::{Duration, Utc};
 use poise::serenity_prelude::{Color, Member, Timestamp, UserId};
@@ -211,7 +214,7 @@ pub async fn timeout(
 
 /// Purge messages
 ///
-/// Delete a certian amount of messages (max 100)
+/// Delete a certain amount of messages (max 100)
 /// ``purge [amount]``
 #[poise::command(
     slash_command,
@@ -267,5 +270,214 @@ pub async fn purge(
         .ephemeral(true)
     })
     .await?;
+    Ok(())
+}
+
+/// Beeify a member
+///
+/// Command to beeify a member
+/// ``beeify [member] [duration] [beelate]``
+///
+/// ``duration`` is a human-readable string like \
+/// ``1h``
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn beeify(
+    ctx: Context<'_>,
+    #[description = "User to beeify"] user: Member,
+    #[description = "The time to beeify the user for"]
+    #[rename = "duration"]
+    duration_str: String,
+    #[description = "Whether to use beelate or not"] beelate: bool,
+) -> Result<(), Error> {
+    let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
+    let timestamp: Timestamp = (Utc::now() + duration).into();
+
+    if user.user.bot {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("That's a bad idea.")
+                    .description("Bots can't be beeified.")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+
+    let mut beeified_users = ctx.data().beeified_users.write().await;
+
+    if beeified_users.contains_key(&user.user.id) {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("Already beeified")
+                    .description("This user is already beeified")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+
+    beeified_users.insert(user.user.id, BeeifiedUser::new(timestamp, beelate));
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Beeified")
+                .description(format!(
+                    "User <@{}> beeified for {}",
+                    user.user.id,
+                    format_duration(&duration)
+                ))
+                .color(Color::FOOYOO)
+        })
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Unbeeify a member
+///
+/// Command to unbeeify a member
+/// ``unbeeify [member]``
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn unbeeify(
+    ctx: Context<'_>,
+    #[description = "User to unbeeify"] user: Member,
+) -> Result<(), Error> {
+    let mut beeified_users = ctx.data().beeified_users.write().await;
+
+    if !beeified_users.contains_key(&user.user.id) {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("Not beeified")
+                    .description("This user is not beeified")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+
+    beeified_users.remove(&user.user.id);
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Unbeeified")
+                .description(format!("User <@{}> unbeeified", user.user.id))
+                .color(Color::FOOYOO)
+        })
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Beezone.
+///
+/// Turn the current channel into instant chaos.
+/// ``beezone``
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn beezone(
+    ctx: Context<'_>,
+    #[description = "The time to cause chaos for"]
+    #[rename = "duration"]
+    duration_str: String,
+    #[description = "Whether to use beelate or not"] beelate: bool,
+) -> Result<(), Error> {
+    let mut beezone_channels = ctx.data().beezone_channels.write().await;
+
+    if beezone_channels.contains_key(&ctx.channel_id()) {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("Already beezoned")
+                    .description("This channel is already beezoned")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+    let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
+    let timestamp: Timestamp = (Utc::now() + duration).into();
+
+    beezone_channels.insert(ctx.channel_id(), BeezoneChannel::new(timestamp, beelate));
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Beezoned")
+                .description(format!(
+                    "Channel <#{}> beezoned for {}",
+                    ctx.channel_id(),
+                    format_duration(&duration)
+                ))
+                .color(Color::FOOYOO)
+        })
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Unbeezone
+///
+/// Turn the current channel back into normal.
+/// ``unbeezone``
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn unbeezone(ctx: Context<'_>) -> Result<(), Error> {
+    let mut beezone_channels = ctx.data().beezone_channels.write().await;
+
+    if !beezone_channels.contains_key(&ctx.channel_id()) {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("Not beezoned")
+                    .description("This channel is not beezoned")
+                    .color(Color::DARK_RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+
+    beezone_channels.remove(&ctx.channel_id());
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Unbeezoned")
+                .description(format!("Channel <#{}> unbeezoned", ctx.channel_id()))
+                .color(Color::FOOYOO)
+        })
+    })
+    .await?;
+
     Ok(())
 }

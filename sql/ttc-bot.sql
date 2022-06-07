@@ -57,3 +57,10 @@ CREATE TABLE ttc_bad_words(
     word VARCHAR(4000) NOT NULL,
     PRIMARY KEY(id)
 );
+
+DROP TABLE IF EXISTS ttc_webhooks;
+CREATE TABLE ttc_webhooks(
+	channel_id BIGINT NOT NULL UNIQUE,
+	webhook_url VARCHAR NOT NULL,
+	PRIMARY KEY(channel_id)
+);

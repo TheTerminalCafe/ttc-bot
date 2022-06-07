@@ -228,7 +228,7 @@ pub async fn harold(
     leaderboard: bool,
 ) -> Result<(), Error> {
     {
-        let harold_message = ctx.data().harold_message.lock().await;
+        let harold_message = ctx.data().harold_message.read().await;
         match &*harold_message {
             Some(message) => {
                 ctx.send(|m| {
@@ -271,7 +271,7 @@ pub async fn harold(
 
     // Set the lock to avoid running multiple concurrent instances of this command
     {
-        let mut harold_message = ctx.data().harold_message.lock().await;
+        let mut harold_message = ctx.data().harold_message.write().await;
         *harold_message = Some(progress_message.lock().await.clone());
     }
 
@@ -540,7 +540,7 @@ pub async fn harold(
 
     // Reset it after it is done
     {
-        let mut harold_message = ctx.data().harold_message.lock().await;
+        let mut harold_message = ctx.data().harold_message.write().await;
         *harold_message = None;
     }
 

@@ -1,8 +1,12 @@
-use crate::{command_error, utils::autocomplete_functions::language_autocomplete, Context, Error};
+use crate::{
+    command_error,
+    utils::{autocomplete_functions::language_autocomplete, bee_utils},
+    Context, Error,
+};
 use poise::serenity_prelude::{Color, Message};
 use serde_json::Value;
 
-pub const LANGUAGE_CODES: [(&str, &str); 104] = [
+pub const LANGUAGE_CODES: [(&str, &str); 105] = [
     ("af", "Afrikaans"),
     ("sq", "Albanian"),
     ("am", "Amharic"),
@@ -107,6 +111,7 @@ pub const LANGUAGE_CODES: [(&str, &str); 104] = [
     ("yi", "Yiddish"),
     ("yo", "Yoruba"),
     ("zu", "Zulu"),
+    ("bee", "Beemovie"),
 ];
 
 /// Translation command
@@ -119,9 +124,30 @@ pub async fn translate(
     #[description = "Target language"]
     #[autocomplete = "language_autocomplete"]
     lang: String,
-    #[description = "The text to translate"] text_to_translate: String,
+    #[description = "The text to translate"]
+    #[rest]
+    text_to_translate: String,
 ) -> Result<(), Error> {
     // Get the language code and the text to translate
+    {
+        let beeified_users = ctx.data().beeified_users.read().await;
+        let beezone_channels = ctx.data().beezone_channels.read().await;
+
+        if beeified_users.contains_key(&ctx.author().id)
+            || beezone_channels.contains_key(&ctx.channel_id())
+        {
+            ctx.send(|m| {
+                m.embed(|e| {
+                    e.title("You are a bee!")
+                        .description("Bees can't translate, bees can only... bee.")
+                        .color(Color::KERBAL)
+                })
+                .ephemeral(true)
+            })
+            .await?;
+            return Ok(());
+        }
+    }
 
     ctx.defer().await?;
 
@@ -197,6 +223,11 @@ async fn translate_text(
             "Language not found. Please use the language code or the language name"
         );
     }
+
+    if lang == "bee" {
+        return Ok((lang, bee_utils::beelate(text_to_translate)));
+    }
+
     // Turn the provided info into a URI
     let uri = format!(
         "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={}&dt=t&q={}",

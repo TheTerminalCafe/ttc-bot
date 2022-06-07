@@ -2,7 +2,11 @@
 // Admin group commands
 // --------------------
 
-use poise::serenity_prelude::{ButtonStyle, Color, CreateSelectMenu, GuildChannel, Role, RoleId};
+use std::collections::HashMap;
+
+use poise::serenity_prelude::{
+    ButtonStyle, ChannelType, Color, CreateSelectMenu, GuildChannel, Role, RoleId,
+};
 
 use crate::{
     get_config,
@@ -25,7 +29,7 @@ pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
         .await?;
 
     ctx.framework()
-        .shard_manager()
+        .shard_manager
         .lock()
         .await
         .shutdown_all()
@@ -224,6 +228,103 @@ pub async fn create_support_ticket_button(
                 "Support ticket button created in <#{}>",
                 channel.id
             ))
+        })
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Create webhooks
+///
+/// Command to create webhooks for the bot
+/// ``create_webhooks [channel_id] [webhook_name]``
+#[poise::command(
+    prefix_command,
+    slash_command,
+    owners_only,
+    guild_only,
+    hide_in_help,
+    category = "Admin"
+)]
+pub async fn create_webhooks(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Creating webhooks")
+                .description("This may take a while, please be patient")
+                .color(Color::FOOYOO)
+        })
+    })
+    .await?;
+    {
+        let mut webhooks = ctx.data().webhooks.write().await;
+
+        for (_, webhook) in webhooks.iter() {
+            webhook.delete(ctx.discord()).await?;
+            log::info!("Deleted webhook {:?}", webhook.name);
+        }
+        webhooks.clear();
+    }
+
+    let mut webhooks = HashMap::new();
+
+    let channels = ctx.guild_id().unwrap().channels(ctx.discord()).await?;
+
+    log::info!("Creating new webhooks");
+
+    for (channel_id, channel) in &channels {
+        if channel.kind == ChannelType::Text {
+            let webhook = channel_id
+                .create_webhook(
+                    ctx.discord(),
+                    format!("ttc-bot fancy webhook {}", channel_id),
+                )
+                .await?;
+
+            log::info!("Created webhook for channel {}", channel_id);
+
+            webhooks.insert(channel_id, webhook);
+
+            ctx.channel_id()
+                .send_message(ctx.discord(), |m| {
+                    m.content(format!("Webhook created in <#{}>", channel_id))
+                })
+                .await?;
+        }
+    }
+
+    log::info!("Clearing the old database table");
+
+    sqlx::query!(r#"DELETE FROM ttc_webhooks"#)
+        .execute(&ctx.data().pool)
+        .await?;
+
+    let mut webhooks_data = ctx.data().webhooks.write().await;
+
+    log::info!("Updating runtime variables and database");
+
+    for (channel_id, webhook) in &webhooks {
+        webhooks_data.insert(**channel_id, webhook.clone());
+        sqlx::query!(
+            r#"INSERT INTO ttc_webhooks (channel_id, webhook_url) VALUES ($1, $2)"#,
+            channel_id.0 as i64,
+            match webhook.url() {
+                Ok(url) => url,
+                Err(why) => {
+                    log::error!("Malformed webhook: {}", why);
+                    continue;
+                }
+            }
+        )
+        .execute(&ctx.data().pool)
+        .await?;
+    }
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Webhooks created")
+                .description("Webhooks created in all text channels")
+                .color(Color::FOOYOO)
         })
     })
     .await?;

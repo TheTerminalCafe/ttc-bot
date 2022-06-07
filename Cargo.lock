@@ -2022,6 +2022,7 @@ dependencies = [
  "dotenv",
  "env_logger",
  "futures",
+ "lazy_static",
  "log",
  "parse_duration",
  "poise",
@@ -2034,6 +2035,7 @@ dependencies = [
  "signal-hook",
  "signal-hook-tokio",
  "sqlx",
+ "strsim 0.10.0",
  "tokio",
 ]
 
