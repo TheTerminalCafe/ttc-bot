@@ -257,7 +257,7 @@ pub async fn create_webhooks(ctx: Context<'_>) -> Result<(), Error> {
     })
     .await?;
     {
-        let mut webhooks = ctx.data().webhooks.lock().await;
+        let mut webhooks = ctx.data().webhooks.write().await;
 
         for (_, webhook) in webhooks.iter() {
             webhook.delete(ctx.discord()).await?;
@@ -299,7 +299,7 @@ pub async fn create_webhooks(ctx: Context<'_>) -> Result<(), Error> {
         .execute(&ctx.data().pool)
         .await?;
 
-    let mut webhooks_data = ctx.data().webhooks.lock().await;
+    let mut webhooks_data = ctx.data().webhooks.write().await;
 
     log::info!("Updating runtime variables and database");
 

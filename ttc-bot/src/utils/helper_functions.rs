@@ -1,5 +1,5 @@
 use poise::serenity_prelude::{
-    ChannelId, Color, Context, CreateEmbed, CreateMessage, Message, User,
+    ChannelId, Color, Context, CreateEmbed, CreateMessage, Message, User, Webhook,
 };
 
 use crate::{
@@ -106,7 +106,7 @@ where
         let new_msg = match wait_for_message(ctx, channel_id, user, timeout).await {
             Ok(msg) => msg,
             Err(why) => {
-                let mut guard = data.users_currently_questioned.lock().await;
+                let mut guard = data.users_currently_questioned.write().await;
                 guard.retain(|uid| uid != &user.id);
                 return Err(Error::from(format!(
                     "User took too long to respond: {}",
@@ -193,4 +193,44 @@ pub fn format_duration(dur: &chrono::Duration) -> String {
         _ => result = format!("{} {} Seconds", result, seconds),
     }
     result.trim_end().to_owned()
+}
+
+pub async fn get_webhook(
+    ctx: &Context,
+    data: &Data,
+    channel_id: &ChannelId,
+) -> Result<Webhook, Error> {
+    let webhooks = data.webhooks.read().await;
+    Ok(match webhooks.get(channel_id) {
+        Some(webhook) => webhook.clone(),
+        None => {
+            drop(webhooks);
+            let mut webhooks = data.webhooks.write().await;
+            let webhook = channel_id
+                .create_webhook(ctx, format!("ttc-bot fancy webhook {}", channel_id))
+                .await?;
+            webhooks.insert(channel_id.clone(), webhook.clone());
+            // Update the webhook URLs in the DB
+            sqlx::query!(r#"DELETE FROM ttc_webhooks"#)
+                .execute(&data.pool)
+                .await?;
+            for (channel_id, webhook) in webhooks.iter() {
+                sqlx::query!(
+                    r#"INSERT INTO ttc_webhooks (channel_id, webhook_url) VALUES ($1, $2)"#,
+                    channel_id.0 as i64,
+                    match webhook.url() {
+                        Ok(url) => url,
+                        Err(why) => {
+                            log::error!("Malformed webhook: {}", why);
+                            continue;
+                        }
+                    }
+                )
+                .execute(&data.pool)
+                .await?;
+            }
+            log::info!("Created missing webhook for channel {}", channel_id);
+            webhook
+        }
+    })
 }

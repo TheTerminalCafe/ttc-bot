@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 
-use poise::serenity_prelude::{ChannelId, Message, Mutex, UserId, Webhook};
+use poise::serenity_prelude::{ChannelId, Message, RwLock, UserId, Webhook};
 use sqlx::PgPool;
 
 use crate::utils::bee_utils::{BeeifiedUser, BeezoneChannel};
 
 pub struct Data {
-    pub users_currently_questioned: Mutex<Vec<UserId>>,
-    pub harold_message: Mutex<Option<Message>>,
-    pub beeified_users: Mutex<HashMap<UserId, BeeifiedUser>>,
-    pub beezone_channels: Mutex<HashMap<ChannelId, BeezoneChannel>>,
-    pub webhooks: Mutex<HashMap<ChannelId, Webhook>>,
+    pub users_currently_questioned: RwLock<Vec<UserId>>,
+    pub harold_message: RwLock<Option<Message>>,
+    pub beeified_users: RwLock<HashMap<UserId, BeeifiedUser>>,
+    pub beezone_channels: RwLock<HashMap<ChannelId, BeezoneChannel>>,
+    pub webhooks: RwLock<HashMap<ChannelId, Webhook>>,
     pub pool: PgPool,
     pub thread_name_regex: regex::Regex,
 }

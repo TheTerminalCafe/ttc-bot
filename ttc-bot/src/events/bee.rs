@@ -1,6 +1,9 @@
 use poise::serenity_prelude::{Context, Message};
 
-use crate::{types::Data, utils::bee_utils};
+use crate::{
+    types::Data,
+    utils::{bee_utils, helper_functions},
+};
 
 pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
     let guild_id = match msg.guild_id {
@@ -9,41 +12,51 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
     };
 
     let (webhook, beelate) = {
-        let mut beezone_channels = data.beezone_channels.lock().await;
-        let mut beeified_users = data.beeified_users.lock().await;
+        let beezone_channels = data.beezone_channels.read().await;
+        let beeified_users = data.beeified_users.read().await;
         if beezone_channels.contains_key(&msg.channel_id) && !msg.author.bot {
             // Unwrapping is fine as we have already verified it is in the map
-            let beezone_channel = beezone_channels.get(&msg.channel_id).unwrap();
+            let beezone_channel = *beezone_channels.get(&msg.channel_id).unwrap();
+
+            // Drop the original locks
+            drop(beezone_channels);
+            drop(beeified_users);
 
             // If we are past the timestamp
             if beezone_channel.timestamp < msg.timestamp {
+                let mut beezone_channels = data.beezone_channels.write().await;
                 beezone_channels.remove(&msg.channel_id);
                 return;
             }
 
             (
-                match data.webhooks.lock().await.get(&msg.channel_id) {
-                    Some(webhook) => webhook.clone(),
-                    None => {
-                        log::error!("No webhook found for channel {}, if this channel is a new one please restart the bot.", msg.channel_id);
+                match helper_functions::get_webhook(ctx, data, &msg.channel_id).await {
+                    Ok(webhook) => webhook,
+                    Err(why) => {
+                        log::error!("Error getting webhook: {}", why);
                         return;
                     }
                 },
                 beezone_channel.beelate,
             )
         } else if beeified_users.contains_key(&msg.author.id) {
-            let beeified_user = beeified_users.get(&msg.author.id).unwrap();
+            let beeified_user = *beeified_users.get(&msg.author.id).unwrap();
+
+            // Drop the original locks
+            drop(beezone_channels);
+            drop(beeified_users);
 
             if beeified_user.timestamp < msg.timestamp {
+                let mut beeified_users = data.beeified_users.write().await;
                 beeified_users.remove(&msg.author.id);
                 return;
             }
 
             (
-                match data.webhooks.lock().await.get(&msg.channel_id) {
-                    Some(webhook) => webhook.clone(),
-                    None => {
-                        log::error!("No webhook found for channel {}, if this channel is a new one please restart the bot.", msg.channel_id);
+                match helper_functions::get_webhook(ctx, data, &msg.channel_id).await {
+                    Ok(webhook) => webhook,
+                    Err(why) => {
+                        log::error!("Error getting webhook: {}", why);
                         return;
                     }
                 },

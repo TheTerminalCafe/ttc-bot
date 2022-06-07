@@ -59,7 +59,7 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                             Err(why) => {
                                 log::error!("Error completing ticket button interaction: {}", why);
                                 {
-                                    let mut users_currently_questioned = data.users_currently_questioned.lock().await;
+                                    let mut users_currently_questioned = data.users_currently_questioned.write().await;
                                     users_currently_questioned.retain(|uid| uid != &intr.user.id);
                                 }
                                 match intr.edit_original_interaction_response(
@@ -291,7 +291,7 @@ mod interactions {
         .await?;
 
         {
-            let mut users_currently_questioned = data.users_currently_questioned.lock().await;
+            let mut users_currently_questioned = data.users_currently_questioned.write().await;
             if users_currently_questioned.contains(&intr.user.id) {
                 match intr.edit_original_interaction_response(ctx, |i| {
                     i.embed(|e| {
@@ -377,7 +377,7 @@ mod interactions {
         thread_name_safe.truncate(100);
 
         {
-            let mut users_currently_questioned = data.users_currently_questioned.lock().await;
+            let mut users_currently_questioned = data.users_currently_questioned.write().await;
             users_currently_questioned.retain(|uid| uid != &intr.user.id);
         }
 

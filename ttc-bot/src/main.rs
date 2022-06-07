@@ -33,7 +33,7 @@ mod types;
 
 use clap::{App, Arg};
 use futures::stream::StreamExt;
-use poise::serenity_prelude::{Activity, ChannelId, Color, GatewayIntents, Mutex};
+use poise::serenity_prelude::{Activity, ChannelId, Color, GatewayIntents, RwLock};
 use regex::Regex;
 use serde_yaml::Value;
 use signal_hook::consts::TERM_SIGNALS;
@@ -325,11 +325,11 @@ async fn main() {
                 }
 
                 Ok(Data {
-                    users_currently_questioned: Mutex::new(Vec::new()),
-                    harold_message: Mutex::new(None),
-                    beeified_users: Mutex::new(HashMap::new()),
-                    beezone_channels: Mutex::new(HashMap::new()),
-                    webhooks: Mutex::new(webhooks),
+                    users_currently_questioned: RwLock::new(Vec::new()),
+                    harold_message: RwLock::new(None),
+                    beeified_users: RwLock::new(HashMap::new()),
+                    beezone_channels: RwLock::new(HashMap::new()),
+                    webhooks: RwLock::new(webhooks),
                     pool: pool,
                     thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
                 })

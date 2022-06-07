@@ -7,11 +7,13 @@ lazy_static! {
     static ref BEE_LINE_VEC: Vec<String> = bee_lines();
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct BeeifiedUser {
     pub timestamp: Timestamp,
     pub beelate: bool,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct BeezoneChannel {
     pub timestamp: Timestamp,
     pub beelate: bool,

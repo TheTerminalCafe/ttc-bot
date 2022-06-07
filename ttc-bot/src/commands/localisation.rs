@@ -124,9 +124,30 @@ pub async fn translate(
     #[description = "Target language"]
     #[autocomplete = "language_autocomplete"]
     lang: String,
-    #[description = "The text to translate"] text_to_translate: String,
+    #[description = "The text to translate"]
+    #[rest]
+    text_to_translate: String,
 ) -> Result<(), Error> {
     // Get the language code and the text to translate
+    {
+        let beeified_users = ctx.data().beeified_users.read().await;
+        let beezone_channels = ctx.data().beezone_channels.read().await;
+
+        if beeified_users.contains_key(&ctx.author().id)
+            || beezone_channels.contains_key(&ctx.channel_id())
+        {
+            ctx.send(|m| {
+                m.embed(|e| {
+                    e.title("You are a bee!")
+                        .description("Bees can't translate, bees can only... bee.")
+                        .color(Color::KERBAL)
+                })
+                .ephemeral(true)
+            })
+            .await?;
+            return Ok(());
+        }
+    }
 
     ctx.defer().await?;
 

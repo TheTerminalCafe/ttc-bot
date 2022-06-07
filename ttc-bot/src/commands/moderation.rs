@@ -311,7 +311,7 @@ pub async fn beeify(
         return Ok(());
     }
 
-    let mut beeified_users = ctx.data().beeified_users.lock().await;
+    let mut beeified_users = ctx.data().beeified_users.write().await;
 
     if beeified_users.contains_key(&user.user.id) {
         ctx.send(|m| {
@@ -332,8 +332,8 @@ pub async fn beeify(
         m.embed(|e| {
             e.title("Beeified")
                 .description(format!(
-                    "User {} beeified for {}",
-                    user.user.tag(),
+                    "User <@{}> beeified for {}",
+                    user.user.id,
                     format_duration(&duration)
                 ))
                 .color(Color::FOOYOO)
@@ -359,7 +359,7 @@ pub async fn unbeeify(
     ctx: Context<'_>,
     #[description = "User to unbeeify"] user: Member,
 ) -> Result<(), Error> {
-    let mut beeified_users = ctx.data().beeified_users.lock().await;
+    let mut beeified_users = ctx.data().beeified_users.write().await;
 
     if !beeified_users.contains_key(&user.user.id) {
         ctx.send(|m| {
@@ -379,7 +379,7 @@ pub async fn unbeeify(
     ctx.send(|m| {
         m.embed(|e| {
             e.title("Unbeeified")
-                .description(format!("User {} unbeeified", user.user.tag()))
+                .description(format!("User <@{}> unbeeified", user.user.id))
                 .color(Color::FOOYOO)
         })
     })
@@ -406,7 +406,7 @@ pub async fn beezone(
     duration_str: String,
     #[description = "Whether to use beelate or not"] beelate: bool,
 ) -> Result<(), Error> {
-    let mut beezone_channels = ctx.data().beezone_channels.lock().await;
+    let mut beezone_channels = ctx.data().beezone_channels.write().await;
 
     if beezone_channels.contains_key(&ctx.channel_id()) {
         ctx.send(|m| {
@@ -429,7 +429,7 @@ pub async fn beezone(
         m.embed(|e| {
             e.title("Beezoned")
                 .description(format!(
-                    "Channel {} beezoned for {}",
+                    "Channel <#{}> beezoned for {}",
                     ctx.channel_id(),
                     format_duration(&duration)
                 ))
@@ -453,7 +453,7 @@ pub async fn beezone(
     guild_only
 )]
 pub async fn unbeezone(ctx: Context<'_>) -> Result<(), Error> {
-    let mut beezone_channels = ctx.data().beezone_channels.lock().await;
+    let mut beezone_channels = ctx.data().beezone_channels.write().await;
 
     if !beezone_channels.contains_key(&ctx.channel_id()) {
         ctx.send(|m| {
@@ -473,7 +473,7 @@ pub async fn unbeezone(ctx: Context<'_>) -> Result<(), Error> {
     ctx.send(|m| {
         m.embed(|e| {
             e.title("Unbeezoned")
-                .description(format!("Channel {} unbeezoned", ctx.channel_id()))
+                .description(format!("Channel <#{}> unbeezoned", ctx.channel_id()))
                 .color(Color::FOOYOO)
         })
     })
