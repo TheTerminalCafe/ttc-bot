@@ -362,6 +362,7 @@ async fn main() {
                 commands::moderation::unbeeify(),
                 commands::moderation::beezone(),
                 commands::moderation::unbeezone(),
+                commands::moderation::idban(),
                 // Support commands
                 commands::support::solve(),
                 commands::support::search(),

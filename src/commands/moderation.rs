@@ -8,10 +8,10 @@ use crate::{
 use chrono::{Duration, Utc};
 use poise::serenity_prelude::{Color, Member, Timestamp, UserId};
 
-/// Ban an member
+/// Ban a member
 ///
 /// Command to ban a member
-/// ``ban [member] [reason (optional)]``
+/// ``ban [member] [dmd] [reason (optional)]``
 #[poise::command(
     slash_command,
     prefix_command,
@@ -22,6 +22,10 @@ use poise::serenity_prelude::{Color, Member, Timestamp, UserId};
 pub async fn ban(
     ctx: Context<'_>,
     #[description = "User to ban"] member: Member,
+    #[description = "Days of messages to delete"]
+    #[min = 0]
+    #[max = 7]
+    dmd: u8,
     #[description = "Reason"] reason: Option<String>,
 ) -> Result<(), Error> {
     // Make sure people do not ban themselves
@@ -41,10 +45,10 @@ pub async fn ban(
     // Ban the person depending on if a reason was supplied
     match reason {
         Some(reason) => {
-            member.ban_with_reason(ctx.discord(), 0, reason).await?;
+            member.ban_with_reason(ctx.discord(), dmd, reason).await?;
         }
         None => {
-            member.ban(ctx.discord(), 0).await?;
+            member.ban(ctx.discord(), dmd).await?;
         }
     }
 
@@ -52,6 +56,63 @@ pub async fn ban(
         m.embed(|e| {
             e.title("Banhammer has been swung.")
                 .description(format!("{} has been banned.", member.user.tag()))
+                .color(Color::RED)
+        })
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Ban a member (using the user id)
+///
+/// Command to ban a member
+/// ``ban [user_id] [dmd] [reason (optional)]``
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "BAN_MEMBERS",
+    guild_only
+)]
+pub async fn idban(
+    ctx: Context<'_>,
+    #[description = "Id of the user to silent ban"] user_id: UserId,
+    #[description = "Days of messages to delete"] dmd: u8,
+    #[description = "Reason"] reason: Option<String>,
+) -> Result<(), Error> {
+    if user_id == ctx.author().id {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("That's a bad idea")
+                    .description("You should not try to ban yourself.")
+                    .color(Color::RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+
+    match reason {
+        Some(reason) => {
+            ctx.guild_id()
+                .unwrap()
+                .ban_with_reason(ctx.discord(), user_id, dmd, reason)
+                .await?;
+        }
+        None => {
+            ctx.guild_id()
+                .unwrap()
+                .ban(ctx.discord(), user_id, dmd)
+                .await?;
+        }
+    }
+
+    ctx.send(|m| {
+        m.embed(|e| {
+            e.title("Banhammer has been swung.")
+                .description(format!("{} has been banned.", user_id))
                 .color(Color::RED)
         })
     })
@@ -188,7 +249,7 @@ pub async fn timeout(
         return Ok(());
     }
 
-    let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
+    let duration = Duration::from_std(humantime::parse_duration(&duration_str)?)?;
     member
         .disable_communication_until_datetime(
             ctx.discord(),
@@ -295,7 +356,7 @@ pub async fn beeify(
     duration_str: String,
     #[description = "Whether to use beelate or not"] beelate: bool,
 ) -> Result<(), Error> {
-    let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
+    let duration = Duration::from_std(humantime::parse_duration(&duration_str)?)?;
     let timestamp: Timestamp = (Utc::now() + duration).into();
 
     if user.user.bot {
@@ -420,7 +481,7 @@ pub async fn beezone(
         .await?;
         return Ok(());
     }
-    let duration = Duration::from_std(parse_duration::parse(&duration_str)?)?;
+    let duration = Duration::from_std(humantime::parse_duration(&duration_str)?)?;
     let timestamp: Timestamp = (Utc::now() + duration).into();
 
     beezone_channels.insert(ctx.channel_id(), BeezoneChannel::new(timestamp, beelate));

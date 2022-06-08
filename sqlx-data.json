@@ -98,6 +98,30 @@
     },
     "query": "UPDATE ttc_support_tickets SET unarchivals = $1 WHERE incident_id = $2"
   },
+  "6905847a1f9b4c857dc7f925755e275fbcbe4c2937262e4b482decbde1dc7433": {
+    "describe": {
+      "columns": [
+        {
+          "name": "channel_id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "webhook_url",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT * FROM ttc_webhooks"
+  },
   "691086f41c9e5561bf5a7c8d344094895d80a59399fad25ae1d81159180f1a19": {
     "describe": {
       "columns": [],
@@ -261,6 +285,19 @@
     },
     "query": "INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved, unarchivals) VALUES($1, $2, $3, $4, $5, $6) RETURNING *"
   },
+  "945aaebb73b74338649e67570f5be089893be08c94f68a2f7afe0317c49fdbe3": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Varchar"
+        ]
+      }
+    },
+    "query": "INSERT INTO ttc_webhooks (channel_id, webhook_url) VALUES ($1, $2)"
+  },
   "989bba7ed9f8cffcf6f17cb389ee157640e4efeb522035dd7981d09f1572fd76": {
     "describe": {
       "columns": [],
@@ -395,6 +432,16 @@
       }
     },
     "query": "INSERT INTO ttc_bad_words (word) VALUES($1)"
+  },
+  "ee4f9ebceba0566181c0c181214e3d65d8aee99dafe660d8fefcebb0c288442d": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "DELETE FROM ttc_webhooks"
   },
   "ef8d237db20801c47dddaf718ebf108490889e1a55bca731dd4a83904f7f109e": {
     "describe": {

@@ -77,9 +77,7 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                                 }
                             }
                         },
-                        _ => {
-                            log::warn!("Unknown interaction created");
-                        }
+                        _ => (),
                     }
                 }
                 None => {
