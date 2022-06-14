@@ -340,7 +340,11 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member, data: &Da
                         .color(Color::FOOYOO)
                         .field("User", new_member.user.tag(), true)
                         .field("UserID", new_member.user.id, true)
-                        .field("Account created", new_member.user.created_at(), false)
+                        .field(
+                            "Account created",
+                            format_datetime(&new_member.user.created_at()),
+                            false,
+                        )
                 })
             })
             .await
@@ -364,7 +368,7 @@ pub async fn guild_member_removal(
 
     let joined_at = match member {
         Some(member) => match member.joined_at {
-            Some(joined_at) => format!("{}", joined_at),
+            Some(joined_at) => format_datetime(&joined_at),
             None => "Join date not available".to_string(),
         },
         None => "Join date not available".to_string(),
