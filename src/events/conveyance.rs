@@ -220,7 +220,7 @@ pub async fn message_update(
     message_embed.field("Channel", format!("<#{}>", &event.channel_id.0), false);
 
     // Get the cached message from the database
-    let old_content = match sqlx::query_as!(
+    let mut old_content = match sqlx::query_as!(
         CachedMessage,
         r#"SELECT * FROM ttc_message_cache WHERE message_id = $1 AND channel_id = $2"#,
         event.id.0 as i64,
@@ -249,6 +249,9 @@ pub async fn message_update(
             "Not available.".to_string()
         }
     };
+
+    old_content.truncate(1024);
+
     message_embed.field("Old", old_content, false);
 
     // Make sure the event is about the content being edited
