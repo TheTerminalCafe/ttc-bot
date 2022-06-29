@@ -9,7 +9,7 @@ use crate::types::{Data, Error};
 pub async fn listener(
     ctx: &Context,
     event: &Event<'_>,
-    _: FrameworkContext<'_, Data, Error>,
+    framework_context: FrameworkContext<'_, Data, Error>,
     data: &Data,
 ) -> Result<(), Error> {
     match event {
@@ -17,6 +17,7 @@ pub async fn listener(
             crate::events::conveyance::message(ctx, new_message, data).await;
             crate::events::bumpy_business::message(ctx, new_message).await;
             crate::events::bee::message(ctx, new_message, data).await;
+            crate::events::easter_egg::message(ctx, new_message, data, &framework_context).await;
         }
         MessageDelete {
             channel_id,

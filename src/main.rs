@@ -21,6 +21,7 @@ mod events {
     pub mod bee;
     pub mod bumpy_business;
     pub mod conveyance;
+    pub mod easter_egg;
     pub mod interactions;
     pub mod listener;
     pub mod support;

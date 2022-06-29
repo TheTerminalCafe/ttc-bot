@@ -64,3 +64,10 @@ CREATE TABLE ttc_webhooks(
 	webhook_url VARCHAR NOT NULL,
 	PRIMARY KEY(channel_id)
 );
+
+DROP TABLE IF EXISTS ttc_easter_egg_gifs;
+CREATE TABLE ttc_easter_egg_gifs(
+	id SERIAL,
+	content VARCHAR(2000) NOT NULL,
+	PRIMARY KEY(id)
+);
