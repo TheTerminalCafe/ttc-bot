@@ -87,7 +87,8 @@ Thanks to these people we are able to develop this project 😉😉
 |--------------------|---------------|
 |Kiro				 | Lead Rust dev | 
 |Ereshkigal          | SQL and logic |
-
+|UltimateNyn|Contributer and Rust dev|
+|Stargirl|Project lead|
 
 Thanks for using out software. See you in the discord server.
 # Made with 💛 and code
