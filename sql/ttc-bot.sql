@@ -65,6 +65,13 @@ CREATE TABLE ttc_webhooks(
 	PRIMARY KEY(channel_id)
 );
 
+DROP TABLE IF EXISTS ttc_easter_egg_gifs;
+CREATE TABLE ttc_easter_egg_gifs(
+	id SERIAL,
+	content VARCHAR(2000) NOT NULL,
+	PRIMARY KEY(id)
+);
+
 DROP TABLE IF EXISTS ttc_emoji_cache;
 CREATE TABLE ttc_emoji_cache(
 	user_id BIGINT NOT NULL,
@@ -86,4 +93,3 @@ CREATE TABLE ttc_emoji_cache_messages(
 	user_id BIGINT NOT NULL UNIQUE,
 	num_messages BIGINT NOT NULL,
 	PRIMARY KEY(user_id)
-);

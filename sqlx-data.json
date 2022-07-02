@@ -346,6 +346,24 @@
       "nullable": []
     }
   },
+  "91c172d2638ce214215b9879cf92d66bbe4cf32be1db6adf5ccb404644ee6acc": {
+    "query": "SELECT content FROM ttc_easter_egg_gifs ORDER BY RANDOM() LIMIT 1",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "content",
+          "type_info": "Varchar"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
   "945aaebb73b74338649e67570f5be089893be08c94f68a2f7afe0317c49fdbe3": {
     "query": "INSERT INTO ttc_webhooks (channel_id, webhook_url) VALUES ($1, $2)",
     "describe": {
