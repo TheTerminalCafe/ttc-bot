@@ -43,13 +43,13 @@ impl<'a> EmojiCache {
     /// Error. The argument ``full_rebuild`` specifies, if **every** message should be rescanned or
     /// if it should continue from the last known point.
     /// Please note that the UserID 0 is used for global messages
-    pub async fn update_emoji_cache(self, full_rebuild: bool) -> Result<CacheData, Error> {
+    pub async fn update_emoji_cache(&self, full_rebuild: bool) -> Result<CacheData, Error> {
         if IS_RUNNING.load(std::sync::atomic::Ordering::Relaxed) {
             return Err(Error::from("The emoji cache is already being updated"));
         }
         IS_RUNNING.store(true, std::sync::atomic::Ordering::Relaxed);
 
-        let pool = self.pool;
+        let pool = &self.pool;
         let mut data: HashMap<(u64, String), u64> = HashMap::new();
         let mut message_count: HashMap<u64, u64> = HashMap::new();
         let mut channel_progress: HashMap<u64, (u64, i64)> = HashMap::new();
@@ -57,13 +57,13 @@ impl<'a> EmojiCache {
         // Get old counts from DB, if not building from scratch
         if !full_rebuild {
             let data_raw = sqlx::query!(r#"SELECT * FROM ttc_emoji_cache"#,)
-                .fetch_all(&pool)
+                .fetch_all(pool)
                 .await?;
             for row in data_raw {
                 data.insert((row.user_id as u64, row.emoji_name), row.emoji_count as u64);
             }
             let channel_progress_raw = sqlx::query!(r#"SELECT * FROM ttc_emoji_cache_channels"#)
-                .fetch_all(&pool)
+                .fetch_all(pool)
                 .await?;
             for row in channel_progress_raw {
                 channel_progress.insert(
@@ -72,7 +72,7 @@ impl<'a> EmojiCache {
                 );
             }
             let message_count_raw = sqlx::query!(r#"SELECT * FROM ttc_emoji_cache_messages"#)
-                .fetch_all(&pool)
+                .fetch_all(pool)
                 .await?;
             for row in message_count_raw {
                 message_count.insert(row.user_id as u64, row.num_messages as u64);
@@ -145,13 +145,13 @@ impl<'a> EmojiCache {
         }
 
         sqlx::query!(r#"TRUNCATE TABLE ttc_emoji_cache"#)
-            .execute(&pool)
+            .execute(pool)
             .await?;
         sqlx::query!(r#"TRUNCATE TABLE ttc_emoji_cache_messages"#)
-            .execute(&pool)
+            .execute(pool)
             .await?;
         sqlx::query!(r#"TRUNCATE TABLE ttc_emoji_cache_channels"#)
-            .execute(&pool)
+            .execute(pool)
             .await?;
 
         // Tuple magic...
@@ -225,7 +225,7 @@ impl<'a> EmojiCache {
             channel.1,
             channel.2
             )
-            .execute(&pool)
+            .execute(pool)
             .await?;
         }
 
@@ -236,7 +236,7 @@ impl<'a> EmojiCache {
             k.1,
             *v as i64
         )
-        .execute(&pool)
+        .execute(pool)
         .await?;
         }
 
@@ -246,7 +246,7 @@ impl<'a> EmojiCache {
                 *k as i64,
                 *v as i64
             )
-            .execute(&pool)
+            .execute(pool)
             .await?;
         }
 
