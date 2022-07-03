@@ -26,8 +26,7 @@ pub async fn listener(
         } => {
             crate::events::conveyance::message_delete(ctx, channel_id, deleted_message_id, data)
                 .await;
-            crate::events::emoji_cache::message_delete(ctx, channel_id, deleted_message_id, data)
-                .await;
+            crate::events::emoji_cache::message_delete(channel_id, deleted_message_id, data).await;
         }
         MessageDeleteBulk {
             channel_id,

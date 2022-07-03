@@ -1,7 +1,8 @@
 use chrono::{DateTime, Utc};
 use poise::serenity_prelude::{
-    ChannelId, Color, Context, CreateEmbed, CreateMessage, Message, User, Webhook,
+    ChannelId, Color, Context, CreateEmbed, CreateMessage, Message, MessageId, User, Webhook,
 };
+use sqlx::{Pool, Postgres};
 
 use crate::{
     command_error, get_config,
@@ -235,7 +236,7 @@ pub async fn get_webhook(
         }
     })
 }
-  
+
 pub fn format_datetime(timestamp: &DateTime<Utc>) -> String {
     format!(
         "{} ({})",
