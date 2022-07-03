@@ -46,8 +46,10 @@ pub async fn listener(
             new,
             event,
         } => {
-            crate::events::conveyance::message_update(ctx, new, event, data).await;
+            // IMPORTANT: conveyance should be called last since it overrides the old message in
+            // the DB
             crate::events::emoji_cache::message_update(ctx, new, event, data).await;
+            crate::events::conveyance::message_update(ctx, new, event, data).await;
         }
         GuildMemberAddition { new_member } => {
             crate::events::conveyance::guild_member_addition(ctx, new_member, data).await;
