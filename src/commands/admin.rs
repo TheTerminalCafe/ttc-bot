@@ -346,8 +346,7 @@ pub async fn create_webhooks(ctx: Context<'_>) -> Result<(), Error> {
     category = "Admin"
 )]
 pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
-    let emoji_cache = EmojiCache::new_poise(&ctx)?;
-    if emoji_cache.is_running() {
+    if EmojiCache::is_running() {
         ctx.send(|b| {
             b.embed(|e| {
                 e.title("Emoji cache is already being updated")
@@ -358,6 +357,7 @@ pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
         })
         .await?;
     } else {
+        let emoji_cache = EmojiCache::new_poise(&ctx)?;
         ctx.send(|b| {
             b.embed(|e| {
                 e.title("Starting to rebuild the complete Emoji cache")

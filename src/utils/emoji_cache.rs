@@ -48,7 +48,7 @@ impl<'a> EmojiCache<'a> {
         }
     }
 
-    pub fn is_running(&self) -> bool {
+    pub fn is_running() -> bool {
         IS_RUNNING.load(std::sync::atomic::Ordering::Relaxed)
     }
 
