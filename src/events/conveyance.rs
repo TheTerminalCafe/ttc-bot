@@ -220,7 +220,7 @@ pub async fn message_update(
     message_embed.field("Channel", format!("<#{}>", &event.channel_id.0), false);
 
     // Get the cached message from the database
-    let old_content = match sqlx::query_as!(
+    let mut old_content = match sqlx::query_as!(
         CachedMessage,
         r#"SELECT * FROM ttc_message_cache WHERE message_id = $1 AND channel_id = $2"#,
         event.id.0 as i64,
@@ -249,6 +249,9 @@ pub async fn message_update(
             "Not available.".to_string()
         }
     };
+
+    old_content.truncate(1024);
+
     message_embed.field("Old", old_content, false);
 
     // Make sure the event is about the content being edited
@@ -340,7 +343,11 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member, data: &Da
                         .color(Color::FOOYOO)
                         .field("User", new_member.user.tag(), true)
                         .field("UserID", new_member.user.id, true)
-                        .field("Account created", new_member.user.created_at(), false)
+                        .field(
+                            "Account created",
+                            format_datetime(&new_member.user.created_at()),
+                            false,
+                        )
                 })
             })
             .await
@@ -364,7 +371,7 @@ pub async fn guild_member_removal(
 
     let joined_at = match member {
         Some(member) => match member.joined_at {
-            Some(joined_at) => format!("{}", joined_at),
+            Some(joined_at) => format_datetime(&joined_at),
             None => "Join date not available".to_string(),
         },
         None => "Join date not available".to_string(),
