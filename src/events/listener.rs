@@ -26,6 +26,8 @@ pub async fn listener(
         } => {
             crate::events::conveyance::message_delete(ctx, channel_id, deleted_message_id, data)
                 .await;
+            crate::events::emoji_cache::message_delete(ctx, channel_id, deleted_message_id, data)
+                .await;
         }
         MessageDeleteBulk {
             channel_id,
@@ -46,6 +48,7 @@ pub async fn listener(
             event,
         } => {
             crate::events::conveyance::message_update(ctx, new, event, data).await;
+            crate::events::emoji_cache::message_update(ctx, new, event, data).await;
         }
         GuildMemberAddition { new_member } => {
             crate::events::conveyance::guild_member_addition(ctx, new_member, data).await;

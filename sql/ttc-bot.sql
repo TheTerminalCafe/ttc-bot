@@ -93,3 +93,4 @@ CREATE TABLE ttc_emoji_cache_messages(
 	user_id BIGINT NOT NULL UNIQUE,
 	num_messages BIGINT NOT NULL,
 	PRIMARY KEY(user_id)
+);

@@ -1,11 +1,8 @@
 use futures::StreamExt;
-use poise::{
-    serenity_prelude::{Context, Guild},
-    Context as ContextPoise,
-};
+use poise::serenity_prelude::{Context, GuildId};
 use sqlx::{Pool, Postgres};
 
-use crate::types::{Data, Error};
+use crate::types::{self, Error};
 use std::{collections::HashMap, sync::atomic::AtomicBool};
 
 // idk how to put this in the struct as shared static
@@ -18,18 +15,36 @@ pub struct CacheData {
     pub user_messages: HashMap<u64, u64>,
 }
 
-pub struct EmojiCache {
-    pool: Pool<Postgres>,
-    ctx_serenity: Context,
-    guild: Guild,
+pub struct EmojiCache<'a> {
+    pool: &'a Pool<Postgres>,
+    ctx: &'a Context,
+    guild: GuildId,
 }
 
-impl<'a> EmojiCache {
-    pub fn new(ctx: &'a ContextPoise<'_, Data, Error>) -> Self {
+impl<'a> EmojiCache<'a> {
+    /// Conveniency function for getting it straight from a poise Context
+    pub fn new_poise(ctx: &types::Context<'a>) -> Result<Self, Error> {
+        let guild_id = match ctx.guild_id() {
+            Some(guild_id) => guild_id,
+            None => {
+                return Err(Error::from(
+                    "The poise Context did not contain a valid guild id.",
+                ))
+            }
+        };
+
+        Ok(Self {
+            pool: &ctx.data().pool,
+            ctx: ctx.discord(),
+            guild: guild_id,
+        })
+    }
+
+    pub fn new(ctx: &'a Context, pool: &'a Pool<Postgres>, guild_id: GuildId) -> Self {
         Self {
-            pool: ctx.data().pool.clone(),
-            ctx_serenity: ctx.discord().clone(),
-            guild: ctx.guild().unwrap().clone(),
+            pool,
+            ctx,
+            guild: guild_id,
         }
     }
 
@@ -49,7 +64,6 @@ impl<'a> EmojiCache {
         }
         IS_RUNNING.store(true, std::sync::atomic::Ordering::Relaxed);
 
-        let pool = &self.pool;
         let mut data: HashMap<(u64, String), u64> = HashMap::new();
         let mut message_count: HashMap<u64, u64> = HashMap::new();
         let mut channel_progress: HashMap<u64, (u64, i64)> = HashMap::new();
@@ -57,13 +71,13 @@ impl<'a> EmojiCache {
         // Get old counts from DB, if not building from scratch
         if !full_rebuild {
             let data_raw = sqlx::query!(r#"SELECT * FROM ttc_emoji_cache"#,)
-                .fetch_all(pool)
+                .fetch_all(self.pool)
                 .await?;
             for row in data_raw {
                 data.insert((row.user_id as u64, row.emoji_name), row.emoji_count as u64);
             }
             let channel_progress_raw = sqlx::query!(r#"SELECT * FROM ttc_emoji_cache_channels"#)
-                .fetch_all(pool)
+                .fetch_all(self.pool)
                 .await?;
             for row in channel_progress_raw {
                 channel_progress.insert(
@@ -72,7 +86,7 @@ impl<'a> EmojiCache {
                 );
             }
             let message_count_raw = sqlx::query!(r#"SELECT * FROM ttc_emoji_cache_messages"#)
-                .fetch_all(pool)
+                .fetch_all(self.pool)
                 .await?;
             for row in message_count_raw {
                 message_count.insert(row.user_id as u64, row.num_messages as u64);
@@ -82,14 +96,14 @@ impl<'a> EmojiCache {
         let mut handles = Vec::new();
         let emoji_names: Vec<String> = self
             .guild
-            .emojis(self.ctx_serenity.clone())
+            .emojis(self.ctx)
             .await?
             .into_iter()
             .map(|e| (e.name))
             .collect();
 
-        for (channel_id, _) in self.guild.channels.clone() {
-            let ctx = self.ctx_serenity.clone();
+        for (channel_id, _) in self.guild.channels(self.ctx).await? {
+            let ctx = self.ctx.clone();
             let emoji_names = emoji_names.clone();
             let last_message_in_cache = channel_progress
                 .get(&channel_id.0)
@@ -145,13 +159,13 @@ impl<'a> EmojiCache {
         }
 
         sqlx::query!(r#"TRUNCATE TABLE ttc_emoji_cache"#)
-            .execute(pool)
+            .execute(self.pool)
             .await?;
         sqlx::query!(r#"TRUNCATE TABLE ttc_emoji_cache_messages"#)
-            .execute(pool)
+            .execute(self.pool)
             .await?;
         sqlx::query!(r#"TRUNCATE TABLE ttc_emoji_cache_channels"#)
-            .execute(pool)
+            .execute(self.pool)
             .await?;
 
         // Tuple magic...
@@ -172,11 +186,7 @@ impl<'a> EmojiCache {
         // -----------------------
 
         let mut server_users = Vec::new();
-        let mut members = self
-            .guild
-            .id
-            .members_iter(self.ctx_serenity.clone())
-            .boxed();
+        let mut members = self.guild.members_iter(self.ctx).boxed();
         while let Some(member) = members.next().await {
             match member {
                 Ok(member) => {
@@ -206,7 +216,7 @@ impl<'a> EmojiCache {
         // Remove old channels
         let server_channels = self
             .guild
-            .channels(self.ctx_serenity.clone())
+            .channels(self.ctx)
             .await?
             .into_iter()
             .map(|c| (c.0 .0))
@@ -225,7 +235,7 @@ impl<'a> EmojiCache {
             channel.1,
             channel.2
             )
-            .execute(pool)
+            .execute(self.pool)
             .await?;
         }
 
@@ -236,7 +246,7 @@ impl<'a> EmojiCache {
             k.1,
             *v as i64
         )
-        .execute(pool)
+        .execute(self.pool)
         .await?;
         }
 
@@ -246,7 +256,7 @@ impl<'a> EmojiCache {
                 *k as i64,
                 *v as i64
             )
-            .execute(pool)
+            .execute(self.pool)
             .await?;
         }
 

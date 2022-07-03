@@ -23,6 +23,7 @@ mod events {
     pub mod bumpy_business;
     pub mod conveyance;
     pub mod easter_egg;
+    pub mod emoji_cache;
     pub mod interactions;
     pub mod listener;
     pub mod support;

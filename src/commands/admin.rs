@@ -346,7 +346,7 @@ pub async fn create_webhooks(ctx: Context<'_>) -> Result<(), Error> {
     category = "Admin"
 )]
 pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
-    let emoji_cache = EmojiCache::new(&ctx);
+    let emoji_cache = EmojiCache::new_poise(&ctx)?;
     if emoji_cache.is_running() {
         ctx.send(|b| {
             b.embed(|e| {
