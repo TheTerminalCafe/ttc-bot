@@ -54,6 +54,86 @@ impl<'a> EmojiCache<'a> {
         Ok(cr)
     }
 
+    /// Decreses the Emoji count
+    pub async fn decrease_emoji_count(
+        &self,
+        user_id: u64,
+        emoji: String,
+        amount: u64,
+    ) -> Result<(), Error> {
+        let user_id = user_id as i64;
+        let amount = amount as i64;
+        sqlx::query!(
+            r#"UPDATE ttc_emoji_cache SET emoji_count = emoji_count - $3 WHERE user_id = $1 AND emoji_name = $2"#,
+            user_id,
+            emoji,
+            amount
+        )
+        .execute(self.pool)
+        .await?;
+        sqlx::query!(
+            r#"UPDATE ttc_emoji_cache SET emoji_count = emoji_count - $2 WHERE user_id = 0 AND emoji_name = $1"#,
+            emoji,
+            amount
+        )
+        .execute(self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Decreses only the Message count
+    pub async fn decrease_message_count(&self, user_id: u64, count: u64) -> Result<(), Error> {
+        let user_id = user_id as i64;
+        let count = count as i64;
+        sqlx::query!(
+            r#"UPDATE ttc_emoji_cache_messages SET num_messages = num_messages - $2 WHERE user_id = $1"#,
+            user_id,
+            count
+        )
+        .execute(self.pool)
+        .await?;
+        sqlx::query!(
+            r#"UPDATE ttc_emoji_cache_messages SET num_messages = num_messages - $1 WHERE user_id = 0"#,
+            count
+        )
+        .execute(self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Increases the Emoji count
+    pub async fn increase_emoji_count(
+        &self,
+        user_id: u64,
+        emoji: String,
+        amount: u64,
+    ) -> Result<(), Error> {
+        let user_id = user_id as i64;
+        let amount = amount as i64;
+        sqlx::query!(
+            r#"
+            INSERT INTO ttc_emoji_cache VALUES($1, $2, $3) 
+            ON CONFLICT (user_id, emoji_name) DO UPDATE SET emoji_count = ttc_emoji_cache.emoji_count + $3
+            "#,
+            user_id,
+            emoji,
+            amount
+        )
+        .execute(self.pool)
+        .await?;
+        sqlx::query!(
+            r#"
+            INSERT INTO ttc_emoji_cache VALUES(0, $1, $2) 
+            ON CONFLICT (user_id, emoji_name) DO UPDATE SET emoji_count = ttc_emoji_cache.emoji_count + $2
+            "#,
+            emoji,
+            amount
+        )
+        .execute(self.pool)
+        .await?;
+        Ok(())
+    }
+
     pub fn is_running() -> bool {
         IS_RUNNING.load(std::sync::atomic::Ordering::Relaxed)
     }
