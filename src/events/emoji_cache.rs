@@ -200,9 +200,9 @@ pub async fn message_update(
             let old_contains = msg.content.as_ref().unwrap().contains(&emoji_pattern);
             
             if new_contains && !old_contains {
-                map.insert(emoji.name.clone(), false);
+                map.insert(&emoji.name, true);
             } else if !new_contains && old_contains {
-                map.insert(emoji.name.clone(), true);
+                map.insert(&emoji.name, false);
             }
         }
         

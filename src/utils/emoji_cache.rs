@@ -17,35 +17,41 @@ pub struct CacheData {
 
 pub struct EmojiCache<'a> {
     pool: &'a Pool<Postgres>,
-    ctx: &'a Context,
-    guild: GuildId,
 }
 
 impl<'a> EmojiCache<'a> {
-    /// Conveniency function for getting it straight from a poise Context
-    pub fn new_poise(ctx: &types::Context<'a>) -> Result<Self, Error> {
-        let guild_id = match ctx.guild_id() {
-            Some(guild_id) => guild_id,
-            None => {
-                return Err(Error::from(
-                    "The poise Context did not contain a valid guild id.",
-                ))
-            }
-        };
-
-        Ok(Self {
-            pool: &ctx.data().pool,
-            ctx: ctx.discord(),
-            guild: guild_id,
-        })
+    /// Get it from the pool
+    pub fn new(pool: &'a Pool<Postgres>) -> Self {
+        Self { pool }
     }
 
-    pub fn new(ctx: &'a Context, pool: &'a Pool<Postgres>, guild_id: GuildId) -> Self {
-        Self {
-            pool,
-            ctx,
-            guild: guild_id,
+    /// Get the current cache from the Database without updating it first
+    ///
+    /// You should check ``is_running`` first since you will get an Error otherwise
+    pub async fn get_database_data(&self) -> Result<CacheData, Error> {
+        if IS_RUNNING.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(Error::from("The emoji cache is currently being updated"));
         }
+        let mut cr = CacheData {
+            user_emojis: HashMap::new(),
+            user_messages: HashMap::new(),
+        };
+        for row in sqlx::query!(r#"SELECT * FROM ttc_emoji_cache"#)
+            .fetch_all(self.pool)
+            .await?
+        {
+            cr.user_emojis
+                .insert((row.user_id as u64, row.emoji_name), row.emoji_count as u64);
+        }
+
+        for row in sqlx::query!(r#"SELECT * FROM ttc_emoji_cache_messages"#)
+            .fetch_all(self.pool)
+            .await?
+        {
+            cr.user_messages
+                .insert(row.user_id as u64, row.num_messages as u64);
+        }
+        Ok(cr)
     }
 
     pub fn is_running() -> bool {
@@ -58,7 +64,35 @@ impl<'a> EmojiCache<'a> {
     /// Error. The argument ``full_rebuild`` specifies, if **every** message should be rescanned or
     /// if it should continue from the last known point.
     /// Please note that the UserID 0 is used for global messages
-    pub async fn update_emoji_cache(&self, full_rebuild: bool) -> Result<CacheData, Error> {
+    pub async fn update_emoji_cache_poise(
+        &self,
+        ctx: &'a types::Context<'_>,
+        full_rebuild: bool,
+    ) -> Result<CacheData, Error> {
+        let guild = match ctx.guild_id() {
+            Some(guild_id) => guild_id,
+            None => {
+                return Err(Error::from(
+                    "The poise Context did not contain a valid guild id.",
+                ))
+            }
+        };
+        self.update_emoji_cache(ctx.discord(), guild, full_rebuild)
+            .await
+    }
+
+    /// Update the Emoji Cache and then return the result
+    ///
+    /// You should call ``is_running`` before to ensure it isn't running. Otherwise you will get an
+    /// Error. The argument ``full_rebuild`` specifies, if **every** message should be rescanned or
+    /// if it should continue from the last known point.
+    /// Please note that the UserID 0 is used for global messages
+    pub async fn update_emoji_cache(
+        &self,
+        ctx: &'a Context,
+        guild: GuildId,
+        full_rebuild: bool,
+    ) -> Result<CacheData, Error> {
         if IS_RUNNING.load(std::sync::atomic::Ordering::Relaxed) {
             return Err(Error::from("The emoji cache is already being updated"));
         }
@@ -94,16 +128,15 @@ impl<'a> EmojiCache<'a> {
         }
 
         let mut handles = Vec::new();
-        let emoji_names: Vec<String> = self
-            .guild
-            .emojis(self.ctx)
+        let emoji_names: Vec<String> = guild
+            .emojis(ctx)
             .await?
             .into_iter()
             .map(|e| (e.name))
             .collect();
 
-        for (channel_id, _) in self.guild.channels(self.ctx).await? {
-            let ctx = self.ctx.clone();
+        for (channel_id, _) in guild.channels(ctx).await? {
+            let ctx = ctx.clone();
             let emoji_names = emoji_names.clone();
             let last_message_in_cache = channel_progress
                 .get(&channel_id.0)
@@ -186,7 +219,7 @@ impl<'a> EmojiCache<'a> {
         // -----------------------
 
         let mut server_users = Vec::new();
-        let mut members = self.guild.members_iter(self.ctx).boxed();
+        let mut members = guild.members_iter(ctx).boxed();
         while let Some(member) = members.next().await {
             match member {
                 Ok(member) => {
@@ -214,9 +247,8 @@ impl<'a> EmojiCache<'a> {
             .collect::<HashMap<u64, u64>>();
 
         // Remove old channels
-        let server_channels = self
-            .guild
-            .channels(self.ctx)
+        let server_channels = guild
+            .channels(ctx)
             .await?
             .into_iter()
             .map(|c| (c.0 .0))

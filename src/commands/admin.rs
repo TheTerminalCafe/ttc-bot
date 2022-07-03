@@ -357,7 +357,7 @@ pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
         })
         .await?;
     } else {
-        let emoji_cache = EmojiCache::new_poise(&ctx)?;
+        let emoji_cache = EmojiCache::new(&ctx.data().pool);
         ctx.send(|b| {
             b.embed(|e| {
                 e.title("Starting to rebuild the complete Emoji cache")
@@ -366,7 +366,7 @@ pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
             })
         })
         .await?;
-        emoji_cache.update_emoji_cache(true).await?;
+        emoji_cache.update_emoji_cache_poise(&ctx, true).await?;
         ctx.send(|b| {
             b.embed(|e| {
                 e.title("Finished rebuilding the Emoji cache")
