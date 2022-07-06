@@ -352,7 +352,7 @@ async fn main() {
                 commands::general::ping(),
                 commands::general::userinfo(),
                 commands::general::serverinfo(),
-                commands::general::harold(),
+                commands::general::leaderboard(),
                 commands::general::help(),
                 // Localisation commands
                 commands::localisation::translate(),

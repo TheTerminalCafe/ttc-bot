@@ -8,10 +8,11 @@ use std::{collections::HashMap, sync::atomic::AtomicBool};
 // idk how to put this in the struct as shared static
 static IS_RUNNING: AtomicBool = AtomicBool::new(false);
 
+#[derive(Debug)]
 pub struct CacheData {
-    /// HashMap<(userid, emoji), count>
-    pub user_emojis: HashMap<(u64, String), u64>,
-    /// HashMap<(userid, count)>
+    /// HashMap<emoji, HashMap<userid, count>>
+    pub user_emojis: HashMap<String, HashMap<u64, u64>>,
+    /// HashMap<userid, count>
     pub user_messages: HashMap<u64, u64>,
 }
 
@@ -40,8 +41,11 @@ impl<'a> EmojiCache<'a> {
             .fetch_all(self.pool)
             .await?
         {
-            cr.user_emojis
-                .insert((row.user_id as u64, row.emoji_name), row.emoji_count as u64);
+            let entry = cr
+                .user_emojis
+                .entry(row.emoji_name)
+                .or_insert(HashMap::new());
+            entry.insert(row.user_id as u64, row.emoji_count as u64);
         }
 
         for row in sqlx::query!(r#"SELECT * FROM ttc_emoji_cache_messages"#)
@@ -178,7 +182,7 @@ impl<'a> EmojiCache<'a> {
         }
         IS_RUNNING.store(true, std::sync::atomic::Ordering::Relaxed);
 
-        let mut data: HashMap<(u64, String), u64> = HashMap::new();
+        let mut data: HashMap<String, HashMap<u64, u64>> = HashMap::new();
         let mut message_count: HashMap<u64, u64> = HashMap::new();
         let mut channel_progress: HashMap<u64, (u64, i64)> = HashMap::new();
 
@@ -188,7 +192,8 @@ impl<'a> EmojiCache<'a> {
                 .fetch_all(self.pool)
                 .await?;
             for row in data_raw {
-                data.insert((row.user_id as u64, row.emoji_name), row.emoji_count as u64);
+                let entry = data.entry(row.emoji_name).or_insert(HashMap::new());
+                entry.insert(row.user_id as u64, row.emoji_count as u64);
             }
             let channel_progress_raw = sqlx::query!(r#"SELECT * FROM ttc_emoji_cache_channels"#)
                 .fetch_all(self.pool)
@@ -224,7 +229,7 @@ impl<'a> EmojiCache<'a> {
                 .clone();
             let handle = tokio::spawn(async move {
                 let mut messages = channel_id.messages_iter(ctx).boxed();
-                let mut user_emoji_entires: HashMap<(u64, String), u64> = HashMap::new();
+                let mut user_emoji_entires: HashMap<String, HashMap<u64, u64>> = HashMap::new();
                 let mut user_msg_count: HashMap<u64, u64> = HashMap::new();
                 let mut newest_message = (channel_id.0, 0, 0);
                 while let Some(message) = messages.next().await {
@@ -255,10 +260,14 @@ impl<'a> EmojiCache<'a> {
                                     .contains(&format!("<:{}:", emoji).to_string())
                                 {
                                     *user_emoji_entires
-                                        .entry((0, emoji.to_string()))
+                                        .entry(emoji.to_string())
+                                        .or_insert(HashMap::new())
+                                        .entry(0)
                                         .or_insert(0) += 1;
                                     *user_emoji_entires
-                                        .entry((message.author.id.0, emoji.to_string()))
+                                        .entry(emoji.to_string())
+                                        .or_insert(HashMap::new())
+                                        .entry(message.author.id.0)
                                         .or_insert(0) += 1;
                                 }
                             }
@@ -284,14 +293,24 @@ impl<'a> EmojiCache<'a> {
         // Tuple magic...
         let mut channel_progress = Vec::new();
         for handle in handles {
-            let value = handle.await?;
-            for (k, v) in value.0 {
-                *data.entry(k).or_insert(0) += v;
+            let (user_emojis, newest_message, message_counts) = handle.await?;
+            for (emoji, counts) in &user_emojis {
+                for (user, count) in counts {
+                    *data
+                        .entry(emoji.clone())
+                        .or_insert(HashMap::new())
+                        .entry(*user)
+                        .or_insert(0) += count;
+                }
             }
-            for (k, v) in value.2 {
-                *message_count.entry(k).or_insert(0) += v;
+            for (user, count) in &message_counts {
+                *message_count.entry(*user).or_insert(0) += count;
             }
-            channel_progress.push((value.1 .0 as i64, value.1 .1 as i64, value.1 .2));
+            channel_progress.push((
+                newest_message.0 as i64,
+                newest_message.1 as i64,
+                newest_message.2,
+            ));
         }
 
         // -----------------------
@@ -312,15 +331,9 @@ impl<'a> EmojiCache<'a> {
         }
 
         // Remove old users
-        let mut new_data = HashMap::new();
-        for row in data {
-            if (server_users.contains(&row.0 .0) || row.0 .0 == 0)
-                && emoji_names.contains(&row.0 .1)
-            {
-                new_data.insert((row.0 .0, row.0 .1), row.1);
-            }
+        for (_, row) in &mut data {
+            row.retain(|k, _| server_users.contains(k) || *k == 0);
         }
-        let data = new_data;
         let message_count = message_count
             .into_iter()
             .filter(|row| (server_users.contains(&row.0) || row.0 == 0))
@@ -351,15 +364,17 @@ impl<'a> EmojiCache<'a> {
             .await?;
         }
 
-        for (k, v) in &data {
-            sqlx::query!(
-            r#"INSERT INTO ttc_emoji_cache (user_id, emoji_name, emoji_count) VALUES ($1, $2, $3)"#,
-            k.0 as i64,
-            k.1,
-            *v as i64
-        )
-        .execute(self.pool)
-        .await?;
+        for (emoji, users) in &data {
+            for (user, count) in users {
+                sqlx::query!(
+                    r#"INSERT INTO ttc_emoji_cache (user_id, emoji_name, emoji_count) VALUES ($1, $2, $3)"#,
+                    *user as i64,
+                    emoji,
+                    *count as i64
+                )
+                .execute(self.pool)
+                .await?;
+            }
         }
 
         for (k, v) in &message_count {

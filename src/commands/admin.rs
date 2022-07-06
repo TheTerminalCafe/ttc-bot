@@ -2,7 +2,7 @@
 // Admin group commands
 // --------------------
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use poise::serenity_prelude::{
     ButtonStyle, ChannelType, Color, CreateSelectMenu, GuildChannel, Role, RoleId,
@@ -357,6 +357,7 @@ pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
         })
         .await?;
     } else {
+        let start_time = Instant::now();
         let emoji_cache = EmojiCache::new(&ctx.data().pool);
         ctx.send(|b| {
             b.embed(|e| {
@@ -367,10 +368,14 @@ pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
         })
         .await?;
         emoji_cache.update_emoji_cache_poise(&ctx, true).await?;
+        let elapsed = chrono::Duration::from_std(start_time.elapsed())?;
         ctx.send(|b| {
             b.embed(|e| {
                 e.title("Finished rebuilding the Emoji cache")
-                    .description("Things should be synced now again")
+                    .description(format!(
+                        "Things should be synced now again, time taken: {}",
+                        crate::utils::helper_functions::format_duration(&elapsed)
+                    ))
                     .color(Color::FOOYOO)
             })
         })
