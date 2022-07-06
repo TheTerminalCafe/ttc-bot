@@ -2,7 +2,6 @@ use crate::{types::Data, utils::emoji_cache::EmojiCache};
 use poise::serenity_prelude::{
     ChannelId, Context, GuildId, Message, MessageId, MessageUpdateEvent,
 };
-use std::collections::HashMap;
 
 /// The event to account for message deletions in emoji caching
 pub async fn message_delete(
@@ -54,7 +53,7 @@ pub async fn message_delete(
     };
     // If the deleted message was sent before the latest cache message
     if msg.message_time.unwrap().timestamp() < cache.timestamp_unix {
-        let emoji_cache = EmojiCache::new(&data.pool);
+        let mut emoji_cache = EmojiCache::new(&data.pool);
         let emojis = match guild_id.unwrap().emojis(ctx).await {
             Ok(emojis) => emojis,
             Err(why) => {
@@ -62,7 +61,6 @@ pub async fn message_delete(
                 return;
             }
         };
-        let mut was_emoji = false;
         for emoji in emojis {
             if msg
                 .content
@@ -74,34 +72,22 @@ pub async fn message_delete(
                     .decrease_emoji_count(msg.user_id.unwrap() as u64, emoji.name, 1)
                     .await
                 {
-                    Ok(_) => (was_emoji = true),
+                    Ok(_) => (),
                     Err(why) => {
                         log::error!("error decreasing the emoji count: {}", why);
                         return;
                     }
                 }
-                match emoji_cache
-                    .decrease_message_count(msg.user_id.unwrap() as u64, 1)
-                    .await
-                {
-                    Ok(_) => (),
-                    Err(why) => {
-                        log::error!("error decreasing the message count: {}", why);
-                        return;
-                    }
-                }
             }
         }
-        if !was_emoji {
-            match emoji_cache
-                .decrease_message_count(msg.user_id.unwrap() as u64, 1)
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => {
-                    log::error!("error decreasing the message count: {}", why);
-                    return;
-                }
+        match emoji_cache
+            .decrease_message_count(msg.user_id.unwrap() as u64, 1)
+            .await
+        {
+            Ok(_) => (),
+            Err(why) => {
+                log::error!("error decreasing the message count: {}", why);
+                return;
             }
         }
     }
@@ -183,25 +169,15 @@ pub async fn message_update(
 
     if new.id.created_at().timestamp() < cache.timestamp_unix {
         // Store possible modifications to the users emojis
-        let mut map = HashMap::new();
+        let mut emoji_cache = EmojiCache::new(&data.pool);
         for emoji in &emoji_list {
             let emoji_pattern = format!("<:{}:", emoji.name);
             let new_contains = new.content.contains(&emoji_pattern);
             let old_contains = msg.content.as_ref().unwrap().contains(&emoji_pattern);
 
             if new_contains && !old_contains {
-                map.insert(&emoji.name, true);
-            } else if !new_contains && old_contains {
-                map.insert(&emoji.name, false);
-            }
-        }
-
-        let emoji_cache = EmojiCache::new(&data.pool);
-
-        for (name, increment) in map {
-            if increment {
                 match emoji_cache
-                    .increase_emoji_count(msg.user_id.unwrap() as u64, name.to_string(), 1)
+                    .increase_emoji_count(new.author.id.0, emoji.name.clone(), 1)
                     .await
                 {
                     Ok(_) => (),
@@ -210,9 +186,9 @@ pub async fn message_update(
                         return;
                     }
                 }
-            } else {
+            } else if !new_contains && old_contains {
                 match emoji_cache
-                    .decrease_emoji_count(msg.user_id.unwrap() as u64, name.to_string(), 1)
+                    .decrease_emoji_count(new.author.id.0, emoji.name.clone(), 1)
                     .await
                 {
                     Ok(_) => (),

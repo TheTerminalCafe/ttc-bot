@@ -358,7 +358,7 @@ pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
         .await?;
     } else {
         let start_time = Instant::now();
-        let emoji_cache = EmojiCache::new(&ctx.data().pool);
+        let mut emoji_cache = EmojiCache::new(&ctx.data().pool);
         ctx.send(|b| {
             b.embed(|e| {
                 e.title("Starting to rebuild the complete Emoji cache")

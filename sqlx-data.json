@@ -1,72 +1,78 @@
 {
   "db": "PostgreSQL",
   "084f8aa04feae7cecf4a03e78659e936dbe8c1eb3da72185a2c6962e9e32ade0": {
+    "query": "TRUNCATE TABLE ttc_emoji_cache_channels",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": []
-      }
-    },
-    "query": "TRUNCATE TABLE ttc_emoji_cache_channels"
+      },
+      "nullable": []
+    }
   },
   "0b0b65c92e367e42db23ebaa28b087f81fc1b5c1230c297fca7e75016fcfb0c3": {
+    "query": "SELECT thread_id FROM ttc_support_tickets",
     "describe": {
       "columns": [
         {
-          "name": "thread_id",
           "ordinal": 0,
+          "name": "thread_id",
           "type_info": "Int8"
         }
       ],
-      "nullable": [
-        false
-      ],
       "parameters": {
         "Left": []
-      }
-    },
-    "query": "SELECT thread_id FROM ttc_support_tickets"
+      },
+      "nullable": [
+        false
+      ]
+    }
   },
   "0d0bb60094ee998353cccee44be8a067a5f662d069eb4c466a2aecbb29a36cbc": {
+    "query": "SELECT * FROM ttc_message_cache WHERE message_id = $1",
     "describe": {
       "columns": [
         {
-          "name": "id",
           "ordinal": 0,
+          "name": "id",
           "type_info": "Int4"
         },
         {
-          "name": "message_id",
           "ordinal": 1,
+          "name": "message_id",
           "type_info": "Int8"
         },
         {
-          "name": "channel_id",
           "ordinal": 2,
+          "name": "channel_id",
           "type_info": "Int8"
         },
         {
-          "name": "user_id",
           "ordinal": 3,
+          "name": "user_id",
           "type_info": "Int8"
         },
         {
-          "name": "message_time",
           "ordinal": 4,
+          "name": "message_time",
           "type_info": "Timestamptz"
         },
         {
-          "name": "content",
           "ordinal": 5,
+          "name": "content",
           "type_info": "Varchar"
         },
         {
-          "name": "attachments",
           "ordinal": 6,
+          "name": "attachments",
           "type_info": "Varchar"
         }
       ],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      },
       "nullable": [
         false,
         true,
@@ -75,206 +81,200 @@
         true,
         true,
         true
-      ],
-      "parameters": {
-        "Left": [
-          "Int8"
-        ]
-      }
-    },
-    "query": "SELECT * FROM ttc_message_cache WHERE message_id = $1"
+      ]
+    }
   },
   "15b8bf5e653a7e3c9f31849847bac3e15811076f135ce9e387f2d4638e8ffa42": {
+    "query": "UPDATE ttc_support_tickets SET incident_solved = 't' WHERE thread_id = $1",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int8"
         ]
-      }
-    },
-    "query": "UPDATE ttc_support_tickets SET incident_solved = 't' WHERE thread_id = $1"
+      },
+      "nullable": []
+    }
   },
   "1d511bd05213772a48ba20469b5e94465b07b27f8efc0db027db7153470ca251": {
+    "query": "INSERT INTO ttc_emoji_cache (user_id, emoji_name, emoji_count) VALUES ($1, $2, $3)",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int8",
           "Varchar",
           "Int8"
         ]
-      }
-    },
-    "query": "INSERT INTO ttc_emoji_cache (user_id, emoji_name, emoji_count) VALUES ($1, $2, $3)"
+      },
+      "nullable": []
+    }
   },
   "207ec70e47bdd9274434173708d605ab0df4af6a6c9ce751cc0493f3f681f153": {
+    "query": "UPDATE ttc_support_tickets SET incident_solved = 't' WHERE incident_id = $1",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int4"
         ]
-      }
-    },
-    "query": "UPDATE ttc_support_tickets SET incident_solved = 't' WHERE incident_id = $1"
+      },
+      "nullable": []
+    }
   },
   "2510f49d050470f995b0b5eee11b2f27e52303e506a772510b328c44472cd0bc": {
+    "query": "UPDATE ttc_conveyance_state SET current_id = $1",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int4"
         ]
-      }
-    },
-    "query": "UPDATE ttc_conveyance_state SET current_id = $1"
+      },
+      "nullable": []
+    }
   },
   "2847b18bbe996aee80114c78d92ae55254996ad4085ea0a2e81546bc40189fc6": {
+    "query": "UPDATE ttc_emoji_cache SET emoji_count = emoji_count - $3 WHERE user_id = $1 AND emoji_name = $2",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int8",
           "Text",
           "Int8"
         ]
-      }
-    },
-    "query": "UPDATE ttc_emoji_cache SET emoji_count = emoji_count - $3 WHERE user_id = $1 AND emoji_name = $2"
+      },
+      "nullable": []
+    }
   },
   "35c4bdacaf16c4df83c19454e9c9034ad570fb24cda59ff2c2e2fcf251bfe407": {
+    "query": "INSERT INTO ttc_emoji_cache_messages (user_id, num_messages) VALUES ($1, $2)",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int8",
           "Int8"
         ]
-      }
-    },
-    "query": "INSERT INTO ttc_emoji_cache_messages (user_id, num_messages) VALUES ($1, $2)"
+      },
+      "nullable": []
+    }
   },
   "35d512503d055e074749f7b0dc21e1f49372df6735b535a36031cac1e8dfbcb3": {
+    "query": "UPDATE ttc_message_cache SET content = $1 WHERE message_id = $2",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Varchar",
           "Int8"
         ]
-      }
-    },
-    "query": "UPDATE ttc_message_cache SET content = $1 WHERE message_id = $2"
+      },
+      "nullable": []
+    }
   },
   "4201b12986c3336077476cddae6b775a0eac64359462813d6ae51f4e1f9904d2": {
+    "query": "SELECT * FROM ttc_emoji_cache_channels WHERE channel_id = $1",
     "describe": {
       "columns": [
         {
-          "name": "channel_id",
           "ordinal": 0,
+          "name": "channel_id",
           "type_info": "Int8"
         },
         {
-          "name": "message_id",
           "ordinal": 1,
+          "name": "message_id",
           "type_info": "Int8"
         },
         {
-          "name": "timestamp_unix",
           "ordinal": 2,
+          "name": "timestamp_unix",
           "type_info": "Int8"
         }
-      ],
-      "nullable": [
-        false,
-        false,
-        false
       ],
       "parameters": {
         "Left": [
           "Int8"
         ]
-      }
-    },
-    "query": "SELECT * FROM ttc_emoji_cache_channels WHERE channel_id = $1"
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
+    }
   },
   "4793c3b5f653862afc4468b1e7aed1adb831bf6e4f9f6ea27c535dac2afbee0e": {
+    "query": "SELECT current_id FROM ttc_conveyance_state",
     "describe": {
       "columns": [
         {
-          "name": "current_id",
           "ordinal": 0,
+          "name": "current_id",
           "type_info": "Int4"
         }
       ],
-      "nullable": [
-        false
-      ],
       "parameters": {
         "Left": []
-      }
-    },
-    "query": "SELECT current_id FROM ttc_conveyance_state"
+      },
+      "nullable": [
+        false
+      ]
+    }
   },
   "5ee3be1b00cc258bda0c1bcd2df3fa4ce2a751d7bfa7c0b4546ca7cea985401f": {
+    "query": "UPDATE ttc_support_tickets SET unarchivals = $1 WHERE incident_id = $2",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int2",
           "Int4"
         ]
-      }
-    },
-    "query": "UPDATE ttc_support_tickets SET unarchivals = $1 WHERE incident_id = $2"
+      },
+      "nullable": []
+    }
   },
   "6905847a1f9b4c857dc7f925755e275fbcbe4c2937262e4b482decbde1dc7433": {
+    "query": "SELECT * FROM ttc_webhooks",
     "describe": {
       "columns": [
         {
-          "name": "channel_id",
           "ordinal": 0,
+          "name": "channel_id",
           "type_info": "Int8"
         },
         {
-          "name": "webhook_url",
           "ordinal": 1,
+          "name": "webhook_url",
           "type_info": "Varchar"
         }
       ],
+      "parameters": {
+        "Left": []
+      },
       "nullable": [
         false,
         false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT * FROM ttc_webhooks"
+      ]
+    }
   },
   "691086f41c9e5561bf5a7c8d344094895d80a59399fad25ae1d81159180f1a19": {
+    "query": "DELETE FROM ttc_bad_words",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": []
-      }
-    },
-    "query": "DELETE FROM ttc_bad_words"
+      },
+      "nullable": []
+    }
   },
   "70af4f116f9687287ef3c7cf363048d775a498fdc46ba571c5986c6777a84ee3": {
+    "query": "UPDATE ttc_message_cache SET message_id = $1, channel_id = $2, user_id = $3, message_time = $4, content = $5, attachments = $6 WHERE id = $7",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int8",
@@ -285,49 +285,55 @@
           "Varchar",
           "Int4"
         ]
-      }
-    },
-    "query": "UPDATE ttc_message_cache SET message_id = $1, channel_id = $2, user_id = $3, message_time = $4, content = $5, attachments = $6 WHERE id = $7"
+      },
+      "nullable": []
+    }
   },
   "738f77b9b61eb611e2b7ee2ae6b4c31922140146ce283e4b08b095b99179d853": {
+    "query": "SELECT * FROM ttc_support_tickets WHERE incident_title LIKE CONCAT('%', $1::text, '%')",
     "describe": {
       "columns": [
         {
-          "name": "incident_id",
           "ordinal": 0,
+          "name": "incident_id",
           "type_info": "Int4"
         },
         {
-          "name": "thread_id",
           "ordinal": 1,
+          "name": "thread_id",
           "type_info": "Int8"
         },
         {
-          "name": "user_id",
           "ordinal": 2,
+          "name": "user_id",
           "type_info": "Int8"
         },
         {
-          "name": "incident_time",
           "ordinal": 3,
+          "name": "incident_time",
           "type_info": "Timestamptz"
         },
         {
-          "name": "incident_title",
           "ordinal": 4,
+          "name": "incident_title",
           "type_info": "Varchar"
         },
         {
-          "name": "incident_solved",
           "ordinal": 5,
+          "name": "incident_solved",
           "type_info": "Bool"
         },
         {
-          "name": "unarchivals",
           "ordinal": 6,
+          "name": "unarchivals",
           "type_info": "Int2"
         }
       ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      },
       "nullable": [
         false,
         false,
@@ -336,29 +342,23 @@
         false,
         false,
         false
-      ],
-      "parameters": {
-        "Left": [
-          "Text"
-        ]
-      }
-    },
-    "query": "SELECT * FROM ttc_support_tickets WHERE incident_title LIKE CONCAT('%', $1::text, '%')"
+      ]
+    }
   },
   "77b19e8652354f3352217a6c9cb267dc4d7b5d84242c43898419597ea9f1a766": {
+    "query": "TRUNCATE TABLE ttc_emoji_cache",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": []
-      }
-    },
-    "query": "TRUNCATE TABLE ttc_emoji_cache"
+      },
+      "nullable": []
+    }
   },
   "8415d11449a8fd98317f0ef8eea49f19b8d0c8fe02b96aa73652ed4c2344f3fc": {
+    "query": "INSERT INTO ttc_config VALUES($1, $2, $3, $4, $5, $6, $7)",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int8",
@@ -369,57 +369,49 @@
           "Int8",
           "VarcharArray"
         ]
-      }
-    },
-    "query": "INSERT INTO ttc_config VALUES($1, $2, $3, $4, $5, $6, $7)"
+      },
+      "nullable": []
+    }
   },
   "84839c8c6e3de763e6a18582dddddb75749304e9b4db35a9421e2a0956c0649a": {
+    "query": "INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved, unarchivals) VALUES($1, $2, $3, $4, $5, $6) RETURNING *",
     "describe": {
       "columns": [
         {
-          "name": "incident_id",
           "ordinal": 0,
+          "name": "incident_id",
           "type_info": "Int4"
         },
         {
-          "name": "thread_id",
           "ordinal": 1,
+          "name": "thread_id",
           "type_info": "Int8"
         },
         {
-          "name": "user_id",
           "ordinal": 2,
+          "name": "user_id",
           "type_info": "Int8"
         },
         {
-          "name": "incident_time",
           "ordinal": 3,
+          "name": "incident_time",
           "type_info": "Timestamptz"
         },
         {
-          "name": "incident_title",
           "ordinal": 4,
+          "name": "incident_title",
           "type_info": "Varchar"
         },
         {
-          "name": "incident_solved",
           "ordinal": 5,
+          "name": "incident_solved",
           "type_info": "Bool"
         },
         {
-          "name": "unarchivals",
           "ordinal": 6,
+          "name": "unarchivals",
           "type_info": "Int2"
         }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false
       ],
       "parameters": {
         "Left": [
@@ -430,170 +422,185 @@
           "Bool",
           "Int2"
         ]
-      }
-    },
-    "query": "INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved, unarchivals) VALUES($1, $2, $3, $4, $5, $6) RETURNING *"
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
   },
   "8bba89ee190fc716b74806a5988d6483e9f25cc0e106c4f69d6749b4baf60c05": {
+    "query": "INSERT INTO ttc_emoji_cache_channels (channel_id, message_id, timestamp_unix) VALUES ($1, $2, $3)",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int8",
           "Int8",
           "Int8"
         ]
-      }
-    },
-    "query": "INSERT INTO ttc_emoji_cache_channels (channel_id, message_id, timestamp_unix) VALUES ($1, $2, $3)"
+      },
+      "nullable": []
+    }
   },
   "91c172d2638ce214215b9879cf92d66bbe4cf32be1db6adf5ccb404644ee6acc": {
+    "query": "SELECT content FROM ttc_easter_egg_gifs ORDER BY RANDOM() LIMIT 1",
     "describe": {
       "columns": [
         {
-          "name": "content",
           "ordinal": 0,
+          "name": "content",
           "type_info": "Varchar"
         }
       ],
-      "nullable": [
-        false
-      ],
       "parameters": {
         "Left": []
-      }
-    },
-    "query": "SELECT content FROM ttc_easter_egg_gifs ORDER BY RANDOM() LIMIT 1"
+      },
+      "nullable": [
+        false
+      ]
+    }
   },
   "945aaebb73b74338649e67570f5be089893be08c94f68a2f7afe0317c49fdbe3": {
+    "query": "INSERT INTO ttc_webhooks (channel_id, webhook_url) VALUES ($1, $2)",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int8",
           "Varchar"
         ]
-      }
-    },
-    "query": "INSERT INTO ttc_webhooks (channel_id, webhook_url) VALUES ($1, $2)"
+      },
+      "nullable": []
+    }
   },
   "989bba7ed9f8cffcf6f17cb389ee157640e4efeb522035dd7981d09f1572fd76": {
+    "query": "DELETE FROM ttc_config",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": []
-      }
-    },
-    "query": "DELETE FROM ttc_config"
+      },
+      "nullable": []
+    }
   },
   "9ed87c7827a758e9ef9d6ce6bdb36886c5611d8ac4db0e7e5b016a94ebadd0a4": {
+    "query": "TRUNCATE TABLE ttc_emoji_cache_messages",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": []
-      }
-    },
-    "query": "TRUNCATE TABLE ttc_emoji_cache_messages"
+      },
+      "nullable": []
+    }
   },
   "a1b9263bc4b8fedc306502d85ddd4c2eb24bf48d9203eade0411fe9fa4e486a4": {
+    "query": "SELECT * FROM ttc_emoji_cache_channels",
     "describe": {
       "columns": [
         {
-          "name": "channel_id",
           "ordinal": 0,
+          "name": "channel_id",
           "type_info": "Int8"
         },
         {
-          "name": "message_id",
           "ordinal": 1,
+          "name": "message_id",
           "type_info": "Int8"
         },
         {
-          "name": "timestamp_unix",
           "ordinal": 2,
+          "name": "timestamp_unix",
           "type_info": "Int8"
         }
       ],
+      "parameters": {
+        "Left": []
+      },
       "nullable": [
         false,
         false,
         false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT * FROM ttc_emoji_cache_channels"
+      ]
+    }
   },
   "a88995e82fda7ce29e70eb95b7be92b1a1f6015846e4d6599bcf91bc3bb96262": {
+    "query": "UPDATE ttc_emoji_cache_messages SET num_messages = num_messages - $2 WHERE user_id = $1",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int8",
           "Int8"
         ]
-      }
-    },
-    "query": "UPDATE ttc_emoji_cache_messages SET num_messages = num_messages - $2 WHERE user_id = $1"
+      },
+      "nullable": []
+    }
   },
   "aa86087d3c206fb459bb4cbd9d0af60f5b4307ab9e07f2dd7b7b8e480f354106": {
+    "query": "\n            INSERT INTO ttc_emoji_cache VALUES(0, $1, $2) \n            ON CONFLICT (user_id, emoji_name) DO UPDATE SET emoji_count = ttc_emoji_cache.emoji_count + $2\n            ",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Varchar",
           "Int8"
         ]
-      }
-    },
-    "query": "\n            INSERT INTO ttc_emoji_cache VALUES(0, $1, $2) \n            ON CONFLICT (user_id, emoji_name) DO UPDATE SET emoji_count = ttc_emoji_cache.emoji_count + $2\n            "
+      },
+      "nullable": []
+    }
   },
   "bb7972cadce53049f4695443e0698c3e6f89cfe7b446054243717f9364b3d258": {
+    "query": "SELECT * FROM ttc_message_cache WHERE message_id = $1 AND channel_id = $2",
     "describe": {
       "columns": [
         {
-          "name": "id",
           "ordinal": 0,
+          "name": "id",
           "type_info": "Int4"
         },
         {
-          "name": "message_id",
           "ordinal": 1,
+          "name": "message_id",
           "type_info": "Int8"
         },
         {
-          "name": "channel_id",
           "ordinal": 2,
+          "name": "channel_id",
           "type_info": "Int8"
         },
         {
-          "name": "user_id",
           "ordinal": 3,
+          "name": "user_id",
           "type_info": "Int8"
         },
         {
-          "name": "message_time",
           "ordinal": 4,
+          "name": "message_time",
           "type_info": "Timestamptz"
         },
         {
-          "name": "content",
           "ordinal": 5,
+          "name": "content",
           "type_info": "Varchar"
         },
         {
-          "name": "attachments",
           "ordinal": 6,
+          "name": "attachments",
           "type_info": "Varchar"
         }
       ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      },
       "nullable": [
         false,
         true,
@@ -602,226 +609,223 @@
         true,
         true,
         true
-      ],
-      "parameters": {
-        "Left": [
-          "Int8",
-          "Int8"
-        ]
-      }
-    },
-    "query": "SELECT * FROM ttc_message_cache WHERE message_id = $1 AND channel_id = $2"
+      ]
+    }
   },
   "c5c742f0db96fc41b2c1552bda1962a1075cb2a6c8e72c1ea135e13bb356fb37": {
+    "query": "SELECT * FROM ttc_emoji_cache_messages",
     "describe": {
       "columns": [
         {
-          "name": "user_id",
           "ordinal": 0,
+          "name": "user_id",
           "type_info": "Int8"
         },
         {
-          "name": "num_messages",
           "ordinal": 1,
+          "name": "num_messages",
           "type_info": "Int8"
         }
-      ],
-      "nullable": [
-        false,
-        false
       ],
       "parameters": {
         "Left": []
-      }
-    },
-    "query": "SELECT * FROM ttc_emoji_cache_messages"
+      },
+      "nullable": [
+        false,
+        false
+      ]
+    }
   },
   "ceef597842ec23e62bc8001213791dc426fea4a866c2ad30905a5804be88966b": {
+    "query": "SELECT * FROM ttc_support_tickets WHERE incident_id = $1",
     "describe": {
       "columns": [
         {
-          "name": "incident_id",
           "ordinal": 0,
+          "name": "incident_id",
           "type_info": "Int4"
         },
         {
-          "name": "thread_id",
           "ordinal": 1,
+          "name": "thread_id",
           "type_info": "Int8"
         },
         {
-          "name": "user_id",
           "ordinal": 2,
+          "name": "user_id",
           "type_info": "Int8"
         },
         {
-          "name": "incident_time",
           "ordinal": 3,
+          "name": "incident_time",
           "type_info": "Timestamptz"
         },
         {
-          "name": "incident_title",
           "ordinal": 4,
+          "name": "incident_title",
           "type_info": "Varchar"
         },
         {
-          "name": "incident_solved",
           "ordinal": 5,
+          "name": "incident_solved",
           "type_info": "Bool"
         },
         {
-          "name": "unarchivals",
           "ordinal": 6,
+          "name": "unarchivals",
           "type_info": "Int2"
         }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false
       ],
       "parameters": {
         "Left": [
           "Int4"
         ]
-      }
-    },
-    "query": "SELECT * FROM ttc_support_tickets WHERE incident_id = $1"
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
   },
   "d018a6999857e1d680f53c86166ed9822b0f810df94092f5625264553588dd45": {
+    "query": "UPDATE ttc_emoji_cache SET emoji_count = emoji_count - $2 WHERE user_id = 0 AND emoji_name = $1",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Text",
           "Int8"
         ]
-      }
-    },
-    "query": "UPDATE ttc_emoji_cache SET emoji_count = emoji_count - $2 WHERE user_id = 0 AND emoji_name = $1"
+      },
+      "nullable": []
+    }
   },
   "d0d1e7290421c38c0c7ac345702070deaa3aa36bd95c161834210e3638eb4438": {
+    "query": "\n            INSERT INTO ttc_emoji_cache VALUES($1, $2, $3) \n            ON CONFLICT (user_id, emoji_name) DO UPDATE SET emoji_count = ttc_emoji_cache.emoji_count + $3\n            ",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int8",
           "Varchar",
           "Int8"
         ]
-      }
-    },
-    "query": "\n            INSERT INTO ttc_emoji_cache VALUES($1, $2, $3) \n            ON CONFLICT (user_id, emoji_name) DO UPDATE SET emoji_count = ttc_emoji_cache.emoji_count + $3\n            "
+      },
+      "nullable": []
+    }
   },
   "d262a69c019fcd0cdd881fa9498f8c687853ae268e222c83d671d9bddc6e93bf": {
+    "query": "UPDATE ttc_emoji_cache_messages SET num_messages = num_messages - $1 WHERE user_id = 0",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Int8"
         ]
-      }
-    },
-    "query": "UPDATE ttc_emoji_cache_messages SET num_messages = num_messages - $1 WHERE user_id = 0"
+      },
+      "nullable": []
+    }
   },
   "d52f80972b154d89e8bef96c8b9226646ede2c93f6fb79a6807098c5d5c1446c": {
+    "query": "INSERT INTO ttc_bad_words (word) VALUES($1)",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": [
           "Varchar"
         ]
-      }
-    },
-    "query": "INSERT INTO ttc_bad_words (word) VALUES($1)"
+      },
+      "nullable": []
+    }
   },
   "d7d5b1ba4490d101fcbb78521a3640b44223bf72407feeeaa1b4094a98bc10a5": {
+    "query": "SELECT * FROM ttc_emoji_cache",
     "describe": {
       "columns": [
         {
-          "name": "user_id",
           "ordinal": 0,
+          "name": "user_id",
           "type_info": "Int8"
         },
         {
-          "name": "emoji_name",
           "ordinal": 1,
+          "name": "emoji_name",
           "type_info": "Varchar"
         },
         {
-          "name": "emoji_count",
           "ordinal": 2,
+          "name": "emoji_count",
           "type_info": "Int8"
         }
       ],
+      "parameters": {
+        "Left": []
+      },
       "nullable": [
         false,
         false,
         false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT * FROM ttc_emoji_cache"
+      ]
+    }
   },
   "ee4f9ebceba0566181c0c181214e3d65d8aee99dafe660d8fefcebb0c288442d": {
+    "query": "DELETE FROM ttc_webhooks",
     "describe": {
       "columns": [],
-      "nullable": [],
       "parameters": {
         "Left": []
-      }
-    },
-    "query": "DELETE FROM ttc_webhooks"
+      },
+      "nullable": []
+    }
   },
   "ef8d237db20801c47dddaf718ebf108490889e1a55bca731dd4a83904f7f109e": {
+    "query": "SELECT * FROM ttc_config",
     "describe": {
       "columns": [
         {
-          "name": "support_channel",
           "ordinal": 0,
+          "name": "support_channel",
           "type_info": "Int8"
         },
         {
-          "name": "conveyance_channels",
           "ordinal": 1,
+          "name": "conveyance_channels",
           "type_info": "Int8Array"
         },
         {
-          "name": "conveyance_blacklisted_channels",
           "ordinal": 2,
+          "name": "conveyance_blacklisted_channels",
           "type_info": "Int8Array"
         },
         {
-          "name": "welcome_channel",
           "ordinal": 3,
+          "name": "welcome_channel",
           "type_info": "Int8"
         },
         {
-          "name": "verified_role",
           "ordinal": 4,
+          "name": "verified_role",
           "type_info": "Int8"
         },
         {
-          "name": "moderator_role",
           "ordinal": 5,
+          "name": "moderator_role",
           "type_info": "Int8"
         },
         {
-          "name": "welcome_messages",
           "ordinal": 6,
+          "name": "welcome_messages",
           "type_info": "VarcharArray"
         }
       ],
+      "parameters": {
+        "Left": []
+      },
       "nullable": [
         false,
         false,
@@ -830,67 +834,63 @@
         false,
         false,
         false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT * FROM ttc_config"
+      ]
+    }
   },
   "f7183a9968f80ccc7e509022abec8a4cecbdf5b27a21a1cf09a5cf2fe16c6c11": {
+    "query": "SELECT * FROM ttc_support_tickets WHERE thread_id = $1",
     "describe": {
       "columns": [
         {
-          "name": "incident_id",
           "ordinal": 0,
+          "name": "incident_id",
           "type_info": "Int4"
         },
         {
-          "name": "thread_id",
           "ordinal": 1,
+          "name": "thread_id",
           "type_info": "Int8"
         },
         {
-          "name": "user_id",
           "ordinal": 2,
+          "name": "user_id",
           "type_info": "Int8"
         },
         {
-          "name": "incident_time",
           "ordinal": 3,
+          "name": "incident_time",
           "type_info": "Timestamptz"
         },
         {
-          "name": "incident_title",
           "ordinal": 4,
+          "name": "incident_title",
           "type_info": "Varchar"
         },
         {
-          "name": "incident_solved",
           "ordinal": 5,
+          "name": "incident_solved",
           "type_info": "Bool"
         },
         {
-          "name": "unarchivals",
           "ordinal": 6,
+          "name": "unarchivals",
           "type_info": "Int2"
         }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false
       ],
       "parameters": {
         "Left": [
           "Int8"
         ]
-      }
-    },
-    "query": "SELECT * FROM ttc_support_tickets WHERE thread_id = $1"
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
   }
 }

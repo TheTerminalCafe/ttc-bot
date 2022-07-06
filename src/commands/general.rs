@@ -576,15 +576,13 @@ pub async fn leaderboard(
             .ephemeral(true)
         })
         .await?;
-        let data = EmojiCache::new(&ctx.data().pool)
-            .update_emoji_cache_poise(&ctx, false)
-            .await?;
-        data
+        let mut data = EmojiCache::new(&ctx.data().pool);
+        data.update_emoji_cache_poise(&ctx, false).await?;
+        data.get_data().await?
     } else {
-        EmojiCache::new(&ctx.data().pool)
-            .get_database_data()
-            .await?
+        EmojiCache::new(&ctx.data().pool).get_data().await?
     };
+    let raw_user_messages = data.user_messages();
 
     ctx.defer().await?;
 
@@ -600,7 +598,7 @@ pub async fn leaderboard(
     let mut user_harolds = 0;
     let mut harold_leaderboard = HashMap::new();
     for harold in HAROLD_EMOJIS {
-        match data.user_emojis.get(&harold.to_string()) {
+        match data.user_emojis_hash_emoji_user().get(&harold.to_string()) {
             Some(harolds) => {
                 user_harolds += *harolds.get(&target_user.user.id.0).unwrap_or(&0);
                 global_harolds += *harolds.get(&0).unwrap_or(&0);
@@ -613,8 +611,7 @@ pub async fn leaderboard(
     }
 
     // Get the harold percentages
-    let mut percentage_leaderboard = data
-        .user_messages
+    let mut percentage_leaderboard = raw_user_messages
         .iter()
         .filter_map(|(k, v)| {
             if *v < 500 || *k == 0 {
@@ -636,10 +633,9 @@ pub async fn leaderboard(
         .collect::<Vec<(u64, u64)>>();
 
     // Get the message counts
-    let global_messages = data.user_messages.get(&0).unwrap_or(&0);
-    let user_messages = *data.user_messages.get(&target_user.user.id.0).unwrap_or(&0);
-    let mut message_leaderboard = data
-        .user_messages
+    let global_messages = raw_user_messages.get(&0).unwrap_or(&0);
+    let user_messages = *raw_user_messages.get(&target_user.user.id.0).unwrap_or(&0);
+    let mut message_leaderboard = raw_user_messages
         .iter()
         .filter_map(|(k, v)| match k {
             0 => None,
