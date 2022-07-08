@@ -230,22 +230,23 @@ pub async fn leaderboard(
     #[description = "The user to view statistics of, defaults to self"] user: Option<Member>,
     #[description = "Whether to update the counts. NOTE: This could take a while"] refresh: bool,
 ) -> Result<(), Error> {
-    // Get the emoji data
-    let mut data = if refresh {
+    if EmojiCache::is_running() {
         ctx.send(|m| {
             m.embed(|e| {
-                e.title("Refreshing leaderboard...")
-                    .description("This could take a while.")
+                e.title("The leaderboard is already being updated")
+                    .description("Please try running the command later again")
             })
             .ephemeral(true)
         })
         .await?;
-        let mut data = EmojiCache::new(&ctx.data().pool);
+        return Ok(());
+    }
+    // Get the emoji data
+    let mut data = EmojiCache::new(&ctx.data().pool);
+    if refresh {
         data.update_emoji_cache_poise(&ctx, false).await?;
-        data.get_data().await?
-    } else {
-        EmojiCache::new(&ctx.data().pool).get_data().await?
-    };
+    }
+    let mut data = data.get_data().await?;
 
     ctx.defer().await?;
 

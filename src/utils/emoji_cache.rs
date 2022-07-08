@@ -443,6 +443,8 @@ impl<'a> EmojiCache<'a> {
             .await?;
         }
 
+        self.cached_data = Some(data);
+
         IS_RUNNING.store(false, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
