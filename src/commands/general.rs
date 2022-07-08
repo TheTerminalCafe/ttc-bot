@@ -247,17 +247,14 @@ pub async fn leaderboard(
         EmojiCache::new(&ctx.data().pool).get_data().await?
     };
 
+    ctx.defer().await?;
+
     let mut user_list = Vec::new();
-    while let Some(member) = ctx
-        .guild_id()
-        .unwrap()
-        .members_iter(ctx.discord())
-        .boxed()
-        .next()
-        .await
-    {
+    let mut members = ctx.guild_id().unwrap().members_iter(ctx.discord()).boxed();
+    while let Some(member) = members.next().await {
         user_list.push(member?.user.id.0);
     }
+
     let emoji_list = ctx
         .guild_id()
         .unwrap()
@@ -269,8 +266,6 @@ pub async fn leaderboard(
     data.filter(&user_list, &emoji_list);
 
     let raw_user_messages = data.user_messages();
-
-    ctx.defer().await?;
 
     // Get the target user
     let target_user = user.unwrap_or(
