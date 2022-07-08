@@ -53,7 +53,7 @@ impl CacheData {
         Ok(())
     }
 
-    pub fn filter(&mut self, uids: Vec<u64>, emojis: Vec<String>) {
+    pub fn filter(&mut self, uids: &Vec<u64>, emojis: &Vec<String>) {
         self.user_messages
             .retain(|k, _| uids.contains(k) || *k == 0);
         self.user_emojis
@@ -386,25 +386,6 @@ impl<'a> EmojiCache<'a> {
                 newest_message.2,
             ));
         }
-
-        // -----------------------
-        // Filtering out old stuff
-        // -----------------------
-        let mut server_users = Vec::new();
-        let mut members = guild.members_iter(ctx).boxed();
-        while let Some(member) = members.next().await {
-            match member {
-                Ok(member) => {
-                    server_users.push(member.user.id.0);
-                }
-                Err(why) => {
-                    log::error!("error getting member: {}", why);
-                }
-            }
-        }
-
-        // Remove old users + emojis
-        data.filter(server_users, emoji_names);
 
         // Remove old channels
         let server_channels = guild
