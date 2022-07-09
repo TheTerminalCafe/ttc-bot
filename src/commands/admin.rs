@@ -2,7 +2,7 @@
 // Admin group commands
 // --------------------
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use poise::serenity_prelude::{
     ButtonStyle, ChannelType, Color, CreateSelectMenu, GuildChannel, Role, RoleId,
@@ -11,6 +11,7 @@ use poise::serenity_prelude::{
 use crate::{
     get_config,
     types::{self, Context, Error},
+    utils::emoji_cache::EmojiCache,
 };
 
 /// Shutdown the bot
@@ -328,6 +329,58 @@ pub async fn create_webhooks(ctx: Context<'_>) -> Result<(), Error> {
         })
     })
     .await?;
+
+    Ok(())
+}
+
+/// Rebuild the Emoji Cache
+///
+/// Completly rebuild the Emoji cache. This will take some time
+/// ``rebuild_emoji_cache``
+#[poise::command(
+    prefix_command,
+    slash_command,
+    owners_only,
+    guild_only,
+    hide_in_help,
+    category = "Admin"
+)]
+pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
+    if EmojiCache::is_running() {
+        ctx.send(|b| {
+            b.embed(|e| {
+                e.title("Emoji cache is already being updated")
+                    .description("Please try using this command later again")
+                    .color(Color::RED)
+            })
+            .ephemeral(true)
+        })
+        .await?;
+    } else {
+        let start_time = Instant::now();
+        let mut emoji_cache = EmojiCache::new(&ctx.data().pool);
+        ctx.send(|b| {
+            b.embed(|e| {
+                e.title("Starting to rebuild the complete Emoji cache")
+                    .description("This is going to take *some* time")
+                    .color(Color::FOOYOO)
+            })
+        })
+        .await?;
+        emoji_cache.update_emoji_cache_poise(&ctx, true).await?;
+        let elapsed = chrono::Duration::from_std(start_time.elapsed())?;
+        ctx.send(|b| {
+            b.embed(|e| {
+                e.title("Finished rebuilding the Emoji cache")
+                    .description(format!(
+                        "Things should be synced now again, time taken: {}",
+                        crate::utils::helper_functions::format_duration(&elapsed)
+                    ))
+                    .color(Color::FOOYOO)
+            })
+        })
+        .await?;
+    }
 
     Ok(())
 }

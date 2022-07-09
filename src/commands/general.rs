@@ -1,14 +1,16 @@
 use crate::{
     types::{Context, Data, Error},
-    utils::helper_functions::{format_datetime, format_duration},
+    utils::{
+        emoji_cache::EmojiCache, 
+        helper_functions::{format_datetime, format_duration}
+    },
 };
-use futures::{lock::Mutex, StreamExt};
+use futures::StreamExt;
 use poise::{
-    serenity_prelude::{Color, CreateEmbed, User, UserId},
+    serenity_prelude::{Color, CreateEmbed, Member, User},
     Command,
 };
-use std::{collections::HashMap, iter::Iterator, sync::Arc};
-use tokio::time::Instant;
+use std::{collections::HashMap, iter::Iterator, time::Duration};
 // ----------------------
 // General group commands
 // ----------------------
@@ -240,338 +242,296 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Harold.
+// Ugly but works for now, should be made into a table of some sort
+const HAROLD_EMOJIS: &[&str] = &[
+    "helpmeplz",
+    "killmeplz",
+    "burnmeplz",
+    "UwUplz",
+    "haroldium",
+    "senpaiplz",
+];
+
+/// Leaderboards
 ///
-/// Count the harolds of the server and the specified user, if provided. The leaderboard flag will toggle these 3 leaderboards:
-/// 1. Harold message count
-/// 2. Harold message percentage (of all messages by user)
-/// 3. Messages sent in total
-/// **NOTE**: This command will take a long time to run, so grab some popcorn while you let it run.
-/// ``harold [member (optional)] [leaderboard (True or False)]``
-#[poise::command(slash_command, prefix_command, guild_only, category = "General")]
-pub async fn harold(
+/// View server leaderboards for different statistics
+/// `leaderboard [user (optional, defaults to self)] [refresh]`
+#[poise::command(prefix_command, guild_only, slash_command, category = "General")]
+pub async fn leaderboard(
     ctx: Context<'_>,
-    #[description = "User to calculate harold percentage of"] user: Option<User>,
-    #[description = "Whether to show the leaderboard or not"]
-    #[flag]
-    leaderboard: bool,
+    #[description = "The user to view statistics of, defaults to self"] user: Option<Member>,
+    #[description = "Whether to update the counts. NOTE: This could take a while"] refresh: bool,
 ) -> Result<(), Error> {
-    {
-        let harold_message = ctx.data().harold_message.read().await;
-        match &*harold_message {
-            Some(message) => {
-                ctx.send(|m| {
-                    m.embed(|e| {
-                        e.title("Harolds are already being calculated")
-                            .description(format!(
-                                "You can view current progress at this message: {}",
-                                message.link()
-                            ))
-                            .color(Color::RED)
-                    })
-                    .ephemeral(true)
-                })
-                .await?;
-                return Ok(());
+    if EmojiCache::is_running() {
+        ctx.send(|m| {
+            m.embed(|e| {
+                e.title("The leaderboard is already being updated")
+                    .description("Please try running the command later again")
+            })
+            .ephemeral(true)
+        })
+        .await?;
+        return Ok(());
+    }
+    // Get the emoji data
+    let mut data = EmojiCache::new(&ctx.data().pool);
+    if refresh {
+        data.update_emoji_cache_poise(&ctx, false).await?;
+    }
+    let mut data = data.get_data().await?;
+
+    ctx.defer().await?;
+
+    let mut user_list = Vec::new();
+    let mut members = ctx.guild_id().unwrap().members_iter(ctx.discord()).boxed();
+    while let Some(member) = members.next().await {
+        user_list.push(member?.user.id.0);
+    }
+
+    let emoji_list = ctx
+        .guild_id()
+        .unwrap()
+        .emojis(ctx.discord())
+        .await?
+        .into_iter()
+        .map(|e| e.name)
+        .collect::<Vec<String>>();
+    data.filter(&user_list, &emoji_list);
+
+    let raw_user_messages = data.user_messages();
+
+    // Get the target user
+    let target_user = user.unwrap_or(
+        ctx.author_member()
+            .await
+            .ok_or(Error::from("Failed to get member"))?,
+    );
+
+    // Get the harold counts
+    let mut global_harolds = 0;
+    let mut user_harolds = 0;
+    let mut harold_leaderboard = HashMap::new();
+    for harold in HAROLD_EMOJIS {
+        match data.user_emojis_hash_emoji_user().get(&harold.to_string()) {
+            Some(harolds) => {
+                user_harolds += *harolds.get(&target_user.user.id.0).unwrap_or(&0);
+                global_harolds += *harolds.get(&0).unwrap_or(&0);
+                for (user, count) in harolds {
+                    *harold_leaderboard.entry(*user).or_insert(0) += count;
+                }
             }
             None => (),
         }
     }
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Started harold counting process.")
-                .description("This could take a while. Grab some popcorn and wait.")
-                .color(Color::BLITZ_BLUE)
+    // Get the harold percentages
+    let mut percentage_leaderboard = raw_user_messages
+        .iter()
+        .filter_map(|(k, v)| {
+            if *v < 500 || *k == 0 {
+                None
+            } else {
+                let harold_count = harold_leaderboard.get(k).unwrap_or(&0);
+                Some((*k, *harold_count as f32 / *v as f32))
+            }
         })
-    })
-    .await?;
+        .collect::<Vec<(u64, f32)>>();
 
-    let progress_message = Arc::new(Mutex::new(
-        ctx.channel_id()
-            .send_message(ctx.discord(), |m| {
-                m.embed(|e| {
-                    e.title("Harold counting in progress")
-                        .description("Channels counted: 0/0")
+    // Remove the global value and turn it into a vector
+    let mut harold_leaderboard = harold_leaderboard
+        .into_iter()
+        .filter_map(|(k, v)| match k {
+            0 => None,
+            _ => Some((k, v)),
+        })
+        .collect::<Vec<(u64, u64)>>();
+
+    // Get the message counts
+    let global_messages = raw_user_messages.get(&0).unwrap_or(&0);
+    let user_messages = *raw_user_messages.get(&target_user.user.id.0).unwrap_or(&0);
+    let mut message_leaderboard = raw_user_messages
+        .iter()
+        .filter_map(|(k, v)| match k {
+            0 => None,
+            _ => Some((*k, *v)),
+        })
+        .collect::<Vec<(u64, u64)>>();
+
+    // Sort them before building the embeds
+    harold_leaderboard.sort_by(|a, b| b.1.cmp(&a.1));
+    message_leaderboard.sort_by(|a, b| b.1.cmp(&a.1));
+    percentage_leaderboard
+        .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Create the various embeds that can be cycled through
+    let mut harold_embed = CreateEmbed::default();
+    let mut message_embed = CreateEmbed::default();
+    let mut percentage_embed = CreateEmbed::default();
+    let mut user_stats = CreateEmbed::default();
+    let mut global_stats = CreateEmbed::default();
+
+    // Populate the embeds
+    harold_embed
+        .title("Harold message count")
+        .description("Leaderboard of users with the highest amounts of harolds in their messages.")
+        .color(Color::FOOYOO)
+        .fields((0..10).filter_map(|i| match harold_leaderboard.get(i) {
+            Some(harold) => Some((i + 1, format!("<@{}> - {}", harold.0, harold.1,), false)),
+            None => None,
+        }));
+    message_embed
+        .title("Message count")
+        .description("Leaderboard of users with the highest amounts of messages.")
+        .color(Color::BLUE)
+        .fields((0..10).filter_map(|i| match message_leaderboard.get(i) {
+            Some(messages) => Some((i + 1, format!("<@{}> - {}", messages.0, messages.1,), false)),
+            None => None,
+        }));
+    percentage_embed
+        .title("Harold percentage")
+        .description("Leaderboard of users with the highest percentages of harold messages. NOTE: Only users with more than 500 messages in total are accounted for to avoid inaccurate results.")
+        .color(Color::PURPLE)
+        .fields((0..10).filter_map(|i| match percentage_leaderboard.get(i) {
+            Some(percentages) => Some((i + 1, format!("<@{}> - {}%", percentages.0, (percentages.1 * 100.0) as i32,), false)),
+            None => None,
+        }));
+
+    global_stats
+        .title("Global statistics")
+        .description("Statistics among all users on the server.")
+        .field("Messages", global_messages, false)
+        .field("Harold messages", global_harolds, false)
+        .field(
+            "Harold percentage",
+            format!(
+                "{}%",
+                (global_harolds as f32 / *global_messages as f32 * 100.0) as i32
+            ),
+            false,
+        )
+        .color(Color::DARK_GOLD);
+
+    user_stats
+        .title("User statistics")
+        .description(format!(
+            "Statistics for the selected user (<@{}>)",
+            target_user.user.id.0
+        ))
+        .field(
+            "Harold messages",
+            format!(
+                "{}{}",
+                user_harolds,
+                match harold_leaderboard
+                    .iter()
+                    .position(|(user, _)| *user == target_user.user.id.0)
+                {
+                    Some(index) => format!(", {}. place on the leaderboard", index + 1),
+                    None => "".to_string(),
+                }
+            ),
+            false,
+        )
+        .field(
+            "Messages",
+            format!(
+                "{}{}",
+                user_messages,
+                match message_leaderboard
+                    .iter()
+                    .position(|(user, _)| *user == target_user.user.id.0)
+                {
+                    Some(index) => format!(", {}. place on the leaderboard", index + 1),
+                    None => "".to_string(),
+                }
+            ),
+            false,
+        )
+        .field(
+            "Harold percentage",
+            format!(
+                "{}%{}",
+                (user_harolds as f32 / user_messages as f32 * 100.0) as i32,
+                match percentage_leaderboard
+                    .iter()
+                    .position(|(user, _)| *user == target_user.user.id.0)
+                {
+                    Some(index) => format!(", {}. place on the leaderboard", index + 1),
+                    None => "".to_string(),
+                }
+            ),
+            false,
+        )
+        .color(Color::BLURPLE);
+
+    // Create a vector of the embeds for easy access later using an index
+    let embed_vec = vec![
+        user_stats,
+        global_stats,
+        harold_embed,
+        message_embed,
+        percentage_embed,
+    ];
+    // Create the index and max index to be used for looping through the pages
+    let mut index = 0;
+    let max_index = embed_vec.len() - 1;
+
+    // Send the message containing the first embed (User stats)
+    let mut message = ctx
+        .send(|m| {
+            m.embed(|e| {
+                e.clone_from(&embed_vec[index]);
+                e
+            })
+            // Create the 2 buttons for switching between pages
+            .components(|c| {
+                c.create_action_row(|a| {
+                    a.create_button(|b| b.label("Back").custom_id("ttc-leaderboard-back"))
+                        .create_button(|b| b.label("Next").custom_id("ttc-leaderboard-next"))
                 })
             })
-            .await?,
-    ));
-
-    // Set the lock to avoid running multiple concurrent instances of this command
-    {
-        let mut harold_message = ctx.data().harold_message.write().await;
-        *harold_message = Some(progress_message.lock().await.clone());
-    }
-
-    let channel_progress = Arc::new(Mutex::new(0));
-
-    let mut handles = Vec::new();
-
-    let channels = ctx.guild().unwrap().channels;
-    let channel_amount = channels.len();
-
-    let start_time = Instant::now();
-
-    for (channel_id, _) in channels {
-        let ctx = ctx.discord().clone();
-        let progress_message = progress_message.clone();
-        let channel_amount = channel_amount.clone();
-        let channel_progress = channel_progress.clone();
-        let handle = tokio::spawn(async move {
-            let mut global_messages: (u64, u64) = (0, 0);
-            let mut user_hash_map: HashMap<UserId, (u64, u64)> = HashMap::new();
-            let mut messages = channel_id.messages_iter(ctx.clone()).boxed();
-            while let Some(message) = messages.next().await {
-                match message {
-                    Ok(message) => {
-                        let user_messages = if user_hash_map.contains_key(&message.author.id) {
-                            match user_hash_map.get_mut(&message.author.id) {
-                                Some(user_messages) => user_messages,
-                                None => unreachable!(),
-                            }
-                        } else {
-                            user_hash_map.insert(message.author.id, (0, 0));
-                            match user_hash_map.get_mut(&message.author.id) {
-                                Some(user_messages) => user_messages,
-                                None => unreachable!(),
-                            }
-                        };
-                        global_messages.0 += 1;
-                        user_messages.0 += 1;
-                        if message.content.contains(":helpmeplz:") {
-                            global_messages.1 += 1;
-                            user_messages.1 += 1;
-                        }
-                    }
-                    Err(why) => log::error!("Something went wrong when getting message: {}", why),
-                }
-            }
-            let mut channel_progress = channel_progress.lock().await;
-            *channel_progress += 1;
-            match progress_message
-                .lock()
-                .await
-                .edit(ctx, |m| {
-                    m.embed(|e| {
-                        e.title("Harold counting in progress")
-                            .description(format!(
-                                "Channels counted: {}/{}",
-                                *channel_progress, channel_amount
-                            ))
-                            .color(Color::BLITZ_BLUE)
-                    })
-                })
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => log::error!("Failed to edit message: {}", why),
-            }
-
-            (channel_id, user_hash_map, global_messages)
-        });
-        handles.push(handle);
-    }
-    let mut global_messages: (u64, u64) = (0, 0);
-    let mut global_user_hash_map: HashMap<UserId, (u64, u64)> = HashMap::new();
-
-    for handle in handles {
-        let value = handle.await?;
-        global_messages.0 += value.2 .0;
-        global_messages.1 += value.2 .1;
-        for (user_id, user_messages) in value.1 {
-            if global_user_hash_map.contains_key(&user_id) {
-                match global_user_hash_map.get_mut(&user_id) {
-                    Some(global_user_messages) => {
-                        global_user_messages.0 += user_messages.0;
-                        global_user_messages.1 += user_messages.1;
-                    }
-                    None => unreachable!(),
-                }
-            } else {
-                global_user_hash_map.insert(user_id, (0, 0));
-                match global_user_hash_map.get_mut(&user_id) {
-                    Some(global_user_messages) => {
-                        global_user_messages.0 += user_messages.0;
-                        global_user_messages.1 += user_messages.1;
-                    }
-                    None => unreachable!(),
-                }
-            }
-        }
-    }
-    // Dump the whole hashmap into a Vec
-    let user_message_vec = global_user_hash_map
-        .iter()
-        .map(|(user_id, user_messages)| {
-            (
-                user_id.clone(),
-                user_messages.clone(),
-                (user_messages.1 as f32 / user_messages.0 as f32) * 100.0,
-            )
         })
-        .collect::<Vec<(UserId, (u64, u64), f32)>>();
-
-    // Create the different leaderboards
-    let mut harold_message_leaderboard = user_message_vec.clone();
-    let mut message_leaderboard = user_message_vec.clone();
-    let mut harold_percentage_leaderboard = user_message_vec.clone();
-
-    // Sort them
-    harold_message_leaderboard.sort_by(|a, b| {
-        b.1 .1
-            .partial_cmp(&a.1 .1)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    message_leaderboard.sort_by(|a, b| {
-        b.1 .0
-            .partial_cmp(&a.1 .0)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    harold_percentage_leaderboard
-        .sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
-
-    let mut embeds = Vec::new();
-
-    embeds.push({
-        let mut embed = CreateEmbed::default();
-        embed.title("Harold counting finished")
-            .description(format!(
-                "Total messages: {}\nTotal harold messages: {}\nGlobal harold percentage: {:.2}%\nTime taken: {} minutes and {} seconds",
-                global_messages.0,
-                global_messages.1,
-                (global_messages.1 as f64 / global_messages.0 as f64) * 100.0,
-                start_time.elapsed().as_secs() / 60,
-                start_time.elapsed().as_secs() % 60
-            ))
-            .color(Color::BLURPLE);
-            embed
-        }
-    );
-
-    match user {
-        Some(user) => {
-            let mut messages: (u64, u64) = (0, 0);
-            let mut harold_percentage: f32 = 0.0;
-            let mut leaderboard_positions: (u32, u32, u32) = (0, 0, 0);
-            for i in 0..harold_message_leaderboard.len() {
-                if harold_message_leaderboard[i].0 == user.id {
-                    leaderboard_positions.0 = i as u32 + 1;
-                    messages.1 = harold_message_leaderboard[i].1 .1;
-                }
-            }
-            for i in 0..message_leaderboard.len() {
-                if message_leaderboard[i].0 == user.id {
-                    leaderboard_positions.1 = i as u32 + 1;
-                    messages.0 = message_leaderboard[i].1 .0;
-                }
-            }
-            for i in 0..harold_percentage_leaderboard.len() {
-                if harold_percentage_leaderboard[i].0 == user.id {
-                    leaderboard_positions.2 = i as u32 + 1;
-                    harold_percentage = harold_percentage_leaderboard[i].2;
-                }
-            }
-            embeds.push({
-                let mut embed = CreateEmbed::default();
-                embed
-                    .title("User harold statistics")
-                    .description("Harold statistics for the specified user")
-                    .field("User", format!("<@{}>", user.id.0), false)
-                    .field(
-                        "Harold messages",
-                        format!(
-                            "Amount: {}\nLeaderboard position: {}",
-                            messages.1, leaderboard_positions.0
-                        ),
-                        false,
-                    )
-                    .field(
-                        "Messages",
-                        format!(
-                            "Amount: {}\nLeaderboard position: {}",
-                            messages.0, leaderboard_positions.1
-                        ),
-                        false,
-                    )
-                    .field(
-                        "Harold percentage",
-                        format!(
-                            "Percentage: {:.2}%\nLeaderboard position: {}",
-                            harold_percentage, leaderboard_positions.2
-                        ),
-                        false,
-                    )
-                    .color(Color::MAGENTA);
-                embed
-            });
-        }
-        None => (),
-    }
-
-    if leaderboard {
-        embeds.push({
-            let mut embed = CreateEmbed::default();
-            embed
-                .title("Harold message leaderboard")
-                .description("Leaderboard of users based on harold message count.")
-                .fields((0..10).map(|i| {
-                    let (user_id, user_messages, _) = &harold_message_leaderboard[i as usize];
-                    (
-                        i + 1,
-                        format!("<@{}>, {} harold messages.", user_id, user_messages.1),
-                        false,
-                    )
-                }))
-                .color(Color::FOOYOO);
-            embed
-        });
-        embeds.push({
-            let mut embed = CreateEmbed::default();
-            embed
-                .title("Harold percentage leaderboard")
-                .description("Leaderboard of users based on harold percentage.")
-                .fields((0..10).map(|i| {
-                    let (user_id, _, percentage) = &harold_percentage_leaderboard[i as usize];
-                    (
-                        i + 1,
-                        format!(
-                            "<@{}>, {:.2}% of messages contain harold.",
-                            user_id, percentage
-                        ),
-                        false,
-                    )
-                }))
-                .color(Color::BLUE);
-            embed
-        });
-        embeds.push({
-            let mut embed = CreateEmbed::default();
-            embed
-                .title("Message leaderboard")
-                .description("Leaderboard of users based on message count.")
-                .fields((0..10).map(|i| {
-                    let (user_id, user_messages, _) = &message_leaderboard[i as usize];
-                    (
-                        i + 1,
-                        format!("<@{}>, {} messages.", user_id, user_messages.0),
-                        false,
-                    )
-                }))
-                .color(Color::PURPLE);
-            embed
-        });
-    }
-
-    ctx.channel_id()
-        .send_message(ctx.discord(), |m| m.set_embeds(embeds))
+        .await?
+        .message()
         .await?;
 
-    // Reset it after it is done
+    // Listen for the interactions
+    while let Some(interaction) = message
+        .await_component_interactions(ctx.discord())
+        .timeout(Duration::from_secs(300))
+        .author_id(ctx.author().id)
+        .build()
+        .next()
+        .await
     {
-        let mut harold_message = ctx.data().harold_message.write().await;
-        *harold_message = None;
+        // Change the page depending on the button pressed
+        match interaction.data.custom_id.as_str() {
+            "ttc-leaderboard-back" => {
+                if index > 0 {
+                    index -= 1;
+                } else {
+                    index = max_index;
+                }
+            }
+            "ttc-leaderboard-next" => {
+                if index < max_index {
+                    index += 1;
+                } else {
+                    index = 0;
+                }
+            }
+            _ => unreachable!(),
+        }
+        // Edit the message to contain the correct embed
+        interaction
+            .create_interaction_response(ctx.discord(), |i| {
+                i.kind(poise::serenity_prelude::InteractionResponseType::UpdateMessage)
+                    .interaction_response_data(|d| d.set_embed(embed_vec[index].clone()))
+            })
+            .await?;
     }
+    // Remove the buttons when we are no longer listening for events
+    message.edit(ctx.discord(), |e| e.components(|c| c)).await?;
 
     Ok(())
 }

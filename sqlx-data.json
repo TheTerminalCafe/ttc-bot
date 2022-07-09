@@ -1,5 +1,15 @@
 {
   "db": "PostgreSQL",
+  "084f8aa04feae7cecf4a03e78659e936dbe8c1eb3da72185a2c6962e9e32ade0": {
+    "query": "TRUNCATE TABLE ttc_emoji_cache_channels",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
+    }
+  },
   "0b0b65c92e367e42db23ebaa28b087f81fc1b5c1230c297fca7e75016fcfb0c3": {
     "query": "SELECT thread_id FROM ttc_support_tickets",
     "describe": {
@@ -18,12 +28,82 @@
       ]
     }
   },
+  "0d0bb60094ee998353cccee44be8a067a5f662d069eb4c466a2aecbb29a36cbc": {
+    "query": "SELECT * FROM ttc_message_cache WHERE message_id = $1",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 1,
+          "name": "message_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 2,
+          "name": "channel_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 3,
+          "name": "user_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 4,
+          "name": "message_time",
+          "type_info": "Timestamptz"
+        },
+        {
+          "ordinal": 5,
+          "name": "content",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 6,
+          "name": "attachments",
+          "type_info": "Varchar"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      },
+      "nullable": [
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
   "15b8bf5e653a7e3c9f31849847bac3e15811076f135ce9e387f2d4638e8ffa42": {
     "query": "UPDATE ttc_support_tickets SET incident_solved = 't' WHERE thread_id = $1",
     "describe": {
       "columns": [],
       "parameters": {
         "Left": [
+          "Int8"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "1d511bd05213772a48ba20469b5e94465b07b27f8efc0db027db7153470ca251": {
+    "query": "INSERT INTO ttc_emoji_cache (user_id, emoji_name, emoji_count) VALUES ($1, $2, $3)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Varchar",
           "Int8"
         ]
       },
@@ -54,6 +134,33 @@
       "nullable": []
     }
   },
+  "2847b18bbe996aee80114c78d92ae55254996ad4085ea0a2e81546bc40189fc6": {
+    "query": "UPDATE ttc_emoji_cache SET emoji_count = emoji_count - $3 WHERE user_id = $1 AND emoji_name = $2",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Text",
+          "Int8"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "35c4bdacaf16c4df83c19454e9c9034ad570fb24cda59ff2c2e2fcf251bfe407": {
+    "query": "INSERT INTO ttc_emoji_cache_messages (user_id, num_messages) VALUES ($1, $2)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      },
+      "nullable": []
+    }
+  },
   "35d512503d055e074749f7b0dc21e1f49372df6735b535a36031cac1e8dfbcb3": {
     "query": "UPDATE ttc_message_cache SET content = $1 WHERE message_id = $2",
     "describe": {
@@ -65,6 +172,38 @@
         ]
       },
       "nullable": []
+    }
+  },
+  "4201b12986c3336077476cddae6b775a0eac64359462813d6ae51f4e1f9904d2": {
+    "query": "SELECT * FROM ttc_emoji_cache_channels WHERE channel_id = $1",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "channel_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 1,
+          "name": "message_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 2,
+          "name": "timestamp_unix",
+          "type_info": "Int8"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
     }
   },
   "4793c3b5f653862afc4468b1e7aed1adb831bf6e4f9f6ea27c535dac2afbee0e": {
@@ -206,6 +345,16 @@
       ]
     }
   },
+  "77b19e8652354f3352217a6c9cb267dc4d7b5d84242c43898419597ea9f1a766": {
+    "query": "TRUNCATE TABLE ttc_emoji_cache",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
+    }
+  },
   "8415d11449a8fd98317f0ef8eea49f19b8d0c8fe02b96aa73652ed4c2344f3fc": {
     "query": "INSERT INTO ttc_config VALUES($1, $2, $3, $4, $5, $6, $7)",
     "describe": {
@@ -285,6 +434,20 @@
       ]
     }
   },
+  "8bba89ee190fc716b74806a5988d6483e9f25cc0e106c4f69d6749b4baf60c05": {
+    "query": "INSERT INTO ttc_emoji_cache_channels (channel_id, message_id, timestamp_unix) VALUES ($1, $2, $3)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8",
+          "Int8"
+        ]
+      },
+      "nullable": []
+    }
+  },
   "91c172d2638ce214215b9879cf92d66bbe4cf32be1db6adf5ccb404644ee6acc": {
     "query": "SELECT content FROM ttc_easter_egg_gifs ORDER BY RANDOM() LIMIT 1",
     "describe": {
@@ -322,6 +485,72 @@
       "columns": [],
       "parameters": {
         "Left": []
+      },
+      "nullable": []
+    }
+  },
+  "9ed87c7827a758e9ef9d6ce6bdb36886c5611d8ac4db0e7e5b016a94ebadd0a4": {
+    "query": "TRUNCATE TABLE ttc_emoji_cache_messages",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
+    }
+  },
+  "a1b9263bc4b8fedc306502d85ddd4c2eb24bf48d9203eade0411fe9fa4e486a4": {
+    "query": "SELECT * FROM ttc_emoji_cache_channels",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "channel_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 1,
+          "name": "message_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 2,
+          "name": "timestamp_unix",
+          "type_info": "Int8"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "a88995e82fda7ce29e70eb95b7be92b1a1f6015846e4d6599bcf91bc3bb96262": {
+    "query": "UPDATE ttc_emoji_cache_messages SET num_messages = num_messages - $2 WHERE user_id = $1",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "aa86087d3c206fb459bb4cbd9d0af60f5b4307ab9e07f2dd7b7b8e480f354106": {
+    "query": "\n            INSERT INTO ttc_emoji_cache VALUES(0, $1, $2) \n            ON CONFLICT (user_id, emoji_name) DO UPDATE SET emoji_count = ttc_emoji_cache.emoji_count + $2\n            ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Varchar",
+          "Int8"
+        ]
       },
       "nullable": []
     }
@@ -383,6 +612,30 @@
       ]
     }
   },
+  "c5c742f0db96fc41b2c1552bda1962a1075cb2a6c8e72c1ea135e13bb356fb37": {
+    "query": "SELECT * FROM ttc_emoji_cache_messages",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "user_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 1,
+          "name": "num_messages",
+          "type_info": "Int8"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false,
+        false
+      ]
+    }
+  },
   "ceef597842ec23e62bc8001213791dc426fea4a866c2ad30905a5804be88966b": {
     "query": "SELECT * FROM ttc_support_tickets WHERE incident_id = $1",
     "describe": {
@@ -439,6 +692,45 @@
       ]
     }
   },
+  "d018a6999857e1d680f53c86166ed9822b0f810df94092f5625264553588dd45": {
+    "query": "UPDATE ttc_emoji_cache SET emoji_count = emoji_count - $2 WHERE user_id = 0 AND emoji_name = $1",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Int8"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "d0d1e7290421c38c0c7ac345702070deaa3aa36bd95c161834210e3638eb4438": {
+    "query": "\n            INSERT INTO ttc_emoji_cache VALUES($1, $2, $3) \n            ON CONFLICT (user_id, emoji_name) DO UPDATE SET emoji_count = ttc_emoji_cache.emoji_count + $3\n            ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Varchar",
+          "Int8"
+        ]
+      },
+      "nullable": []
+    }
+  },
+  "d262a69c019fcd0cdd881fa9498f8c687853ae268e222c83d671d9bddc6e93bf": {
+    "query": "UPDATE ttc_emoji_cache_messages SET num_messages = num_messages - $1 WHERE user_id = 0",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      },
+      "nullable": []
+    }
+  },
   "d52f80972b154d89e8bef96c8b9226646ede2c93f6fb79a6807098c5d5c1446c": {
     "query": "INSERT INTO ttc_bad_words (word) VALUES($1)",
     "describe": {
@@ -449,6 +741,36 @@
         ]
       },
       "nullable": []
+    }
+  },
+  "d7d5b1ba4490d101fcbb78521a3640b44223bf72407feeeaa1b4094a98bc10a5": {
+    "query": "SELECT * FROM ttc_emoji_cache",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "user_id",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 1,
+          "name": "emoji_name",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "emoji_count",
+          "type_info": "Int8"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
     }
   },
   "ee4f9ebceba0566181c0c181214e3d65d8aee99dafe660d8fefcebb0c288442d": {

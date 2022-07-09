@@ -22,10 +22,18 @@ pub async fn listener(
         MessageDelete {
             channel_id,
             deleted_message_id,
-            guild_id: _,
+            guild_id,
         } => {
             crate::events::conveyance::message_delete(ctx, channel_id, deleted_message_id, data)
                 .await;
+            crate::events::emoji_cache::message_delete(
+                ctx,
+                guild_id,
+                channel_id,
+                deleted_message_id,
+                data,
+            )
+            .await;
         }
         MessageDeleteBulk {
             channel_id,
@@ -45,6 +53,9 @@ pub async fn listener(
             new,
             event,
         } => {
+            // IMPORTANT: conveyance should be called last since it overrides the old message in
+            // the DB
+            crate::events::emoji_cache::message_update(ctx, new, event, data).await;
             crate::events::conveyance::message_update(ctx, new, event, data).await;
         }
         GuildMemberAddition { new_member } => {
