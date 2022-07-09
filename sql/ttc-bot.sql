@@ -92,6 +92,47 @@ CREATE TABLE ttc_easter_egg_gifs (
 );
 
 
+-- public.ttc_emoji_cache definition
+
+-- Drop table
+
+-- DROP TABLE ttc_emoji_cache;
+
+CREATE TABLE ttc_emoji_cache (
+	user_id int8 NOT NULL,
+	emoji_name varchar(32) NOT NULL,
+	emoji_count int8 NOT NULL,
+	CONSTRAINT ttc_emoji_cache_pkey PRIMARY KEY (user_id, emoji_name)
+);
+
+
+-- public.ttc_emoji_cache_channels definition
+
+-- Drop table
+
+-- DROP TABLE ttc_emoji_cache_channels;
+
+CREATE TABLE ttc_emoji_cache_channels (
+	channel_id int8 NOT NULL,
+	message_id int8 NOT NULL,
+	timestamp_unix int8 NOT NULL,
+	CONSTRAINT ttc_emoji_cache_channels_pkey PRIMARY KEY (channel_id)
+);
+
+
+-- public.ttc_emoji_cache_messages definition
+
+-- Drop table
+
+-- DROP TABLE ttc_emoji_cache_messages;
+
+CREATE TABLE ttc_emoji_cache_messages (
+	user_id int8 NOT NULL,
+	num_messages int8 NOT NULL,
+	CONSTRAINT ttc_emoji_cache_messages_pkey PRIMARY KEY (user_id)
+);
+
+
 -- public.ttc_message_cache definition
 
 -- Drop table
@@ -177,55 +218,15 @@ CREATE TABLE ttc_welcome_message (
 
 CREATE TABLE ttc_config (
 	id serial4 NOT NULL,
-	conveyance_id serial4 NOT NULL,
-	conveyance_blacklist_id serial4 NOT NULL,
-	welcome_message_id serial4 NOT NULL,
 	config_properties_id serial4 NOT NULL,
-	counted_emoji_name_id serial4 NOT NULL,
-	CONSTRAINT ttc_config_pk PRIMARY KEY (id),
+	conveyance_id serial4 NULL,
+	conveyance_blacklist_id serial4 NULL,
+	welcome_message_id serial4 NULL,
+	counted_emoji_name_id serial4 NULL,
+	CONSTRAINT ttc_config_pk PRIMARY KEY (id, config_properties_id),
 	CONSTRAINT fk_config_conveyance FOREIGN KEY (conveyance_id) REFERENCES ttc_conveyance_channel(id),
 	CONSTRAINT fk_config_conveyance_blacklist FOREIGN KEY (conveyance_blacklist_id) REFERENCES ttc_conveyance_blacklist_channel(id),
 	CONSTRAINT fk_config_properties FOREIGN KEY (config_properties_id) REFERENCES ttc_config_properties(id),
 	CONSTRAINT fk_config_welcome FOREIGN KEY (welcome_message_id) REFERENCES ttc_welcome_message(id),
 	CONSTRAINT fk_counted_emoji_name FOREIGN KEY (counted_emoji_name_id) REFERENCES ttc_counted_emoji_name(id)
-);
-
--- public.ttc_emoji_cache definition
-
--- Drop table
-
--- DROP TABLE ttc_emoji_cache;
-
-CREATE TABLE ttc_emoji_cache (
-	user_id int8 NOT NULL,
-	emoji_name varchar(32) NOT NULL,
-	emoji_count int8 NOT NULL,
-	CONSTRAINT ttc_emoji_cache_pkey PRIMARY KEY (user_id, emoji_name)
-);
-
-
--- public.ttc_emoji_cache_channels definition
-
--- Drop table
-
--- DROP TABLE ttc_emoji_cache_channels;
-
-CREATE TABLE ttc_emoji_cache_channels (
-	channel_id int8 NOT NULL,
-	message_id int8 NOT NULL,
-	timestamp_unix int8 NOT NULL,
-	CONSTRAINT ttc_emoji_cache_channels_pkey PRIMARY KEY (channel_id)
-);
-
-
--- public.ttc_emoji_cache_messages definition
-
--- Drop table
-
--- DROP TABLE ttc_emoji_cache_messages;
-
-CREATE TABLE ttc_emoji_cache_messages (
-	user_id int8 NOT NULL,
-	num_messages int8 NOT NULL,
-	CONSTRAINT ttc_emoji_cache_messages_pkey PRIMARY KEY (user_id)
 );
