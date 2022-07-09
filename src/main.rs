@@ -44,6 +44,7 @@ use signal_hook_tokio::Signals;
 use sqlx::postgres::PgPoolOptions;
 use std::collections::HashMap;
 use std::io::Read;
+use std::time::Instant;
 use std::{collections::HashSet, fs::File, sync::Arc};
 use types::{Context, Data, Error};
 
@@ -335,6 +336,7 @@ async fn main() {
                     webhooks: RwLock::new(webhooks),
                     pool: pool,
                     thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
+                    startup_time: Instant::now(),
                 })
             })
         })

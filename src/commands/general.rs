@@ -1,6 +1,9 @@
 use crate::{
     types::{Context, Data, Error},
-    utils::{emoji_cache::EmojiCache, helper_functions::format_datetime},
+    utils::{
+        emoji_cache::EmojiCache, 
+        helper_functions::{format_datetime, format_duration}
+    },
 };
 use futures::StreamExt;
 use poise::{
@@ -14,11 +17,40 @@ use std::{collections::HashMap, iter::Iterator, time::Duration};
 
 /// Ping command
 ///
-/// Command that the bot will respond to with "pong"
+/// Command that the bot will respond to with some statistics
 /// ``ping``
 #[poise::command(prefix_command, slash_command, category = "General")]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.say("pong").await?;
+    let uptime = chrono::Duration::from_std(ctx.data().startup_time.elapsed())?;
+    let mut embed = CreateEmbed::default();
+
+    embed
+        .title("Pong!")
+        .color(Color::BLUE)
+        .field("Uptime", format_duration(&uptime), false);
+    let message = ctx
+        .send(|m| {
+            m.embed(|e| {
+                e.clone_from(&embed);
+                e
+            })
+        })
+        .await?;
+
+    // Fetch the actual message from discord
+    let mut message = message.message().await?;
+
+    let received_response = message.id.created_at();
+    let ping = received_response.timestamp_millis() - ctx.created_at().timestamp_millis();
+
+    message
+        .edit(ctx.discord(), |e| {
+            e.embed(|e| {
+                e.clone_from(&embed);
+                e.field("Ping", format!("{}ms", ping), false)
+            })
+        })
+        .await?;
 
     Ok(())
 }
