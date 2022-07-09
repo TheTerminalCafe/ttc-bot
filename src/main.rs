@@ -14,6 +14,7 @@ mod utils {
     pub mod autocomplete_functions;
     pub mod bee_script;
     pub mod bee_utils;
+    pub mod emoji_cache;
     pub mod helper_functions;
     pub mod macros;
 }
@@ -22,6 +23,7 @@ mod events {
     pub mod bumpy_business;
     pub mod conveyance;
     pub mod easter_egg;
+    pub mod emoji_cache;
     pub mod interactions;
     pub mod listener;
     pub mod support;
@@ -345,11 +347,12 @@ async fn main() {
                 commands::admin::create_selfroles(),
                 commands::admin::create_support_ticket_button(),
                 commands::admin::create_webhooks(),
+                commands::admin::rebuild_emoji_cache(),
                 // General commands
                 commands::general::ping(),
                 commands::general::userinfo(),
                 commands::general::serverinfo(),
-                commands::general::harold(),
+                commands::general::leaderboard(),
                 commands::general::help(),
                 // Localisation commands
                 commands::localisation::translate(),

@@ -1,6 +1,6 @@
 
 use poise::serenity_prelude::{Context, Interaction, InteractionType};
-use crate::{types::Data};
+use crate::types::Data;
 
 // Macro to quickly check if a user has a certain role
 macro_rules! check_user_role {
@@ -21,7 +21,7 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                 Some(intr) => intr,
                 None => return,
             };
-            log::info!(
+            log::debug!(
                 "Interaction created, interaction ID: {}, component ID: {}",
                 intr.id,
                 intr.data.custom_id
