@@ -189,3 +189,43 @@ CREATE TABLE ttc_config (
 	CONSTRAINT fk_config_welcome FOREIGN KEY (welcome_message_id) REFERENCES ttc_welcome_message(id),
 	CONSTRAINT fk_counted_emoji_name FOREIGN KEY (counted_emoji_name_id) REFERENCES ttc_counted_emoji_name(id)
 );
+
+-- public.ttc_emoji_cache definition
+
+-- Drop table
+
+-- DROP TABLE ttc_emoji_cache;
+
+CREATE TABLE ttc_emoji_cache (
+	user_id int8 NOT NULL,
+	emoji_name varchar(32) NOT NULL,
+	emoji_count int8 NOT NULL,
+	CONSTRAINT ttc_emoji_cache_pkey PRIMARY KEY (user_id, emoji_name)
+);
+
+
+-- public.ttc_emoji_cache_channels definition
+
+-- Drop table
+
+-- DROP TABLE ttc_emoji_cache_channels;
+
+CREATE TABLE ttc_emoji_cache_channels (
+	channel_id int8 NOT NULL,
+	message_id int8 NOT NULL,
+	timestamp_unix int8 NOT NULL,
+	CONSTRAINT ttc_emoji_cache_channels_pkey PRIMARY KEY (channel_id)
+);
+
+
+-- public.ttc_emoji_cache_messages definition
+
+-- Drop table
+
+-- DROP TABLE ttc_emoji_cache_messages;
+
+CREATE TABLE ttc_emoji_cache_messages (
+	user_id int8 NOT NULL,
+	num_messages int8 NOT NULL,
+	CONSTRAINT ttc_emoji_cache_messages_pkey PRIMARY KEY (user_id)
+);
