@@ -150,6 +150,17 @@ CREATE TABLE ttc_message_cache (
 	CONSTRAINT ttc_message_cache_pkey PRIMARY KEY (id)
 );
 
+-- Populating message cache
+
+DO $$
+DECLARE
+   counter INT := 0;
+BEGIN
+    WHILE counter < 500 LOOP
+        counter := counter + 1;
+        INSERT INTO ttc_message_cache DEFAULT VALUES;
+    END LOOP;
+END$$;
 
 -- public.ttc_selfroles definition
 
