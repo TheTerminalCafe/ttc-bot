@@ -219,14 +219,22 @@ CREATE TABLE ttc_welcome_message (
 CREATE TABLE ttc_config (
 	id serial4 NOT NULL,
 	config_properties_id serial4 NOT NULL,
-	conveyance_id serial4 NULL,
-	conveyance_blacklist_id serial4 NULL,
-	welcome_message_id serial4 NULL,
-	counted_emoji_name_id serial4 NULL,
-	CONSTRAINT ttc_config_pk PRIMARY KEY (id, config_properties_id),
-	CONSTRAINT fk_config_conveyance FOREIGN KEY (conveyance_id) REFERENCES ttc_conveyance_channel(id),
-	CONSTRAINT fk_config_conveyance_blacklist FOREIGN KEY (conveyance_blacklist_id) REFERENCES ttc_conveyance_blacklist_channel(id),
-	CONSTRAINT fk_config_properties FOREIGN KEY (config_properties_id) REFERENCES ttc_config_properties(id),
-	CONSTRAINT fk_config_welcome FOREIGN KEY (welcome_message_id) REFERENCES ttc_welcome_message(id),
-	CONSTRAINT fk_counted_emoji_name FOREIGN KEY (counted_emoji_name_id) REFERENCES ttc_counted_emoji_name(id)
+	conveyance_id serial4,
+	conveyance_blacklist_id serial4,
+	welcome_message_id serial4,
+	counted_emoji_name_id serial4,
+	CONSTRAINT ttc_config_pk PRIMARY KEY (id, config_properties_id)
 );
+
+-- public.ttc_config constraint definition
+
+ALTER TABLE public.ttc_config ADD CONSTRAINT fk_config_conveyance FOREIGN KEY (conveyance_id) REFERENCES ttc_conveyance_channel(id);
+ALTER TABLE public.ttc_config ADD CONSTRAINT fk_config_conveyance_blacklist FOREIGN KEY (conveyance_blacklist_id) REFERENCES ttc_conveyance_blacklist_channel(id);
+ALTER TABLE public.ttc_config ADD CONSTRAINT fk_config_properties FOREIGN KEY (config_properties_id) REFERENCES ttc_config_properties(id);
+ALTER TABLE public.ttc_config ADD CONSTRAINT fk_config_welcome FOREIGN KEY (welcome_message_id) REFERENCES ttc_welcome_message(id);
+ALTER TABLE public.ttc_config ADD CONSTRAINT fk_counted_emoji_name FOREIGN KEY (counted_emoji_name_id) REFERENCES ttc_counted_emoji_name(id);
+
+ALTER TABLE public.ttc_config ALTER COLUMN welcome_message_id DROP NOT NULL;
+ALTER TABLE public.ttc_config ALTER COLUMN counted_emoji_name_id DROP NOT NULL;
+ALTER TABLE public.ttc_config ALTER COLUMN conveyance_blacklist_id DROP NOT NULL;
+ALTER TABLE public.ttc_config ALTER COLUMN conveyance_id DROP NOT NULL;
