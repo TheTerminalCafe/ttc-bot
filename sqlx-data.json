@@ -122,18 +122,6 @@
       "nullable": []
     }
   },
-  "2510f49d050470f995b0b5eee11b2f27e52303e506a772510b328c44472cd0bc": {
-    "query": "UPDATE ttc_conveyance_state SET current_id = $1",
-    "describe": {
-      "columns": [],
-      "parameters": {
-        "Left": [
-          "Int4"
-        ]
-      },
-      "nullable": []
-    }
-  },
   "2847b18bbe996aee80114c78d92ae55254996ad4085ea0a2e81546bc40189fc6": {
     "query": "UPDATE ttc_emoji_cache SET emoji_count = emoji_count - $3 WHERE user_id = $1 AND emoji_name = $2",
     "describe": {
@@ -174,6 +162,46 @@
       "nullable": []
     }
   },
+  "3ae9a0dd0baf6ce7f4a5cb79bea8b2c320c5039e0bc17cc6ab2e85cf9ee427a7": {
+    "query": "INSERT INTO ttc_welcome_message (welcome_message) VALUES ($1) RETURNING id",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Varchar"
+        ]
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "3b9b79fef31948a8586076473539eb50d6030d7c3fcf6ba8382f445f858ba415": {
+    "query": "DELETE FROM ttc_welcome_message",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
+    }
+  },
+  "3f21bc6761967492bdcfb941b023bb1324fbf41f763aef5b15a613bc1bf45523": {
+    "query": "DELETE FROM ttc_harold_emoji",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
+    }
+  },
   "4201b12986c3336077476cddae6b775a0eac64359462813d6ae51f4e1f9904d2": {
     "query": "SELECT * FROM ttc_emoji_cache_channels WHERE channel_id = $1",
     "describe": {
@@ -206,22 +234,52 @@
       ]
     }
   },
-  "4793c3b5f653862afc4468b1e7aed1adb831bf6e4f9f6ea27c535dac2afbee0e": {
-    "query": "SELECT current_id FROM ttc_conveyance_state",
+  "538f42b2708688e11b5a0b8b4e8b32e9f16c6b2bfed0507dd9006ddf97d7e19b": {
+    "query": "SELECT COUNT(*) FROM ttc_conveyance_state",
     "describe": {
       "columns": [
         {
           "ordinal": 0,
-          "name": "current_id",
-          "type_info": "Int4"
+          "name": "count",
+          "type_info": "Int8"
         }
       ],
       "parameters": {
         "Left": []
       },
       "nullable": [
+        null
+      ]
+    }
+  },
+  "5b40cd00afe9e7cb605f83b0b4b6a0ba54142f6ebd0ba334f8f0123dc55b38ba": {
+    "query": "INSERT INTO ttc_harold_emoji (name) VALUES ($1) RETURNING id",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Varchar"
+        ]
+      },
+      "nullable": [
         false
       ]
+    }
+  },
+  "5e8e4deb3cb22ecdb40be491bc04e22d7a7cd4f70789254446945e3585e6605d": {
+    "query": "DELETE FROM ttc_conveyance_blacklist_channel",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
     }
   },
   "5ee3be1b00cc258bda0c1bcd2df3fa4ce2a751d7bfa7c0b4546ca7cea985401f": {
@@ -244,7 +302,7 @@
         {
           "ordinal": 0,
           "name": "channel_id",
-          "type_info": "Int8"
+          "type_info": "Int4"
         },
         {
           "ordinal": 1,
@@ -267,6 +325,22 @@
       "columns": [],
       "parameters": {
         "Left": []
+      },
+      "nullable": []
+    }
+  },
+  "6cd6510c5c4a11334e8070bc6a24d780e7e5df50193b34086935e33ccf686dcb": {
+    "query": "\n                INSERT INTO ttc_config (config_properties_id, conveyance_id, conveyance_blacklist_id, welcome_message_id, harold_emoji_id)\n                VALUES ($1, $2, $3, $4, $5)\n                ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Int4",
+          "Int4",
+          "Int4",
+          "Int4"
+        ]
       },
       "nullable": []
     }
@@ -355,22 +429,36 @@
       "nullable": []
     }
   },
-  "8415d11449a8fd98317f0ef8eea49f19b8d0c8fe02b96aa73652ed4c2344f3fc": {
-    "query": "INSERT INTO ttc_config VALUES($1, $2, $3, $4, $5, $6, $7)",
+  "786466bfdb5e07a7be440150d9eb3fb96679db67235819e2222f8ae11cee509b": {
+    "query": "UPDATE ttc_conveyance_state SET current_message_id = $1",
     "describe": {
       "columns": [],
       "parameters": {
         "Left": [
-          "Int8",
-          "Int8Array",
-          "Int8Array",
-          "Int8",
-          "Int8",
-          "Int8",
-          "VarcharArray"
+          "Int4"
         ]
       },
       "nullable": []
+    }
+  },
+  "8150e96a25cb89cedc5301527cbd2ba3645116d8de91ccf46ee5e100411766fb": {
+    "query": "INSERT INTO ttc_conveyance_blacklist_channel (channel_id) VALUES ($1) RETURNING id",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      },
+      "nullable": [
+        false
+      ]
     }
   },
   "84839c8c6e3de763e6a18582dddddb75749304e9b4db35a9421e2a0956c0649a": {
@@ -472,7 +560,7 @@
       "columns": [],
       "parameters": {
         "Left": [
-          "Int8",
+          "Int4",
           "Varchar"
         ]
       },
@@ -481,6 +569,88 @@
   },
   "989bba7ed9f8cffcf6f17cb389ee157640e4efeb522035dd7981d09f1572fd76": {
     "query": "DELETE FROM ttc_config",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
+    }
+  },
+  "9a9995d3fcba2010ed47efb226c5bc7953c7d8384f0b98cd720d28e96fb033c6": {
+    "query": "\n            select\n            tc.id as config_id,\n            tcp.id as config_properties_id,\n            tcp.support_channel as supprt_channel,\n            tcp.welcome_channel as welcome_channel,\n            tcp.verified_role as verified_role,\n            tcp.moderator_role as moderator_role,\n            tcbc.channel_id as conveyance_blacklist_channel, \n            tcc.channel_id as conveyance_channel, \n            the.\"name\" as harold_emoji, \n            twm.welcome_message as welcome_message \n            from ttc_config tc\n            full join ttc_config_properties tcp on tc.config_properties_id = tcp.id\n            full join ttc_conveyance_blacklist_channel tcbc on tc.conveyance_blacklist_id = tcbc.id \n            full join ttc_conveyance_channel tcc on tc.conveyance_id = tcc.id \n            full join ttc_harold_emoji the on tc.harold_emoji_id = the.id \n            full join ttc_welcome_message twm on tc.welcome_message_id = twm.id;\n            ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "config_id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 1,
+          "name": "config_properties_id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 2,
+          "name": "supprt_channel",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 3,
+          "name": "welcome_channel",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 4,
+          "name": "verified_role",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 5,
+          "name": "moderator_role",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 6,
+          "name": "conveyance_blacklist_channel",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 7,
+          "name": "conveyance_channel",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 8,
+          "name": "harold_emoji",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 9,
+          "name": "welcome_message",
+          "type_info": "Varchar"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "9b2755e83b0c64ec098c6ecd7ce665cd044501c85c3672c044901eba37d6e6e4": {
+    "query": "INSERT INTO ttc_conveyance_state (current_message_id) VALUES (1)",
     "describe": {
       "columns": [],
       "parameters": {
@@ -555,6 +725,29 @@
       "nullable": []
     }
   },
+  "b5d47b13deecda78a01cca65f0bd24e00a54a726dfa6df817bb8a43946694a03": {
+    "query": "\n            INSERT INTO ttc_config_properties (support_channel, welcome_channel, verified_role, moderator_role)\n            VALUES ($1, $2, $3, $4) RETURNING id\n            ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8",
+          "Int8",
+          "Int8"
+        ]
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
   "bb7972cadce53049f4695443e0698c3e6f89cfe7b446054243717f9364b3d258": {
     "query": "SELECT * FROM ttc_message_cache WHERE message_id = $1 AND channel_id = $2",
     "describe": {
@@ -610,6 +803,34 @@
         true,
         true
       ]
+    }
+  },
+  "bf0ba0eca8ebf08f16a29f09f5c86220323b2069ce327af04a93a9318841d897": {
+    "query": "SELECT current_message_id AS current_id FROM ttc_conveyance_state",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "current_id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "c4f20869e4b3499e187612817bd8162315062fedd7ff72f7dfc5c61147fe128c": {
+    "query": "DELETE FROM ttc_config_properties",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
     }
   },
   "c5c742f0db96fc41b2c1552bda1962a1075cb2a6c8e72c1ea135e13bb356fb37": {
@@ -773,6 +994,26 @@
       ]
     }
   },
+  "daf2c7a838858282bff6f264cf3c245a035b076d06e017f7bdc7ba0941c3309b": {
+    "query": "INSERT INTO ttc_conveyance_channel (channel_id) VALUES ($1) RETURNING id",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
   "ee4f9ebceba0566181c0c181214e3d65d8aee99dafe660d8fefcebb0c288442d": {
     "query": "DELETE FROM ttc_webhooks",
     "describe": {
@@ -781,60 +1022,6 @@
         "Left": []
       },
       "nullable": []
-    }
-  },
-  "ef8d237db20801c47dddaf718ebf108490889e1a55bca731dd4a83904f7f109e": {
-    "query": "SELECT * FROM ttc_config",
-    "describe": {
-      "columns": [
-        {
-          "ordinal": 0,
-          "name": "support_channel",
-          "type_info": "Int8"
-        },
-        {
-          "ordinal": 1,
-          "name": "conveyance_channels",
-          "type_info": "Int8Array"
-        },
-        {
-          "ordinal": 2,
-          "name": "conveyance_blacklisted_channels",
-          "type_info": "Int8Array"
-        },
-        {
-          "ordinal": 3,
-          "name": "welcome_channel",
-          "type_info": "Int8"
-        },
-        {
-          "ordinal": 4,
-          "name": "verified_role",
-          "type_info": "Int8"
-        },
-        {
-          "ordinal": 5,
-          "name": "moderator_role",
-          "type_info": "Int8"
-        },
-        {
-          "ordinal": 6,
-          "name": "welcome_messages",
-          "type_info": "VarcharArray"
-        }
-      ],
-      "parameters": {
-        "Left": []
-      },
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false
-      ]
     }
   },
   "f7183a9968f80ccc7e509022abec8a4cecbdf5b27a21a1cf09a5cf2fe16c6c11": {
@@ -891,6 +1078,16 @@
         false,
         false
       ]
+    }
+  },
+  "fd7f645d1f35ac33f4b6a892e40576347281c3a38976389a9faeab06441b3b42": {
+    "query": "DELETE FROM ttc_conveyance_channel",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": []
     }
   }
 }

@@ -37,6 +37,7 @@ The bot requires a postgresql database with a table based on the schema in `sql/
   owners: <Array of owner user ids, [<user_id>, <user_id>...]>
   verified_role: <Role id for the verified role>
   moderator_role: <Role id for the moderator role>
+  harold_emoji_names: <Array of the names of Harold emojis (without colon)>
 ```
 
 You need to set the `DATABASE_URL` variable in `.env` to the same value as `sqlx_config` in the config file to allow for compile time checking of database calls.

@@ -234,6 +234,12 @@ async fn main() {
         .iter()
         .map(|val| val.as_str().unwrap().to_string())
         .collect::<Vec<String>>();
+    let harold_emoji_names = config["harold_emoji_names"]
+        .as_sequence()
+        .unwrap()
+        .iter()
+        .map(|val| val.as_str().unwrap().to_string())
+        .collect::<Vec<String>>();
     let mut owners = HashSet::new();
 
     for owner in config["owners"].as_sequence().unwrap() {
@@ -289,7 +295,33 @@ async fn main() {
             conveyance_blacklisted_channels: conveyance_blacklisted_channel_ids,
             welcome_channel: welcome_channel_id as i64,
             welcome_messages,
+            harold_emojis: harold_emoji_names,
         };
+        match sqlx::query!(r#"SELECT COUNT(*) FROM ttc_conveyance_state"#)
+            .fetch_one(&pool)
+            .await
+        {
+            Ok(val) => {
+                if val.count.unwrap() == 0 {
+                    match sqlx::query!(
+                        r#"INSERT INTO ttc_conveyance_state (current_message_id) VALUES (1)"#
+                    )
+                    .execute(&pool)
+                    .await
+                    {
+                        Ok(_) => (),
+                        Err(why) => {
+                            log::error!("Failed to insert ttc_conveyance_state: {}", why);
+                            return;
+                        }
+                    }
+                }
+            }
+            Err(why) => {
+                log::error!("Failed to get count of ttc_conveyance_state: {}", why);
+                return;
+            }
+        }
 
         match config.save_in_db(&pool).await {
             Ok(_) => (),
