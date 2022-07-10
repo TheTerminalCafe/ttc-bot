@@ -72,10 +72,10 @@ CREATE TABLE ttc_conveyance_state (
 
 -- DROP TABLE ttc_counted_emoji_name;
 
-CREATE TABLE ttc_counted_emoji_name (
+CREATE TABLE ttc_harold_emoji (
 	id serial4 NOT NULL,
 	"name" varchar NOT NULL,
-	CONSTRAINT ttc_counted_emoji_names_pk PRIMARY KEY (id)
+	CONSTRAINT ttc_harold_emoji_pk PRIMARY KEY (id)
 );
 
 
@@ -222,7 +222,7 @@ CREATE TABLE ttc_config (
 	conveyance_id serial4,
 	conveyance_blacklist_id serial4,
 	welcome_message_id serial4,
-	counted_emoji_name_id serial4,
+	harold_emoji_id serial4,
 	CONSTRAINT ttc_config_pk PRIMARY KEY (id, config_properties_id)
 );
 
@@ -232,9 +232,9 @@ ALTER TABLE public.ttc_config ADD CONSTRAINT fk_config_conveyance FOREIGN KEY (c
 ALTER TABLE public.ttc_config ADD CONSTRAINT fk_config_conveyance_blacklist FOREIGN KEY (conveyance_blacklist_id) REFERENCES ttc_conveyance_blacklist_channel(id);
 ALTER TABLE public.ttc_config ADD CONSTRAINT fk_config_properties FOREIGN KEY (config_properties_id) REFERENCES ttc_config_properties(id);
 ALTER TABLE public.ttc_config ADD CONSTRAINT fk_config_welcome FOREIGN KEY (welcome_message_id) REFERENCES ttc_welcome_message(id);
-ALTER TABLE public.ttc_config ADD CONSTRAINT fk_counted_emoji_name FOREIGN KEY (counted_emoji_name_id) REFERENCES ttc_counted_emoji_name(id);
+ALTER TABLE public.ttc_config ADD CONSTRAINT fk_config_harold_emoji FOREIGN KEY (harold_emoji_id) REFERENCES ttc_harold_emoji(id);
 
 ALTER TABLE public.ttc_config ALTER COLUMN welcome_message_id DROP NOT NULL;
-ALTER TABLE public.ttc_config ALTER COLUMN counted_emoji_name_id DROP NOT NULL;
+ALTER TABLE public.ttc_config ALTER COLUMN harold_emoji_id DROP NOT NULL;
 ALTER TABLE public.ttc_config ALTER COLUMN conveyance_blacklist_id DROP NOT NULL;
 ALTER TABLE public.ttc_config ALTER COLUMN conveyance_id DROP NOT NULL;
