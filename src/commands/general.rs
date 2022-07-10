@@ -273,14 +273,13 @@ pub async fn leaderboard(
         .await?;
         return Ok(());
     }
+    ctx.defer().await?;
     // Get the emoji data
     let mut data = EmojiCache::new(&ctx.data().pool);
     if refresh {
         data.update_emoji_cache_poise(&ctx, false).await?;
     }
     let mut data = data.get_data().await?;
-
-    ctx.defer().await?;
 
     let mut user_list = Vec::new();
     let mut members = ctx.guild_id().unwrap().members_iter(ctx.discord()).boxed();
