@@ -295,6 +295,78 @@
       "nullable": []
     }
   },
+  "62f20607090285f53a2f370c3ed634990fef8f64a5bef2e8350f703ac1317575": {
+    "query": "SELECT * FROM ttc_config_view",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "config_id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 1,
+          "name": "config_properties_id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 2,
+          "name": "support_channel",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 3,
+          "name": "welcome_channel",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 4,
+          "name": "verified_role",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 5,
+          "name": "moderator_role",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 6,
+          "name": "conveyance_blacklist_channel",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 7,
+          "name": "conveyance_channel",
+          "type_info": "Int8"
+        },
+        {
+          "ordinal": 8,
+          "name": "harold_emoji",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 9,
+          "name": "welcome_message",
+          "type_info": "Varchar"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
   "6905847a1f9b4c857dc7f925755e275fbcbe4c2937262e4b482decbde1dc7433": {
     "query": "SELECT * FROM ttc_webhooks",
     "describe": {
@@ -575,78 +647,6 @@
         "Left": []
       },
       "nullable": []
-    }
-  },
-  "9a9995d3fcba2010ed47efb226c5bc7953c7d8384f0b98cd720d28e96fb033c6": {
-    "query": "\n            select\n            tc.id as config_id,\n            tcp.id as config_properties_id,\n            tcp.support_channel as supprt_channel,\n            tcp.welcome_channel as welcome_channel,\n            tcp.verified_role as verified_role,\n            tcp.moderator_role as moderator_role,\n            tcbc.channel_id as conveyance_blacklist_channel, \n            tcc.channel_id as conveyance_channel, \n            the.\"name\" as harold_emoji, \n            twm.welcome_message as welcome_message \n            from ttc_config tc\n            full join ttc_config_properties tcp on tc.config_properties_id = tcp.id\n            full join ttc_conveyance_blacklist_channel tcbc on tc.conveyance_blacklist_id = tcbc.id \n            full join ttc_conveyance_channel tcc on tc.conveyance_id = tcc.id \n            full join ttc_harold_emoji the on tc.harold_emoji_id = the.id \n            full join ttc_welcome_message twm on tc.welcome_message_id = twm.id;\n            ",
-    "describe": {
-      "columns": [
-        {
-          "ordinal": 0,
-          "name": "config_id",
-          "type_info": "Int4"
-        },
-        {
-          "ordinal": 1,
-          "name": "config_properties_id",
-          "type_info": "Int4"
-        },
-        {
-          "ordinal": 2,
-          "name": "supprt_channel",
-          "type_info": "Int8"
-        },
-        {
-          "ordinal": 3,
-          "name": "welcome_channel",
-          "type_info": "Int8"
-        },
-        {
-          "ordinal": 4,
-          "name": "verified_role",
-          "type_info": "Int8"
-        },
-        {
-          "ordinal": 5,
-          "name": "moderator_role",
-          "type_info": "Int8"
-        },
-        {
-          "ordinal": 6,
-          "name": "conveyance_blacklist_channel",
-          "type_info": "Int8"
-        },
-        {
-          "ordinal": 7,
-          "name": "conveyance_channel",
-          "type_info": "Int8"
-        },
-        {
-          "ordinal": 8,
-          "name": "harold_emoji",
-          "type_info": "Varchar"
-        },
-        {
-          "ordinal": 9,
-          "name": "welcome_message",
-          "type_info": "Varchar"
-        }
-      ],
-      "parameters": {
-        "Left": []
-      },
-      "nullable": [
-        true,
-        true,
-        true,
-        true,
-        true,
-        true,
-        true,
-        true,
-        true,
-        true
-      ]
     }
   },
   "9b2755e83b0c64ec098c6ecd7ce665cd044501c85c3672c044901eba37d6e6e4": {
