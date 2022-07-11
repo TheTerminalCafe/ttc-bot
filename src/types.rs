@@ -134,35 +134,15 @@ impl Config {
     }
 
     pub async fn get_from_db(pool: &PgPool) -> Result<Self, sqlx::Error> {
-        let raw = sqlx::query!(
-            r#"
-            select
-            tc.id as config_id,
-            tcp.id as config_properties_id,
-            tcp.support_channel as supprt_channel,
-            tcp.welcome_channel as welcome_channel,
-            tcp.verified_role as verified_role,
-            tcp.moderator_role as moderator_role,
-            tcbc.channel_id as conveyance_blacklist_channel, 
-            tcc.channel_id as conveyance_channel, 
-            the."name" as harold_emoji, 
-            twm.welcome_message as welcome_message 
-            from ttc_config tc
-            full join ttc_config_properties tcp on tc.config_properties_id = tcp.id
-            full join ttc_conveyance_blacklist_channel tcbc on tc.conveyance_blacklist_id = tcbc.id 
-            full join ttc_conveyance_channel tcc on tc.conveyance_id = tcc.id 
-            full join ttc_harold_emoji the on tc.harold_emoji_id = the.id 
-            full join ttc_welcome_message twm on tc.welcome_message_id = twm.id;
-            "#
-        )
-        .fetch_all(pool)
-        .await?;
+        let raw = sqlx::query!(r#"SELECT * FROM ttc_config_view"#)
+            .fetch_all(pool)
+            .await?;
         // The unwrap is safe since every row contains config_properties_id
         let mut res = Self {
             conveyance_channels: Vec::new(),
             verified_role: raw.get(0).unwrap().verified_role.unwrap(),
             moderator_role: raw.get(0).unwrap().moderator_role.unwrap(),
-            support_channel: raw.get(0).unwrap().supprt_channel.unwrap(),
+            support_channel: raw.get(0).unwrap().support_channel.unwrap(),
             welcome_channel: raw.get(0).unwrap().welcome_channel.unwrap(),
             welcome_messages: Vec::new(),
             conveyance_blacklisted_channels: Vec::new(),
