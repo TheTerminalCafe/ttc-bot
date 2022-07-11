@@ -235,7 +235,7 @@ pub async fn get_webhook(
         }
     })
 }
-  
+
 pub fn format_datetime(timestamp: &DateTime<Utc>) -> String {
     format!(
         "{} ({})",

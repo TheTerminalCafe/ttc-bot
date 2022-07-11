@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use poise::serenity_prelude::{ChannelId, Message, RwLock, UserId, Webhook};
 use sqlx::PgPool;
@@ -13,6 +13,7 @@ pub struct Data {
     pub webhooks: RwLock<HashMap<ChannelId, Webhook>>,
     pub pool: PgPool,
     pub thread_name_regex: regex::Regex,
+    pub startup_time: Instant,
 }
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;

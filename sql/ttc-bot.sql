@@ -237,6 +237,7 @@ CREATE TABLE ttc_config (
 	CONSTRAINT ttc_config_pk PRIMARY KEY (id, config_properties_id)
 );
 
+
 -- public.ttc_config constraint definition
 
 ALTER TABLE public.ttc_config ADD CONSTRAINT fk_config_conveyance FOREIGN KEY (conveyance_id) REFERENCES ttc_conveyance_channel(id);
