@@ -91,6 +91,13 @@ pub async fn message_delete(
     data: &Data,
 ) {
     let config = get_config!(data);
+    // Make sure the channel isn't blacklisted from conveyance
+    if config
+        .conveyance_blacklisted_channels
+        .contains(&(channel_id.0 as i64))
+    {
+        return;
+    }
     let pool = &data.pool;
 
     // Get the cached message from the database
