@@ -271,8 +271,3 @@ AS SELECT tc.id AS config_id,
      FULL JOIN ttc_conveyance_channel tcc ON tc.conveyance_id = tcc.id
      FULL JOIN ttc_harold_emoji the ON tc.harold_emoji_id = the.id
      FULL JOIN ttc_welcome_message twm ON tc.welcome_message_id = twm.id;
-
--- Permissions
-
-ALTER TABLE public.ttc_config_view OWNER TO ttc;
-GRANT ALL ON TABLE public.ttc_config_view TO ttc;
