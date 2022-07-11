@@ -249,3 +249,29 @@ ALTER TABLE public.ttc_config ALTER COLUMN welcome_message_id DROP NOT NULL;
 ALTER TABLE public.ttc_config ALTER COLUMN harold_emoji_id DROP NOT NULL;
 ALTER TABLE public.ttc_config ALTER COLUMN conveyance_blacklist_id DROP NOT NULL;
 ALTER TABLE public.ttc_config ALTER COLUMN conveyance_id DROP NOT NULL;
+
+
+-- public.ttc_config_view source
+
+CREATE OR REPLACE VIEW public.ttc_config_view
+AS SELECT tc.id AS config_id,
+    tcp.id AS config_properties_id,
+    tcp.support_channel AS supprt_channel,
+    tcp.welcome_channel,
+    tcp.verified_role,
+    tcp.moderator_role,
+    tcbc.channel_id AS conveyance_blacklist_channel,
+    tcc.channel_id AS conveyance_channel,
+    the.name AS harold_emoji,
+    twm.welcome_message
+   FROM ttc_config tc
+     FULL JOIN ttc_config_properties tcp ON tc.config_properties_id = tcp.id
+     FULL JOIN ttc_conveyance_blacklist_channel tcbc ON tc.conveyance_blacklist_id = tcbc.id
+     FULL JOIN ttc_conveyance_channel tcc ON tc.conveyance_id = tcc.id
+     FULL JOIN ttc_harold_emoji the ON tc.harold_emoji_id = the.id
+     FULL JOIN ttc_welcome_message twm ON tc.welcome_message_id = twm.id;
+
+-- Permissions
+
+ALTER TABLE public.ttc_config_view OWNER TO ttc;
+GRANT ALL ON TABLE public.ttc_config_view TO ttc;
