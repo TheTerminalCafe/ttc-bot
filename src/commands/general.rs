@@ -1,8 +1,9 @@
 use crate::{
+    get_config,
     types::{Context, Data, Error},
     utils::{
-        emoji_cache::EmojiCache, 
-        helper_functions::{format_datetime, format_duration}
+        emoji_cache::EmojiCache,
+        helper_functions::{format_datetime, format_duration},
     },
 };
 use futures::StreamExt;
@@ -242,16 +243,6 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-// Ugly but works for now, should be made into a table of some sort
-const HAROLD_EMOJIS: &[&str] = &[
-    "helpmeplz",
-    "killmeplz",
-    "burnmeplz",
-    "UwUplz",
-    "haroldium",
-    "senpaiplz",
-];
-
 /// Leaderboards
 ///
 /// View server leaderboards for different statistics
@@ -281,6 +272,10 @@ pub async fn leaderboard(
     }
     let mut data = data.get_data().await?;
 
+    let harold_emojis = get_config!(ctx.data(), {
+        return Err(Error::from("Unable to obtain config"));
+    })
+    .harold_emojis;
     let mut user_list = Vec::new();
     let mut members = ctx.guild_id().unwrap().members_iter(ctx.discord()).boxed();
     while let Some(member) = members.next().await {
@@ -310,7 +305,7 @@ pub async fn leaderboard(
     let mut global_harolds = 0;
     let mut user_harolds = 0;
     let mut harold_leaderboard = HashMap::new();
-    for harold in HAROLD_EMOJIS {
+    for harold in harold_emojis {
         match data.user_emojis_hash_emoji_user().get(&harold.to_string()) {
             Some(harolds) => {
                 user_harolds += *harolds.get(&target_user.user.id.0).unwrap_or(&0);
