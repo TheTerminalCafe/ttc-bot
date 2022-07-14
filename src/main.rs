@@ -172,6 +172,7 @@ async fn main() {
                 .long("core-config")
                 .help("Configuration file"),
         )
+        /*
         .arg(
             Arg::with_name("write-db")
                 .takes_value(false)
@@ -179,7 +180,7 @@ async fn main() {
                 .short("w")
                 .long("write")
                 .help("Write the config to the database"),
-        )
+        )*/
         .arg(
             Arg::with_name("bad-words")
                 .takes_value(true)
@@ -279,6 +280,7 @@ async fn main() {
         }
     }
 
+    /*
     // Write the config to the database if correct argument is present
     if matches.is_present("write-db") {
         let config = Config {
@@ -299,6 +301,7 @@ async fn main() {
             }
         }
     }
+    */
 
     // Create the framework of the bot
     let framework = poise::Framework::build()
