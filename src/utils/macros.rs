@@ -1,4 +1,4 @@
-#[macro_export]
+/*#[macro_export]
 macro_rules! get_config {
     ( $data:expr ) => {{
         let pool = &$data.pool;
@@ -20,7 +20,7 @@ macro_rules! get_config {
             }
         }
     }};
-}
+}*/
 
 #[macro_export]
 macro_rules! command_error {
@@ -29,5 +29,24 @@ macro_rules! command_error {
     };
     ( $fmt:expr, $( $arg:tt )* ) => {
         Err(crate::Error::from(format!($fmt, $($arg)*)))
+    };
+}
+
+#[macro_export]
+macro_rules! config_function {
+    ($sql:expr, $name:ident, Vec<$_type:ty>) => {
+        pub async fn $name(&self) -> Result<Vec<$_type>, ::sqlx::Error> {
+            Ok(::sqlx::query!($sql)
+                .fetch_all(&self.pool)
+                .await?
+                .into_iter()
+                .map(|record| record.$name)
+                .collect::<Vec<$_type>>())
+        }
+    };
+    ($sql:expr, $name:ident, $_type:ty) => {
+        pub async fn $name(&self) -> Result<$_type, ::sqlx::Error> {
+            Ok(::sqlx::query!($sql).fetch_one(&self.pool).await?.$name)
+        }
     };
 }
