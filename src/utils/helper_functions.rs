@@ -3,10 +3,7 @@ use poise::serenity_prelude::{
     ChannelId, Color, Context, CreateEmbed, CreateMessage, Message, User, Webhook,
 };
 
-use crate::{
-    command_error, get_config,
-    types::{Data, Error},
-};
+use crate::types::{Data, Error};
 use std::{sync::Arc, time::Duration};
 
 // ----------------
@@ -149,12 +146,11 @@ where
 // May be useful later, but is not right now
 #[allow(dead_code)]
 pub async fn alert_mods(ctx: &Context, embed: CreateEmbed, data: &Data) -> Result<(), Error> {
-    let config = get_config!(data, { return command_error!("Database error.") });
-
-    for channel in &config.conveyance_channels {
+    let mod_role = data.moderator_role().await?;
+    for channel in &data.conveyance_channel().await? {
         ChannelId(*channel as u64)
             .send_message(ctx, |m| {
-                m.content(format!("<@&{}>", config.moderator_role))
+                m.content(format!("<@&{}>", mod_role))
                     .set_embed(embed.clone())
             })
             .await?;

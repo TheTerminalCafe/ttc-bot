@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Instant};
 
-use poise::serenity_prelude::{ChannelId, Message, RoleId, RwLock, UserId, Webhook};
+use poise::serenity_prelude::{ChannelId, Message, RwLock, UserId, Webhook};
 use sqlx::PgPool;
 
 use crate::{

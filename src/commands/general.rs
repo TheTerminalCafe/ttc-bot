@@ -1,5 +1,4 @@
 use crate::{
-    get_config,
     types::{Context, Data, Error},
     utils::{
         emoji_cache::EmojiCache,
@@ -272,10 +271,7 @@ pub async fn leaderboard(
     }
     let mut data = data.get_data().await?;
 
-    let harold_emojis = get_config!(ctx.data(), {
-        return Err(Error::from("Unable to obtain config"));
-    })
-    .harold_emojis;
+    let harold_emojis = ctx.data().harold_emoji().await?;
     let mut user_list = Vec::new();
     let mut members = ctx.guild_id().unwrap().members_iter(ctx.discord()).boxed();
     while let Some(member) = members.next().await {

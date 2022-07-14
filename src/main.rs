@@ -48,8 +48,6 @@ use std::time::Instant;
 use std::{collections::HashSet, fs::File, sync::Arc};
 use types::{Context, Data, Error};
 
-use crate::types::Config;
-
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // This is our custom error handler
     // They are many errors that can occur, so we only handle the ones we want to customize
@@ -213,6 +211,7 @@ async fn main() {
     let token = config["token"].as_str().unwrap();
     let application_id = config["application_id"].as_u64().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
+    /*
     let support_channel_id = config["support_channel"].as_u64().unwrap();
     let verified_role_id = config["verified_role"].as_u64().unwrap();
     let moderator_role_id = config["moderator_role"].as_u64().unwrap();
@@ -235,6 +234,7 @@ async fn main() {
         .iter()
         .map(|val| val.as_str().unwrap().to_string())
         .collect::<Vec<String>>();
+    */
     let mut owners = HashSet::new();
 
     for owner in config["owners"].as_sequence().unwrap() {

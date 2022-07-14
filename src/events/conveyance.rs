@@ -1,4 +1,4 @@
-use crate::{get_config, types::Data, utils::helper_functions::format_datetime};
+use crate::{types::Data, utils::helper_functions::format_datetime};
 use chrono::{DateTime, Utc};
 use poise::serenity_prelude::*;
 
@@ -90,13 +90,14 @@ pub async fn message_delete(
     deleted_message_id: &MessageId,
     data: &Data,
 ) {
-    let config = get_config!(data);
     // Make sure the channel isn't blacklisted from conveyance
-    if config
-        .conveyance_blacklisted_channels
-        .contains(&(channel_id.0 as i64))
-    {
-        return;
+    match data.conveyance_blacklist_channel().await {
+        Ok(channels) if channels.contains(&(channel_id.0 as i64)) => return,
+        Ok(_) => {}
+        Err(why) => {
+            log::error!("Error getting conveyance blacklisted channels: {}", why);
+            return;
+        }
     }
     let pool = &data.pool;
 
@@ -146,7 +147,15 @@ pub async fn message_delete(
     content.truncate(1024);
     attachments.truncate(1024);
 
-    for channel in &config.conveyance_channels {
+    let conv_channels = match data.conveyance_channel().await {
+        Ok(channels) => channels,
+        Err(why) => {
+            log::error!("Error getting conveyance channels: {}", why);
+            return;
+        }
+    };
+
+    for channel in &conv_channels {
         match ChannelId(*channel as u64)
             .send_message(ctx, |m| {
                 m.embed(|e| {
@@ -194,13 +203,14 @@ pub async fn message_update(
     event: &MessageUpdateEvent,
     data: &Data,
 ) {
-    let config = get_config!(data);
     // Make sure the channel isn't blacklisted from conveyance
-    if config
-        .conveyance_blacklisted_channels
-        .contains(&(event.channel_id.0 as i64))
-    {
-        return;
+    match data.conveyance_blacklist_channel().await {
+        Ok(channels) if channels.contains(&(event.channel_id.0 as i64)) => return,
+        Ok(_) => {}
+        Err(why) => {
+            log::error!("Error getting conveyance blacklisted channels: {}", why);
+            return;
+        }
     }
 
     let pool = &data.pool;
@@ -325,7 +335,15 @@ pub async fn message_update(
         }
     }
 
-    for channel in &config.conveyance_channels {
+    let conv_channels = match data.conveyance_channel().await {
+        Ok(channels) => channels,
+        Err(why) => {
+            log::error!("Error getting conveyance channels: {}", why);
+            return;
+        }
+    };
+
+    for channel in &conv_channels {
         match ChannelId(*channel as u64)
             .send_message(ctx, |m| m.set_embed(message_embed.clone()))
             .await
@@ -340,9 +358,14 @@ pub async fn message_update(
 }
 
 pub async fn guild_member_addition(ctx: &Context, new_member: &Member, data: &Data) {
-    let config = get_config!(data);
-
-    for channel in &config.conveyance_channels {
+    let conv_channels = match data.conveyance_channel().await {
+        Ok(channels) => channels,
+        Err(why) => {
+            log::error!("Error getting conveyance channels: {}", why);
+            return;
+        }
+    };
+    for channel in &conv_channels {
         match ChannelId(*channel as u64)
             .send_message(ctx, |m| {
                 m.embed(|e| {
@@ -374,8 +397,6 @@ pub async fn guild_member_removal(
     member: &Option<Member>,
     data: &Data,
 ) {
-    let config = get_config!(data);
-
     let joined_at = match member {
         Some(member) => match member.joined_at {
             Some(joined_at) => format_datetime(&joined_at),
@@ -384,7 +405,14 @@ pub async fn guild_member_removal(
         None => "Join date not available".to_string(),
     };
 
-    for channel in &config.conveyance_channels {
+    let conv_channels = match data.conveyance_channel().await {
+        Ok(channels) => channels,
+        Err(why) => {
+            log::error!("Error getting conveyance channels: {}", why);
+            return;
+        }
+    };
+    for channel in &conv_channels {
         match ChannelId(*channel as u64)
             .send_message(ctx, |m| {
                 m.embed(|e| {
@@ -403,9 +431,15 @@ pub async fn guild_member_removal(
     }
 }
 pub async fn guild_ban_addition(ctx: &Context, banned_user: &User, data: &Data) {
-    let config = get_config!(data);
+    let conv_channels = match data.conveyance_channel().await {
+        Ok(channels) => channels,
+        Err(why) => {
+            log::error!("Error getting conveyance channels: {}", why);
+            return;
+        }
+    };
 
-    for channel in &config.conveyance_channels {
+    for channel in &conv_channels {
         match ChannelId(*channel as u64)
             .send_message(ctx, |m| {
                 m.embed(|e| {
@@ -427,9 +461,14 @@ pub async fn guild_ban_addition(ctx: &Context, banned_user: &User, data: &Data) 
 }
 
 pub async fn guild_ban_removal(ctx: &Context, unbanned_user: &User, data: &Data) {
-    let config = get_config!(data);
-
-    for channel in &config.conveyance_channels {
+    let conv_channels = match data.conveyance_channel().await {
+        Ok(channels) => channels,
+        Err(why) => {
+            log::error!("Error getting conveyance channels: {}", why);
+            return;
+        }
+    };
+    for channel in &conv_channels {
         match ChannelId(*channel as u64)
             .send_message(ctx, |m| {
                 m.embed(|e| {
@@ -451,8 +490,6 @@ pub async fn guild_ban_removal(ctx: &Context, unbanned_user: &User, data: &Data)
 }
 
 pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Member, data: &Data) {
-    let config = get_config!(data);
-
     let (old_nickname, old_roles, old_timeouted) = match old {
         Some(old) => {
             let old_nickname = match old.nick.clone() {
@@ -532,7 +569,14 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
         new_roles_string.pop();
     }
 
-    for channel in &config.conveyance_channels {
+    let conv_channels = match data.conveyance_channel().await {
+        Ok(channels) => channels,
+        Err(why) => {
+            log::error!("Error getting conveyance channels: {}", why);
+            return;
+        }
+    };
+    for channel in &conv_channels {
         match ChannelId(*channel as u64)
             .send_message(ctx, |m| {
                 m.embed(|e| {

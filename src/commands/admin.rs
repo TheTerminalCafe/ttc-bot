@@ -9,7 +9,6 @@ use poise::serenity_prelude::{
 };
 
 use crate::{
-    get_config,
     types::{self, Context, Error},
     utils::emoji_cache::EmojiCache,
 };
@@ -197,10 +196,7 @@ pub async fn create_support_ticket_button(
     #[description = "Channel to send it in"] channel: GuildChannel,
     #[description = "Description for the support system"] description: String,
 ) -> Result<(), Error> {
-    let config = get_config!(ctx.data(), {
-        return Err(Error::from("Unable to obtain config"));
-    });
-
+    let support_channel = ctx.data().support_channel().await?;
     channel
         .send_message(ctx.discord(), |m| {
             m.embed(|e| {
@@ -208,7 +204,7 @@ pub async fn create_support_ticket_button(
                     .title("Support tickets")
                     .description(format!(
                         "{}\n\nAll support tickets are created in <#{}>",
-                        description, config.support_channel
+                        description, support_channel
                     ))
             })
             .components(|c| {

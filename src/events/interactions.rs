@@ -108,7 +108,7 @@ mod interactions {
     use std::time::Duration;
 
     use crate::{
-        command_error, get_config,
+        command_error,
         commands::support::SupportThread,
         utils::helper_functions::get_message_reply, types::{Error, Data},
     };
@@ -128,8 +128,6 @@ mod interactions {
         })
         .await?;
 
-        let config = get_config!(data, { return command_error!("Failed to get config") });
-        
         // Make sure accounts that enter are older than 7 days
         if Utc::now().timestamp() - intr.member.clone().unwrap().user.created_at().unix_timestamp() < chrono::Duration::days(7).num_seconds() {
             intr.edit_original_interaction_response(
@@ -151,13 +149,13 @@ mod interactions {
             .clone()
             .unwrap()
             .roles
-            .contains(&RoleId(config.verified_role as u64))
+            .contains(&RoleId(data.verified_role().await? as u64))
         {
             match intr
                 .member
                 .clone()
                 .unwrap()
-                .add_role(ctx, &RoleId(config.verified_role as u64))
+                .add_role(ctx, &RoleId(data.verified_role().await? as u64))
                 .await
             {
                 Ok(_) => {
@@ -174,14 +172,15 @@ mod interactions {
                     {
                         Ok(_) => {
                             tokio::time::sleep(Duration::from_secs(2)).await;
-                            let welcome_message = config
-                                .welcome_messages
+                            
+                            let welcome_message = data.welcome_message().await?;
+                            let welcome_message = welcome_message
                                 .choose(&mut rand::thread_rng())
                                 .unwrap();
                             let welcome_message =
                                 welcome_message.replace("%user%", &intr.user.mention().to_string());
 
-                            ChannelId(config.welcome_channel as u64)
+                            ChannelId(data.welcome_channel().await? as u64)
                                 .send_message(ctx, |m| m.content(welcome_message))
                                 .await?;
                         }
@@ -307,9 +306,7 @@ mod interactions {
             }
         }
 
-        let config = get_config!(data, { return command_error!("Failed to get config") });
-
-        let support_channel = ChannelId(config.support_channel as u64);
+        let support_channel = ChannelId(data.support_channel().await? as u64);
 
         let mut thread_msg = support_channel
             .send_message(ctx, |m| m.embed(|e| e.title("Pending info...")))
