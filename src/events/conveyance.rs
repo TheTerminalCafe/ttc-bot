@@ -29,7 +29,7 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
 
     let mut id = match sqlx::query_as!(
         CurrentIndex,
-        r#"SELECT current_id FROM ttc_conveyance_state"#
+        r#"SELECT current_message_id AS current_id FROM ttc_conveyance_state"#
     )
     .fetch_one(pool)
     .await
@@ -69,7 +69,7 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
     }
 
     match sqlx::query!(
-        r#"UPDATE ttc_conveyance_state SET current_id = $1"#,
+        r#"UPDATE ttc_conveyance_state SET current_message_id = $1"#,
         id.current_id
     )
     .execute(pool)
