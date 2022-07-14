@@ -202,7 +202,7 @@ CREATE TABLE ttc_support_tickets (
 -- DROP TABLE ttc_webhooks;
 
 CREATE TABLE ttc_webhooks (
-	channel_id serial4 NOT NULL,
+	channel_id int8 NOT NULL,
 	webhook_url varchar NOT NULL,
 	CONSTRAINT ttc_webhooks_pkey PRIMARY KEY (channel_id)
 );
