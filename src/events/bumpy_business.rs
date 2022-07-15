@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use poise::serenity_prelude::{Color, Context, Mentionable, Message, MessageType, Timestamp};
 
+use crate::ttc_unwrap;
+
 pub async fn message(ctx: &Context, msg: &Message) {
     match msg.kind {
         MessageType::ChatInputCommand => {
@@ -9,7 +11,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
                 match msg.flags {
                     Some(flags) => {
                         if flags.is_empty() {
-                            match msg.channel_id.send_message(
+                            ttc_unwrap!(msg.channel_id.send_message(
                                 ctx, 
                                 |m| 
                                     m.content(format!("{}", msg.interaction.as_ref().unwrap().user.mention()))
@@ -20,16 +22,10 @@ pub async fn message(ctx: &Context, msg: &Message) {
                                                 .color(Color::PURPLE)
                                             )
                                         )
-                                        .await {
-                                Ok(_) => (),
-                                Err(why) => {
-                                    log::error!("Error sending message: {}", why);
-                                    return;
-                                }
-                            }
+                                        .await, "Error sending message");
                             // 2 hours
                             tokio::time::sleep(Duration::from_secs(7200)).await;
-                            match msg.channel_id.send_message(
+                            ttc_unwrap!(msg.channel_id.send_message(
                                 ctx, 
                                 |m| 
                                     m.content(format!("{}", msg.interaction.as_ref().unwrap().user.mention()))
@@ -40,13 +36,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
                                                 .color(Color::PURPLE)
                                             )
                                         )
-                                        .await {
-                                Ok(_) => (),
-                                Err(why) => {
-                                    log::error!("Error sending message: {}", why);
-                                    return;
-                                }
-                            }
+                                        .await, "Error sending message");
                         }
                     }
                     None => ()

@@ -50,3 +50,16 @@ macro_rules! config_function {
         }
     };
 }
+
+#[macro_export]
+macro_rules! ttc_unwrap {
+    ($_data:expr, $_str:expr) => {
+        match $_data {
+            Ok(data) => data,
+            Err(why) => {
+                ::log::error!("{}: {}", $_str, why);
+                return;
+            }
+        }
+    };
+}

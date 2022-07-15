@@ -254,29 +254,21 @@ async fn main() {
         file.read_to_string(&mut raw_string).unwrap();
 
         if !matches.is_present("append-bad-words") {
-            match sqlx::query!(r#"DELETE FROM ttc_bad_words"#)
-                .execute(&pool)
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => {
-                    log::error!("Failed to clear bad word database: {}", why);
-                    return;
-                }
-            }
+            ttc_unwrap!(
+                sqlx::query!(r#"DELETE FROM ttc_bad_words"#)
+                    .execute(&pool)
+                    .await,
+                "Failed to clear bad word database"
+            );
         }
         for line in raw_string.lines() {
             let line = line.trim();
-            match sqlx::query!(r#"INSERT INTO ttc_bad_words (word) VALUES($1)"#, line)
-                .execute(&pool)
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => {
-                    log::error!("Failed to write bad words into the database: {}", why);
-                    return;
-                }
-            }
+            ttc_unwrap!(
+                sqlx::query!(r#"INSERT INTO ttc_bad_words (word) VALUES($1)"#, line)
+                    .execute(&pool)
+                    .await,
+                "Failed to write bad words into the database"
+            );
         }
     }
 

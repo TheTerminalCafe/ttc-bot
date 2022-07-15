@@ -1,4 +1,4 @@
-use crate::{types::Data, utils::helper_functions::format_datetime};
+use crate::{ttc_unwrap, types::Data, utils::helper_functions::format_datetime};
 use chrono::{DateTime, Utc};
 use poise::serenity_prelude::*;
 
@@ -27,19 +27,15 @@ struct CachedMessage {
 pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
     let pool = &data.pool;
 
-    let mut id = match sqlx::query_as!(
-        CurrentIndex,
-        r#"SELECT current_message_id AS current_id FROM ttc_conveyance_state"#
-    )
-    .fetch_one(pool)
-    .await
-    {
-        Ok(id) => id,
-        Err(why) => {
-            log::error!("Reading from database failed: {}", why);
-            return;
-        }
-    };
+    let mut id = ttc_unwrap!(
+        sqlx::query_as!(
+            CurrentIndex,
+            r#"SELECT current_message_id AS current_id FROM ttc_conveyance_state"#
+        )
+        .fetch_one(pool)
+        .await,
+        "Reading from database failed"
+    );
 
     // Set the id to 0 to loop thru the message cache after reaching the end of the cache
     if id.current_id >= 500 {
@@ -49,7 +45,7 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
     id.current_id += 1;
 
     // Write the message contents to the cache
-    match sqlx::query!(
+    ttc_unwrap!(sqlx::query!(
         r#"UPDATE ttc_message_cache SET message_id = $1, channel_id = $2, user_id = $3, message_time = $4, content = $5, attachments = $6 WHERE id = $7"#, 
         msg.id.0 as i64,
         msg.channel_id.0 as i64,
@@ -60,27 +56,17 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
         id.current_id
     )
     .execute(pool)
-    .await {
-        Ok(_) => (),
-        Err(why) => {
-            log::error!("Writing to database failed: {}", why);
-            return;
-        }
-    }
+    .await, "Writing to database failed");
 
-    match sqlx::query!(
-        r#"UPDATE ttc_conveyance_state SET current_message_id = $1"#,
-        id.current_id
-    )
-    .execute(pool)
-    .await
-    {
-        Ok(_) => (),
-        Err(why) => {
-            log::error!("Writing to database failed: {}", why);
-            return;
-        }
-    }
+    ttc_unwrap!(
+        sqlx::query!(
+            r#"UPDATE ttc_conveyance_state SET current_message_id = $1"#,
+            id.current_id
+        )
+        .execute(pool)
+        .await,
+        "Writing to database failed"
+    );
 }
 
 // Send logging messages when messages are deleted
@@ -91,13 +77,13 @@ pub async fn message_delete(
     data: &Data,
 ) {
     // Make sure the channel isn't blacklisted from conveyance
-    match data.conveyance_blacklist_channel().await {
-        Ok(channels) if channels.contains(&(channel_id.0 as i64)) => return,
-        Ok(_) => {}
-        Err(why) => {
-            log::error!("Error getting conveyance blacklisted channels: {}", why);
-            return;
-        }
+    if ttc_unwrap!(
+        data.conveyance_blacklist_channel().await,
+        "Error getting conveyance blacklisted channels"
+    )
+    .contains(&(channel_id.0 as i64))
+    {
+        return;
     }
     let pool = &data.pool;
 
@@ -147,41 +133,34 @@ pub async fn message_delete(
     content.truncate(1024);
     attachments.truncate(1024);
 
-    let conv_channels = match data.conveyance_channel().await {
-        Ok(channels) => channels,
-        Err(why) => {
-            log::error!("Error getting conveyance channels: {}", why);
-            return;
-        }
-    };
+    let conv_channels = ttc_unwrap!(
+        data.conveyance_channel().await,
+        "Error getting conveyance channels"
+    );
 
     for channel in &conv_channels {
-        match ChannelId(*channel as u64)
-            .send_message(ctx, |m| {
-                m.embed(|e| {
-                    e.title("Message deleted")
-                        .color(Color::GOLD)
-                        .field("User", user.tag(), true)
-                        .field("UserId", user.id, true)
-                        .field(
-                            "Message sent at",
-                            format_datetime(&msg.message_time.unwrap()),
-                            false,
-                        )
-                        .field("Channel", format!("<#{}>", msg.channel_id.unwrap()), true)
-                        .field("Content", content.clone(), false)
-                        .field("Attachments", attachments.clone(), false)
-                        .timestamp(Utc::now())
+        ttc_unwrap!(
+            ChannelId(*channel as u64)
+                .send_message(ctx, |m| {
+                    m.embed(|e| {
+                        e.title("Message deleted")
+                            .color(Color::GOLD)
+                            .field("User", user.tag(), true)
+                            .field("UserId", user.id, true)
+                            .field(
+                                "Message sent at",
+                                format_datetime(&msg.message_time.unwrap()),
+                                false,
+                            )
+                            .field("Channel", format!("<#{}>", msg.channel_id.unwrap()), true)
+                            .field("Content", content.clone(), false)
+                            .field("Attachments", attachments.clone(), false)
+                            .timestamp(Utc::now())
+                    })
                 })
-            })
-            .await
-        {
-            Ok(_) => (),
-            Err(why) => {
-                log::error!("Failed to send message: {}", why);
-                return;
-            }
-        }
+                .await,
+            "Failed to send message"
+        );
     }
 }
 
@@ -204,13 +183,13 @@ pub async fn message_update(
     data: &Data,
 ) {
     // Make sure the channel isn't blacklisted from conveyance
-    match data.conveyance_blacklist_channel().await {
-        Ok(channels) if channels.contains(&(event.channel_id.0 as i64)) => return,
-        Ok(_) => {}
-        Err(why) => {
-            log::error!("Error getting conveyance blacklisted channels: {}", why);
-            return;
-        }
+    if ttc_unwrap!(
+        data.conveyance_blacklist_channel().await,
+        "Error getting conveyance blacklisted channels"
+    )
+    .contains(&(event.channel_id.0 as i64))
+    {
+        return;
     }
 
     let pool = &data.pool;
@@ -320,74 +299,56 @@ pub async fn message_update(
 
     message_embed.field("New", &new_content, false);
 
-    match sqlx::query!(
-        r#"UPDATE ttc_message_cache SET content = $1 WHERE message_id = $2"#,
-        new_content,
-        event.id.0 as i64
-    )
-    .execute(pool)
-    .await
-    {
-        Ok(_) => (),
-        Err(why) => {
-            log::error!("Error updating message cache: {}", why);
-            return;
-        }
-    }
+    ttc_unwrap!(
+        sqlx::query!(
+            r#"UPDATE ttc_message_cache SET content = $1 WHERE message_id = $2"#,
+            new_content,
+            event.id.0 as i64
+        )
+        .execute(pool)
+        .await,
+        "Error updating message cache"
+    );
 
-    let conv_channels = match data.conveyance_channel().await {
-        Ok(channels) => channels,
-        Err(why) => {
-            log::error!("Error getting conveyance channels: {}", why);
-            return;
-        }
-    };
+    let conv_channels = ttc_unwrap!(
+        data.conveyance_channel().await,
+        "Error getting conveyance channels"
+    );
 
     for channel in &conv_channels {
-        match ChannelId(*channel as u64)
-            .send_message(ctx, |m| m.set_embed(message_embed.clone()))
-            .await
-        {
-            Ok(_) => (),
-            Err(why) => {
-                log::error!("Error sending message: {}", why);
-                return;
-            }
-        }
+        ttc_unwrap!(
+            ChannelId(*channel as u64)
+                .send_message(ctx, |m| m.set_embed(message_embed.clone()))
+                .await,
+            "Error sending message"
+        );
     }
 }
 
 pub async fn guild_member_addition(ctx: &Context, new_member: &Member, data: &Data) {
-    let conv_channels = match data.conveyance_channel().await {
-        Ok(channels) => channels,
-        Err(why) => {
-            log::error!("Error getting conveyance channels: {}", why);
-            return;
-        }
-    };
+    let conv_channels = ttc_unwrap!(
+        data.conveyance_channel().await,
+        "Error getting conveyance channels"
+    );
     for channel in &conv_channels {
-        match ChannelId(*channel as u64)
-            .send_message(ctx, |m| {
-                m.embed(|e| {
-                    e.title("New member joined")
-                        .color(Color::FOOYOO)
-                        .field("User", new_member.user.tag(), true)
-                        .field("UserID", new_member.user.id, true)
-                        .field(
-                            "Account created",
-                            format_datetime(&new_member.user.created_at()),
-                            false,
-                        )
+        ttc_unwrap!(
+            ChannelId(*channel as u64)
+                .send_message(ctx, |m| {
+                    m.embed(|e| {
+                        e.title("New member joined")
+                            .color(Color::FOOYOO)
+                            .field("User", new_member.user.tag(), true)
+                            .field("UserID", new_member.user.id, true)
+                            .field(
+                                "Account created",
+                                format_datetime(&new_member.user.created_at()),
+                                false,
+                            )
+                    })
                 })
-            })
-            .await
-        {
-            Ok(_) => (),
-            Err(why) => {
-                log::error!("Error sending message: {}", why);
-                return;
-            }
-        }
+                .await,
+            "Error sending message"
+        );
     }
 }
 
@@ -405,87 +366,69 @@ pub async fn guild_member_removal(
         None => "Join date not available".to_string(),
     };
 
-    let conv_channels = match data.conveyance_channel().await {
-        Ok(channels) => channels,
-        Err(why) => {
-            log::error!("Error getting conveyance channels: {}", why);
-            return;
-        }
-    };
+    let conv_channels = ttc_unwrap!(
+        data.conveyance_channel().await,
+        "Error getting conveyance channels"
+    );
     for channel in &conv_channels {
-        match ChannelId(*channel as u64)
-            .send_message(ctx, |m| {
-                m.embed(|e| {
-                    e.title("Member left")
-                        .color(Color::RED)
-                        .field("User", user.tag(), true)
-                        .field("UserID", user.id, true)
-                        .field("Joined at", joined_at.clone(), false)
+        ttc_unwrap!(
+            ChannelId(*channel as u64)
+                .send_message(ctx, |m| {
+                    m.embed(|e| {
+                        e.title("Member left")
+                            .color(Color::RED)
+                            .field("User", user.tag(), true)
+                            .field("UserID", user.id, true)
+                            .field("Joined at", joined_at.clone(), false)
+                    })
                 })
-            })
-            .await
-        {
-            Ok(_) => (),
-            Err(why) => log::error!("Error sending message: {}", why),
-        }
+                .await,
+            "Error sending message"
+        );
     }
 }
 pub async fn guild_ban_addition(ctx: &Context, banned_user: &User, data: &Data) {
-    let conv_channels = match data.conveyance_channel().await {
-        Ok(channels) => channels,
-        Err(why) => {
-            log::error!("Error getting conveyance channels: {}", why);
-            return;
-        }
-    };
+    let conv_channels = ttc_unwrap!(
+        data.conveyance_channel().await,
+        "Error getting conveyance channels"
+    );
 
     for channel in &conv_channels {
-        match ChannelId(*channel as u64)
-            .send_message(ctx, |m| {
-                m.embed(|e| {
-                    e.title("User banned.")
-                        .field("User", banned_user.tag(), true)
-                        .field("UserID", banned_user.id, true)
-                        .color(Color::DARK_RED)
+        ttc_unwrap!(
+            ChannelId(*channel as u64)
+                .send_message(ctx, |m| {
+                    m.embed(|e| {
+                        e.title("User banned.")
+                            .field("User", banned_user.tag(), true)
+                            .field("UserID", banned_user.id, true)
+                            .color(Color::DARK_RED)
+                    })
                 })
-            })
-            .await
-        {
-            Ok(_) => (),
-            Err(why) => {
-                log::error!("Error sending message: {}", why);
-                return;
-            }
-        }
+                .await,
+            "Error sending message"
+        );
     }
 }
 
 pub async fn guild_ban_removal(ctx: &Context, unbanned_user: &User, data: &Data) {
-    let conv_channels = match data.conveyance_channel().await {
-        Ok(channels) => channels,
-        Err(why) => {
-            log::error!("Error getting conveyance channels: {}", why);
-            return;
-        }
-    };
+    let conv_channels = ttc_unwrap!(
+        data.conveyance_channel().await,
+        "Error getting conveyance channels"
+    );
     for channel in &conv_channels {
-        match ChannelId(*channel as u64)
-            .send_message(ctx, |m| {
-                m.embed(|e| {
-                    e.title("User unbanned")
-                        .field("User", unbanned_user.tag(), true)
-                        .field("UserID", unbanned_user.id, true)
-                        .color(Color::FOOYOO)
+        ttc_unwrap!(
+            ChannelId(*channel as u64)
+                .send_message(ctx, |m| {
+                    m.embed(|e| {
+                        e.title("User unbanned")
+                            .field("User", unbanned_user.tag(), true)
+                            .field("UserID", unbanned_user.id, true)
+                            .color(Color::FOOYOO)
+                    })
                 })
-            })
-            .await
-        {
-            Ok(_) => (),
-            Err(why) => {
-                log::error!("Error sending message: {}", why);
-                return;
-            }
-        }
+                .await,
+            "Error sending message"
+        );
     }
 }
 
@@ -569,35 +512,28 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
         new_roles_string.pop();
     }
 
-    let conv_channels = match data.conveyance_channel().await {
-        Ok(channels) => channels,
-        Err(why) => {
-            log::error!("Error getting conveyance channels: {}", why);
-            return;
-        }
-    };
+    let conv_channels = ttc_unwrap!(
+        data.conveyance_channel().await,
+        "Error getting conveyance channels"
+    );
     for channel in &conv_channels {
-        match ChannelId(*channel as u64)
-            .send_message(ctx, |m| {
-                m.embed(|e| {
-                    e.title("User updated")
-                        .field("User", new.user.tag(), true)
-                        .field("UserID", new.user.id, true)
-                        .field("Timed out", new_timeouted, false)
-                        .field("Old nickname", &old_nickname, true)
-                        .field("New nickname", &new_nickname, true)
-                        .field("Old roles", &old_roles_string, false)
-                        .field("New roles", &new_roles_string, false)
-                        .color(Color::ORANGE)
+        ttc_unwrap!(
+            ChannelId(*channel as u64)
+                .send_message(ctx, |m| {
+                    m.embed(|e| {
+                        e.title("User updated")
+                            .field("User", new.user.tag(), true)
+                            .field("UserID", new.user.id, true)
+                            .field("Timed out", new_timeouted, false)
+                            .field("Old nickname", &old_nickname, true)
+                            .field("New nickname", &new_nickname, true)
+                            .field("Old roles", &old_roles_string, false)
+                            .field("New roles", &new_roles_string, false)
+                            .color(Color::ORANGE)
+                    })
                 })
-            })
-            .await
-        {
-            Ok(_) => (),
-            Err(why) => {
-                log::error!("Error sending message: {}", why);
-                return;
-            }
-        }
+                .await,
+            "Error sending message"
+        );
     }
 }
