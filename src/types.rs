@@ -95,6 +95,12 @@ impl Data {
         welcome_message,
         Vec<String>
     );
+    config_function!(
+        r#"select role_id as selfroles
+        from ttc_selfroles"#,
+        selfroles,
+        Vec<i64>
+    );
 }
 
 /*#[derive(Debug, Clone)]

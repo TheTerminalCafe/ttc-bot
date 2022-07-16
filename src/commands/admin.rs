@@ -102,7 +102,6 @@ pub async fn create_verification(
 pub async fn create_selfroles(
     ctx: Context<'_>,
     #[description = "Channel to send it in"] channel: GuildChannel,
-    #[description = "List of roles separated by commas"] roles_string: String,
 ) -> Result<(), Error> {
     // Get the channel and guild ids
     let guild_id = ctx.guild_id().unwrap();
@@ -111,9 +110,12 @@ pub async fn create_selfroles(
     let mut menu = CreateSelectMenu::default();
     menu.custom_id("ttc-bot-self-role-menu");
 
-    let raw_role_list = roles_string
-        .split(",")
-        .map(|role| role.parse::<RoleId>().unwrap_or(RoleId(0)))
+    let raw_role_list = ctx
+        .data()
+        .selfroles()
+        .await?
+        .iter()
+        .map(|role| RoleId(*role as u64))
         .collect::<Vec<RoleId>>();
 
     // Create the list for the roles
