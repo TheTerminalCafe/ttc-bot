@@ -343,7 +343,6 @@ async fn main() {
                 commands::admin::create_verification(),
                 commands::admin::create_selfroles(),
                 commands::admin::create_support_ticket_button(),
-                commands::admin::create_webhooks(),
                 commands::admin::rebuild_emoji_cache(),
                 // General commands
                 commands::general::ping(),
