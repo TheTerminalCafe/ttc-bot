@@ -2,7 +2,7 @@ use crate::{
     types::{Context, Error},
     utils::{
         bee_utils::{BeeifiedUser, BeezoneChannel},
-        helper_functions::format_duration,
+        helper_functions::{check_duration, format_duration},
     },
 };
 use chrono::{Duration, Utc};
@@ -250,6 +250,7 @@ pub async fn timeout(
     }
 
     let duration = Duration::from_std(humantime::parse_duration(&duration_str)?)?;
+    check_duration(duration, 28)?;
     member
         .disable_communication_until_datetime(
             ctx.discord(),
@@ -357,6 +358,8 @@ pub async fn beeify(
     #[description = "Whether to use beelate or not"] beelate: bool,
 ) -> Result<(), Error> {
     let duration = Duration::from_std(humantime::parse_duration(&duration_str)?)?;
+    // ~110 years; it's mainly here to prevent the bot from panicking
+    check_duration(duration, 40000)?;
     let timestamp: Timestamp = (Utc::now() + duration).into();
 
     if user.user.bot {
@@ -482,6 +485,8 @@ pub async fn beezone(
         return Ok(());
     }
     let duration = Duration::from_std(humantime::parse_duration(&duration_str)?)?;
+    // ~110 years; it's mainly here to prevent the bot from panicking
+    check_duration(duration, 40000)?;
     let timestamp: Timestamp = (Utc::now() + duration).into();
 
     beezone_channels.insert(ctx.channel_id(), BeezoneChannel::new(timestamp, beelate));
