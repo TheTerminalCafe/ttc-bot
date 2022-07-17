@@ -44,6 +44,18 @@ macro_rules! config_function {
                 .collect::<Vec<$_type>>())
         }
     };
+
+    ($sql:expr, $name:ident, $name_2:ident, Vec<$_type:ty>) => {
+        pub async fn $name(&self) -> Result<Vec<$_type>, ::sqlx::Error> {
+            Ok(::sqlx::query!($sql)
+                .fetch_all(&self.pool)
+                .await?
+                .into_iter()
+                .map(|record| (record.$name, record.$name_2))
+                .collect::<Vec<$_type>>())
+        }
+    };
+
     ($sql:expr, $name:ident, $_type:ty) => {
         pub async fn $name(&self) -> Result<$_type, ::sqlx::Error> {
             Ok(::sqlx::query!($sql).fetch_one(&self.pool).await?.$name)

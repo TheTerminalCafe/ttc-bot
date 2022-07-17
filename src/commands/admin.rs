@@ -4,7 +4,9 @@
 
 use std::time::Instant;
 
-use poise::serenity_prelude::{ButtonStyle, Color, CreateSelectMenu, GuildChannel, Role, RoleId};
+use poise::serenity_prelude::{
+    ButtonStyle, Color, CreateSelectMenu, Emoji, GuildChannel, Role, RoleId,
+};
 
 use crate::{
     types::{self, Context, Error},
@@ -53,6 +55,7 @@ pub async fn manage_commands(ctx: types::Context<'_>) -> Result<(), types::Error
 #[poise::command(
     prefix_command,
     slash_command,
+    guild_only,
     owners_only,
     hide_in_help,
     category = "Admin"
@@ -95,6 +98,7 @@ pub async fn create_verification(
 #[poise::command(
     prefix_command,
     slash_command,
+    guild_only,
     owners_only,
     hide_in_help,
     category = "Admin"
@@ -110,50 +114,51 @@ pub async fn create_selfroles(
     let mut menu = CreateSelectMenu::default();
     menu.custom_id("ttc-bot-self-role-menu");
 
-    let raw_role_list = ctx
-        .data()
-        .selfroles()
-        .await?
-        .iter()
-        .map(|role| RoleId(*role as u64))
-        .collect::<Vec<RoleId>>();
+    let raw_selfroles = ctx.data().selfroles().await?;
 
-    // Create the list for the roles
-    let mut role_list: Vec<Role> = Vec::new();
-
-    let roles = guild_id.roles(ctx.discord()).await?;
-
-    // Get the roles
-    for role_id in &raw_role_list {
-        if roles.contains_key(role_id) {
-            let role = roles[&role_id].clone();
-            role_list.push(role);
-        } else {
-            ctx.send(|m| {
-                m.embed(|e| {
-                    e.title("Invalid role")
-                        .description("No role with id {} found on this server")
-                        .color(Color::RED)
-                })
-                .ephemeral(true)
-            })
-            .await?;
-        }
-    }
-
-    // Make sure some valid roles were procided
-    if role_list.len() == 0 {
-        return Err(Error::from("None of the provided roles were valid."));
+    if raw_selfroles.len() == 0 {
+        return Err(Error::from("No roles in the Database"));
     }
 
     // Set the menu values properly
     menu.min_values(0);
-    menu.max_values(role_list.len() as u64);
+    menu.max_values(raw_selfroles.len() as u64);
+
+    let role_hmap = guild_id.roles(ctx.discord()).await?;
+    let emojis = guild_id.emojis(ctx.discord()).await?;
+
+    let mut option_data: Vec<(Role, Option<Emoji>)> = Vec::new();
+
+    for val in raw_selfroles {
+        let role = match role_hmap.get(&RoleId(val.0 as u64)) {
+            Some(role) => role,
+            None => {
+                return Err(Error::from(format!("Invalid role with ID {}", val.0)));
+            }
+        };
+        // This could be optimized so it isn't O(n^2)
+        let mut emoji = None;
+        if val.1.is_some() {
+            emoji = emojis
+                .clone()
+                .into_iter()
+                .find(|e| e.name == val.1.clone().unwrap());
+        }
+        option_data.push((role.clone(), emoji));
+    }
 
     // Create the options for the roles
     menu.options(|m| {
-        for role in role_list {
-            m.create_option(|o| o.label(role.name).value(role.id));
+        for val in option_data {
+            let role = val.0;
+            match val.1 {
+                Some(emoji) => {
+                    m.create_option(|o| o.label(role.name).value(role.id).emoji(emoji));
+                }
+                None => {
+                    m.create_option(|o| o.label(role.name).value(role.id));
+                }
+            }
         }
         m
     });

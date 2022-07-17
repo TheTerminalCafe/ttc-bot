@@ -96,10 +96,11 @@ impl Data {
         Vec<String>
     );
     config_function!(
-        r#"select role_id as selfroles
+        r#"select role_id as selfroles, emoji_name
         from ttc_selfroles"#,
         selfroles,
-        Vec<i64>
+        emoji_name,
+        Vec<(i64, Option<String>)>
     );
 }
 
