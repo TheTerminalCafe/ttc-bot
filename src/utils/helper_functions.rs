@@ -189,6 +189,9 @@ pub fn format_duration(dur: &chrono::Duration) -> String {
         1 => result = format!("{} {} Second", result, seconds),
         _ => result = format!("{} {} Seconds", result, seconds),
     }
+    if result.len() == 0 {
+        result = format!("0 Seconds");
+    }
     result.trim_end().to_owned()
 }
 
