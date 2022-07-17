@@ -7,6 +7,7 @@ use std::time::Instant;
 use poise::serenity_prelude::{
     ButtonStyle, Color, CreateSelectMenu, Emoji, GuildChannel, Role, RoleId,
 };
+use std::collections::HashMap;
 
 use crate::{
     types::{self, Context, Error},
@@ -127,7 +128,11 @@ pub async fn create_selfroles(
     let role_hmap = guild_id.roles(ctx.discord()).await?;
     let emojis = guild_id.emojis(ctx.discord()).await?;
 
-    let mut option_data: Vec<(Role, Option<Emoji>)> = Vec::new();
+    let mut option_data: Vec<(Role, Option<&Emoji>)> = Vec::new();
+    let mut emoji_hmap = HashMap::new();
+    for emoji in &emojis {
+        emoji_hmap.insert(emoji.name.clone(), emoji.clone());
+    }
 
     for val in raw_selfroles {
         let role = match role_hmap.get(&RoleId(val.0 as u64)) {
@@ -136,14 +141,7 @@ pub async fn create_selfroles(
                 return Err(Error::from(format!("Invalid role with ID {}", val.0)));
             }
         };
-        // This could be optimized so it isn't O(n^2)
-        let mut emoji = None;
-        if val.1.is_some() {
-            emoji = emojis
-                .clone()
-                .into_iter()
-                .find(|e| e.name == val.1.clone().unwrap());
-        }
+        let emoji = emoji_hmap.get(&val.1.unwrap_or(String::from("")));
         option_data.push((role.clone(), emoji));
     }
 
@@ -153,7 +151,7 @@ pub async fn create_selfroles(
             let role = val.0;
             match val.1 {
                 Some(emoji) => {
-                    m.create_option(|o| o.label(role.name).value(role.id).emoji(emoji));
+                    m.create_option(|o| o.label(role.name).value(role.id).emoji(emoji.clone()));
                 }
                 None => {
                     m.create_option(|o| o.label(role.name).value(role.id));
