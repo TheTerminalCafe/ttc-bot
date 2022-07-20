@@ -1,3 +1,4 @@
+/*
 use poise::serenity_prelude::{Color, Message};
 
 use crate::{
@@ -9,7 +10,7 @@ pub async fn get(ctx: Context<'_>, #[description = "Name of the property"] prope
     Ok(())
 }
 
-/*#[poise::command(slash_command, prefix_command, owner_only)]
+#[poise::command(slash_command, prefix_command, owner_only)]
 async fn set(ctx: Context<'_>, #[description = "The name of the value"] property: String, #[description = "Value to set it to"]) -> CommandResult {
     args.quoted();
     // Get the config from the database
