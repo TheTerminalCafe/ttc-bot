@@ -2,11 +2,11 @@ use crate::{
     types::{Context, Error},
     utils::{
         bee_utils::{BeeifiedUser, BeezoneChannel},
-        helper_functions::{check_duration, format_duration},
+        helper_functions::{check_duration, format_duration, ttc_reply},
     },
 };
 use chrono::{Duration, Utc};
-use poise::serenity_prelude::{Color, Member, Timestamp, UserId};
+use poise::serenity_prelude::{Member, Timestamp, UserId};
 
 /// Ban a member
 ///
@@ -30,14 +30,11 @@ pub async fn ban(
 ) -> Result<(), Error> {
     // Make sure people do not ban themselves
     if member.user == *ctx.author() {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("That's a bad idea")
-                    .description("You should not try to ban yourself.")
-                    .color(Color::RED)
-            })
-            .ephemeral(true)
-        })
+        ttc_reply::input_error(
+            &ctx,
+            "That's a bad idea",
+            "You should not try to ban yourself.",
+        )
         .await?;
         return Ok(());
     }
@@ -52,13 +49,11 @@ pub async fn ban(
         }
     }
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Banhammer has been swung.")
-                .description(format!("{} has been banned.", member.user.tag()))
-                .color(Color::RED)
-        })
-    })
+    ttc_reply::mod_punish(
+        &ctx,
+        "Banhammer has been swung.",
+        &format!("{} has been banned.", member.user.tag()),
+    )
     .await?;
 
     Ok(())
@@ -82,14 +77,11 @@ pub async fn idban(
     #[description = "Reason"] reason: Option<String>,
 ) -> Result<(), Error> {
     if user_id == ctx.author().id {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("That's a bad idea")
-                    .description("You should not try to ban yourself.")
-                    .color(Color::RED)
-            })
-            .ephemeral(true)
-        })
+        ttc_reply::input_error(
+            &ctx,
+            "That's a bad idea",
+            "You should not try to ban yourself.",
+        )
         .await?;
         return Ok(());
     }
@@ -109,13 +101,11 @@ pub async fn idban(
         }
     }
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Banhammer has been swung.")
-                .description(format!("{} has been banned.", user_id))
-                .color(Color::RED)
-        })
-    })
+    ttc_reply::mod_punish(
+        &ctx,
+        "Banhammer has been swung",
+        &format!("{} has been banned.", user_id),
+    )
     .await?;
 
     Ok(())
@@ -139,14 +129,11 @@ pub async fn pardon(
     let author = ctx.author();
 
     if author.id == user {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("I doubt there is a need for that")
-                    .description("Why are you trying to unban yourself, why?")
-                    .color(Color::DARK_RED)
-            })
-            .ephemeral(true)
-        })
+        ttc_reply::input_error(
+            &ctx,
+            "I doubt there is a need for that",
+            "Why are you trying to unban yourself, why?",
+        )
         .await?;
         return Ok(());
     }
@@ -154,13 +141,12 @@ pub async fn pardon(
     ctx.guild_id().unwrap().unban(&ctx.discord(), user).await?;
 
     let tag = user.to_user(ctx.discord()).await?.tag();
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("User forgiven")
-                .description(format!("User {} has been unbanned", tag))
-                .color(Color::FOOYOO)
-        })
-    })
+    ttc_reply::mod_success(
+        &ctx,
+        "User forgiven",
+        &format!("User {} has been unbanned", tag),
+        false,
+    )
     .await?;
     Ok(())
 }
@@ -183,14 +169,11 @@ pub async fn kick(
 ) -> Result<(), Error> {
     let author: Member = ctx.author_member().await.unwrap();
     if author.user == member.user {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("That's a bad idea.")
-                    .description("You really should not try to kick yourself.")
-                    .color(Color::DARK_RED)
-            })
-            .ephemeral(true)
-        })
+        ttc_reply::input_error(
+            &ctx,
+            "That's a bad idea",
+            "You really should not try to kick yourself.",
+        )
         .await?;
         return Ok(());
     }
@@ -200,16 +183,14 @@ pub async fn kick(
         None => member.kick(ctx.discord()).await?,
     }
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("The boot of justice has decided.")
-                .description(format!(
-                    "{} kicked. I hope justice has been made.",
-                    member.user.tag()
-                ))
-                .color(Color::RED)
-        })
-    })
+    ttc_reply::mod_punish(
+        &ctx,
+        "The boot of justice has decided",
+        &format!(
+            "{} kicked. I hope justice has been made.",
+            member.user.tag()
+        ),
+    )
     .await?;
     Ok(())
 }
@@ -237,14 +218,11 @@ pub async fn timeout(
 ) -> Result<(), Error> {
     let author: Member = ctx.author_member().await.unwrap();
     if author.user == member.user {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("That's a bad idea.")
-                    .description("If you don't want to speak you can, you know, just not do that.")
-                    .color(Color::DARK_RED)
-            })
-            .ephemeral(true)
-        })
+        ttc_reply::input_error(
+            &ctx,
+            "That's a bad idea",
+            "If you don't want to speak you can, you know, just not do that.",
+        )
         .await?;
         return Ok(());
     }
@@ -258,17 +236,15 @@ pub async fn timeout(
         )
         .await?;
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("User timed out")
-                .description(format!(
-                    "User {} timed out for {}",
-                    member.user.tag(),
-                    format_duration(&duration)
-                ))
-                .color(Color::RED)
-        })
-    })
+    ttc_reply::mod_punish(
+        &ctx,
+        "User timed out",
+        &format!(
+            "User {} timed out for {}",
+            member.user.tag(),
+            format_duration(&duration)
+        ),
+    )
     .await?;
 
     Ok(())
@@ -290,27 +266,21 @@ pub async fn purge(
     #[description = "Amount"] mut amount: u64,
 ) -> Result<(), Error> {
     if amount == 0 {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("It's useless to delete 0 messages")
-                    .description("Why would you want to do that?")
-                    .color(Color::DARK_RED)
-            })
-            .ephemeral(true)
-        })
+        ttc_reply::input_error(
+            &ctx,
+            "It's useless to delete 0 messages",
+            "Why would you want to do that?",
+        )
         .await?;
         return Ok(());
     }
 
     if amount > 100 {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("Can't delete over 100 messages")
-                    .description("Setting amount to 100")
-                    .color(Color::RED)
-            })
-            .ephemeral(true)
-        })
+        ttc_reply::input_warn(
+            &ctx,
+            "n't delete over 100 messages",
+            "Setting amount to 100",
+        )
         .await?;
         amount = 100;
     }
@@ -323,14 +293,12 @@ pub async fn purge(
         .delete_messages(ctx.discord(), messages)
         .await?;
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Deleted")
-                .description(format!("Deleted {} messages", amount))
-                .color(Color::FOOYOO)
-        })
-        .ephemeral(true)
-    })
+    ttc_reply::mod_success(
+        &ctx,
+        "Deleted",
+        &format!("Deleted {} messages", amount),
+        true,
+    )
     .await?;
     Ok(())
 }
@@ -363,46 +331,29 @@ pub async fn beeify(
     let timestamp: Timestamp = (Utc::now() + duration).into();
 
     if user.user.bot {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("That's a bad idea.")
-                    .description("Bots can't be beeified.")
-                    .color(Color::DARK_RED)
-            })
-            .ephemeral(true)
-        })
-        .await?;
+        ttc_reply::input_error(&ctx, "That's a bad idea", "Bots can't be beeified.").await?;
         return Ok(());
     }
 
     let mut beeified_users = ctx.data().beeified_users.write().await;
 
     if beeified_users.contains_key(&user.user.id) {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("Already beeified")
-                    .description("This user is already beeified")
-                    .color(Color::DARK_RED)
-            })
-            .ephemeral(true)
-        })
-        .await?;
+        ttc_reply::input_error(&ctx, "Already beeified", "This user is already beeified.").await?;
         return Ok(());
     }
 
     beeified_users.insert(user.user.id, BeeifiedUser::new(timestamp, beelate));
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Beeified")
-                .description(format!(
-                    "User <@{}> beeified for {}",
-                    user.user.id,
-                    format_duration(&duration)
-                ))
-                .color(Color::FOOYOO)
-        })
-    })
+    ttc_reply::mod_success(
+        &ctx,
+        "Beeified",
+        &format!(
+            "User <@{}> beeified for {}",
+            user.user.id,
+            format_duration(&duration)
+        ),
+        false,
+    )
     .await?;
 
     Ok(())
@@ -426,27 +377,18 @@ pub async fn unbeeify(
     let mut beeified_users = ctx.data().beeified_users.write().await;
 
     if !beeified_users.contains_key(&user.user.id) {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("Not beeified")
-                    .description("This user is not beeified")
-                    .color(Color::DARK_RED)
-            })
-            .ephemeral(true)
-        })
-        .await?;
+        ttc_reply::input_error(&ctx, "Not beeified", "This user is not beeified").await?;
         return Ok(());
     }
 
     beeified_users.remove(&user.user.id);
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Unbeeified")
-                .description(format!("User <@{}> unbeeified", user.user.id))
-                .color(Color::FOOYOO)
-        })
-    })
+    ttc_reply::mod_success(
+        &ctx,
+        "Unbeeified",
+        &format!("User <@{}> unbeeified", user.user.id),
+        false,
+    )
     .await?;
 
     Ok(())
@@ -473,15 +415,8 @@ pub async fn beezone(
     let mut beezone_channels = ctx.data().beezone_channels.write().await;
 
     if beezone_channels.contains_key(&ctx.channel_id()) {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("Already beezoned")
-                    .description("This channel is already beezoned")
-                    .color(Color::DARK_RED)
-            })
-            .ephemeral(true)
-        })
-        .await?;
+        ttc_reply::input_error(&ctx, "Already beezoned", "This channel is already beezoned")
+            .await?;
         return Ok(());
     }
     let duration = Duration::from_std(humantime::parse_duration(&duration_str)?)?;
@@ -491,17 +426,16 @@ pub async fn beezone(
 
     beezone_channels.insert(ctx.channel_id(), BeezoneChannel::new(timestamp, beelate));
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Beezoned")
-                .description(format!(
-                    "Channel <#{}> beezoned for {}",
-                    ctx.channel_id(),
-                    format_duration(&duration)
-                ))
-                .color(Color::FOOYOO)
-        })
-    })
+    ttc_reply::mod_success(
+        &ctx,
+        "Beezoned",
+        &format!(
+            "Channel <#{}> beezoned for {}",
+            ctx.channel_id(),
+            format_duration(&duration)
+        ),
+        false,
+    )
     .await?;
 
     Ok(())
@@ -522,27 +456,18 @@ pub async fn unbeezone(ctx: Context<'_>) -> Result<(), Error> {
     let mut beezone_channels = ctx.data().beezone_channels.write().await;
 
     if !beezone_channels.contains_key(&ctx.channel_id()) {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("Not beezoned")
-                    .description("This channel is not beezoned")
-                    .color(Color::DARK_RED)
-            })
-            .ephemeral(true)
-        })
-        .await?;
+        ttc_reply::input_error(&ctx, "Not beezoned", "This channel is not beezoned.").await?;
         return Ok(());
     }
 
     beezone_channels.remove(&ctx.channel_id());
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Unbeezoned")
-                .description(format!("Channel <#{}> unbeezoned", ctx.channel_id()))
-                .color(Color::FOOYOO)
-        })
-    })
+    ttc_reply::mod_success(
+        &ctx,
+        "Unbeezoned",
+        &format!("Channel <#{}> unbeezoned", ctx.channel_id()),
+        false,
+    )
     .await?;
 
     Ok(())

@@ -1,10 +1,11 @@
 use std::time::Duration;
 
-use poise::serenity_prelude::{Color, Context, Mentionable, Message, MessageType, Timestamp};
+use poise::serenity_prelude::{Context, Mentionable, Message, MessageType, Timestamp};
 
-use crate::ttc_unwrap;
+use crate::{ttc_unwrap, types::Data};
 
-pub async fn message(ctx: &Context, msg: &Message) {
+pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
+    let color = data.bump_message().await;
     match msg.kind {
         MessageType::ChatInputCommand => {
             if msg.interaction.as_ref().unwrap().name == "bump" {
@@ -19,7 +20,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
                                             e.title("Bumpy wumpy")
                                                 .description("Thank you for bumping the server, we will make sure to remind you 2 hours from now to do that again.")
                                                 .timestamp(Timestamp::now())
-                                                .color(Color::PURPLE)
+                                                .color(color)
                                             )
                                         )
                                         .await, "Error sending message");
@@ -33,7 +34,7 @@ pub async fn message(ctx: &Context, msg: &Message) {
                                             e.title("It is bumpy time!")
                                                 .description("I am once again asking for you to bump our server.")
                                                 .timestamp(Timestamp::now())
-                                                .color(Color::PURPLE)
+                                                .color(color)
                                             )
                                         )
                                         .await, "Error sending message");

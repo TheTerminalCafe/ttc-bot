@@ -238,6 +238,19 @@ CREATE TABLE ttc_config (
 );
 
 
+-- public.ttc_embed_colors definition
+
+-- Drop table
+
+-- DROP TABLE ttc_embed_colors;
+
+CREATE TABLE ttc_embed_colors (
+  id serial4 NOT NULL,
+  embed_type varchar NOT NULL,
+  color BYTEA NOT NULL,
+  CONSTRAINT ttc_embed_colors_pk PRIMARY KEY (id)
+)
+
 -- public.ttc_config constraint definition
 
 ALTER TABLE public.ttc_config ADD CONSTRAINT fk_config_conveyance FOREIGN KEY (conveyance_id) REFERENCES ttc_conveyance_channel(id);

@@ -75,3 +75,52 @@ macro_rules! ttc_unwrap {
         }
     };
 }
+
+#[macro_export]
+macro_rules! ttc_embed_color {
+    ($_name:ident, $_cname: expr, $_default_color:expr) => {
+        pub async fn $_name(&self) -> ::poise::serenity_prelude::Color {
+            match self.get_embed_color($_cname).await {
+                Ok(color) => color,
+                Err(why) => {
+                    ::log::warn!("Error getting color for reply: {}", why);
+                    $_default_color
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! ttc_reply_generate {
+    ($_fname:ident, $_defcolor:expr) => {
+        pub async fn $_fname<T>(
+            ctx: &'_ Context<'_, Data, Error>,
+            title: T,
+            description: T,
+            ephemeral: bool,
+        ) -> Result<(), Error>
+        where
+            T: ToString,
+        {
+            let color = ctx.data().$_fname().await;
+            ttc_reply(ctx, color, ephemeral, title, description, vec![]).await?;
+            Ok(())
+        }
+    };
+
+    ($_fname:ident, $_defcolor:expr, $_ephemeral:expr) => {
+        pub async fn $_fname<T>(
+            ctx: &'_ Context<'_, Data, Error>,
+            title: T,
+            description: T,
+        ) -> Result<(), Error>
+        where
+            T: ToString,
+        {
+            let color = ctx.data().$_fname().await;
+            ttc_reply(ctx, color, $_ephemeral, title, description, vec![]).await?;
+            Ok(())
+        }
+    };
+}

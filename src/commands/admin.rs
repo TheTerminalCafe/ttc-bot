@@ -4,14 +4,12 @@
 
 use std::time::Instant;
 
-use poise::serenity_prelude::{
-    ButtonStyle, Color, CreateSelectMenu, Emoji, GuildChannel, Role, RoleId,
-};
+use poise::serenity_prelude::{ButtonStyle, CreateSelectMenu, Emoji, GuildChannel, Role, RoleId};
 use std::collections::HashMap;
 
 use crate::{
     types::{self, Context, Error},
-    utils::emoji_cache::EmojiCache,
+    utils::{emoji_cache::EmojiCache, helper_functions::ttc_reply},
 };
 
 /// Shutdown the bot
@@ -26,8 +24,7 @@ use crate::{
     category = "Admin"
 )]
 pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.send(|m| m.embed(|e| e.title("Goodbye!").color(Color::PURPLE)))
-        .await?;
+    ttc_reply::admin_success(&ctx, "Goodbye!", "").await?;
 
     ctx.framework()
         .shard_manager
@@ -65,9 +62,10 @@ pub async fn create_verification(
     ctx: Context<'_>,
     #[description = "Channel to send it in"] channel: GuildChannel,
 ) -> Result<(), Error> {
+    let color = ctx.data().verification_message().await;
     channel
         .send_message(ctx.discord(), |m| {
-            m.embed(|e| e.color(Color::FOOYOO).title("Be sure to follow the rules!"))
+            m.embed(|e| e.color(color).title("Be sure to follow the rules!"))
                 .components(|c| {
                     c.create_action_row(|a| {
                         a.create_button(|b| {
@@ -80,13 +78,11 @@ pub async fn create_verification(
         })
         .await?;
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Verification created")
-                .description(format!("Verification prompt created in <#{}>.", channel.id))
-                .color(Color::FOOYOO)
-        })
-    })
+    ttc_reply::admin_success(
+        &ctx,
+        "Verification created",
+        &format!("Verification prompt created in <#{}>.", channel.id),
+    )
     .await?;
 
     Ok(())
@@ -162,20 +158,20 @@ pub async fn create_selfroles(
     });
 
     // Create the menu in the specified channel
+    let color = ctx.data().selfrole_selection().await;
     channel
         .send_message(ctx.discord(), |m| {
             m.components(|c| c.create_action_row(|a| a.add_select_menu(menu)))
-                .embed(|e| e.title("Manage your self roles here").color(Color::PURPLE))
+                .embed(|e| e.title("Manage your self roles here").color(color))
         })
         .await?;
 
     // Reply to the user
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Self-role menu created")
-                .description(format!("Self-role menu created in <#{}>.", channel.id))
-        })
-    })
+    ttc_reply::admin_success(
+        &ctx,
+        "Self-role menu created",
+        &format!("Self-role menu created in <#{}>.", channel.id),
+    )
     .await?;
 
     Ok(())
@@ -200,15 +196,14 @@ pub async fn create_support_ticket_button(
     #[description = "Description for the support system"] description: String,
 ) -> Result<(), Error> {
     let support_channel = ctx.data().support_channel().await?;
+    let color = ctx.data().admin_success().await;
     channel
         .send_message(ctx.discord(), |m| {
             m.embed(|e| {
-                e.color(Color::FOOYOO)
-                    .title("Support tickets")
-                    .description(format!(
-                        "{}\n\nAll support tickets are created in <#{}>",
-                        description, support_channel
-                    ))
+                e.color(color).title("Support tickets").description(format!(
+                    "{}\n\nAll support tickets are created in <#{}>",
+                    description, support_channel
+                ))
             })
             .components(|c| {
                 c.create_action_row(|a| {
@@ -222,14 +217,11 @@ pub async fn create_support_ticket_button(
         })
         .await?;
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Support button created").description(format!(
-                "Support ticket button created in <#{}>",
-                channel.id
-            ))
-        })
-    })
+    ttc_reply::admin_success(
+        &ctx,
+        "Support button created",
+        &format!("Support ticket button created in <#{}>", channel.id),
+    )
     .await?;
 
     Ok(())
@@ -249,38 +241,31 @@ pub async fn create_support_ticket_button(
 )]
 pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
     if EmojiCache::is_running() {
-        ctx.send(|b| {
-            b.embed(|e| {
-                e.title("Emoji cache is already being updated")
-                    .description("Please try using this command later again")
-                    .color(Color::RED)
-            })
-            .ephemeral(true)
-        })
+        ttc_reply::general_error(
+            &ctx,
+            "Emoji cache is already being updated",
+            "Please try using this command later again",
+        )
         .await?;
     } else {
         let start_time = Instant::now();
         let mut emoji_cache = EmojiCache::new(&ctx.data().pool);
-        ctx.send(|b| {
-            b.embed(|e| {
-                e.title("Starting to rebuild the complete Emoji cache")
-                    .description("This is going to take *some* time")
-                    .color(Color::FOOYOO)
-            })
-        })
+        ttc_reply::emoji_info(
+            &ctx,
+            "Starting to rebuild the complete Emoji cache",
+            "This is going to take *some* time",
+        )
         .await?;
         emoji_cache.update_emoji_cache_poise(&ctx, true).await?;
         let elapsed = chrono::Duration::from_std(start_time.elapsed())?;
-        ctx.send(|b| {
-            b.embed(|e| {
-                e.title("Finished rebuilding the Emoji cache")
-                    .description(format!(
-                        "Things should be synced now again, time taken: {}",
-                        crate::utils::helper_functions::format_duration(&elapsed)
-                    ))
-                    .color(Color::FOOYOO)
-            })
-        })
+        ttc_reply::emoji_info(
+            &ctx,
+            "Finished rebuilding the Emoji cache",
+            &format!(
+                "Things should be synced now again, time taken: {}",
+                crate::utils::helper_functions::format_duration(&elapsed)
+            ),
+        )
         .await?;
     }
 

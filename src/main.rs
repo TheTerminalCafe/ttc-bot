@@ -36,7 +36,7 @@ mod types;
 
 use clap::{App, Arg};
 use futures::stream::StreamExt;
-use poise::serenity_prelude::{Activity, ChannelId, Color, GatewayIntents, RwLock};
+use poise::serenity_prelude::{Activity, ChannelId, GatewayIntents, RwLock};
 use regex::Regex;
 use serde_yaml::Value;
 use signal_hook::consts::TERM_SIGNALS;
@@ -147,9 +147,10 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
         }
     };
 
+    let color = ctx.data().general_error().await;
     match ctx
         .send(|m| {
-            m.embed(|e| e.title(title).description(description).color(Color::RED))
+            m.embed(|e| e.title(title).description(description).color(color))
                 .ephemeral(true)
         })
         .await

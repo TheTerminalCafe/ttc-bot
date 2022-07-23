@@ -138,13 +138,14 @@ pub async fn message_delete(
         "Error getting conveyance channels"
     );
 
+    let color = data.conveyance_msg_delete().await;
     for channel in &conv_channels {
         ttc_unwrap!(
             ChannelId(*channel as u64)
                 .send_message(ctx, |m| {
                     m.embed(|e| {
                         e.title("Message deleted")
-                            .color(Color::GOLD)
+                            .color(color)
                             .field("User", user.tag(), true)
                             .field("UserId", user.id, true)
                             .field(
@@ -198,7 +199,8 @@ pub async fn message_update(
     let mut message_embed = CreateEmbed::default();
     message_embed.title("Message edited");
     message_embed.timestamp(Utc::now());
-    message_embed.color(Color::DARK_GOLD);
+    let color = data.conveyance_msg_update().await;
+    message_embed.color(color);
 
     // Get the user info if it is available from the event
     match &event.author {
@@ -330,13 +332,14 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member, data: &Da
         data.conveyance_channel().await,
         "Error getting conveyance channels"
     );
+    let color = data.conveyance_member_join().await;
     for channel in &conv_channels {
         ttc_unwrap!(
             ChannelId(*channel as u64)
                 .send_message(ctx, |m| {
                     m.embed(|e| {
                         e.title("New member joined")
-                            .color(Color::FOOYOO)
+                            .color(color)
                             .field("User", new_member.user.tag(), true)
                             .field("UserID", new_member.user.id, true)
                             .field(
@@ -370,13 +373,14 @@ pub async fn guild_member_removal(
         data.conveyance_channel().await,
         "Error getting conveyance channels"
     );
+    let color = data.conveyance_member_leave().await;
     for channel in &conv_channels {
         ttc_unwrap!(
             ChannelId(*channel as u64)
                 .send_message(ctx, |m| {
                     m.embed(|e| {
                         e.title("Member left")
-                            .color(Color::RED)
+                            .color(color)
                             .field("User", user.tag(), true)
                             .field("UserID", user.id, true)
                             .field("Joined at", joined_at.clone(), false)
@@ -393,6 +397,7 @@ pub async fn guild_ban_addition(ctx: &Context, banned_user: &User, data: &Data) 
         "Error getting conveyance channels"
     );
 
+    let color = data.conveyance_ban_addition().await;
     for channel in &conv_channels {
         ttc_unwrap!(
             ChannelId(*channel as u64)
@@ -401,7 +406,7 @@ pub async fn guild_ban_addition(ctx: &Context, banned_user: &User, data: &Data) 
                         e.title("User banned.")
                             .field("User", banned_user.tag(), true)
                             .field("UserID", banned_user.id, true)
-                            .color(Color::DARK_RED)
+                            .color(color)
                     })
                 })
                 .await,
@@ -415,6 +420,7 @@ pub async fn guild_ban_removal(ctx: &Context, unbanned_user: &User, data: &Data)
         data.conveyance_channel().await,
         "Error getting conveyance channels"
     );
+    let color = data.conveyance_unban().await;
     for channel in &conv_channels {
         ttc_unwrap!(
             ChannelId(*channel as u64)
@@ -423,7 +429,7 @@ pub async fn guild_ban_removal(ctx: &Context, unbanned_user: &User, data: &Data)
                         e.title("User unbanned")
                             .field("User", unbanned_user.tag(), true)
                             .field("UserID", unbanned_user.id, true)
-                            .color(Color::FOOYOO)
+                            .color(color)
                     })
                 })
                 .await,
@@ -516,6 +522,7 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
         data.conveyance_channel().await,
         "Error getting conveyance channels"
     );
+    let color = data.conveyance_member_update().await;
     for channel in &conv_channels {
         ttc_unwrap!(
             ChannelId(*channel as u64)
@@ -529,7 +536,7 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
                             .field("New nickname", &new_nickname, true)
                             .field("Old roles", &old_roles_string, false)
                             .field("New roles", &new_roles_string, false)
-                            .color(Color::ORANGE)
+                            .color(color)
                     })
                 })
                 .await,

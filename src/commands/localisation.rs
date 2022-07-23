@@ -1,9 +1,11 @@
 use crate::{
     command_error,
-    utils::{autocomplete_functions::language_autocomplete, bee_utils},
+    utils::{
+        autocomplete_functions::language_autocomplete, bee_utils, helper_functions::ttc_reply,
+    },
     Context, Error,
 };
-use poise::serenity_prelude::{Color, Message};
+use poise::serenity_prelude::Message;
 use serde_json::Value;
 
 pub const LANGUAGE_CODES: [(&str, &str); 105] = [
@@ -136,14 +138,11 @@ pub async fn translate(
         if beeified_users.contains_key(&ctx.author().id)
             || beezone_channels.contains_key(&ctx.channel_id())
         {
-            ctx.send(|m| {
-                m.embed(|e| {
-                    e.title("You are a bee!")
-                        .description("Bees can't translate, bees can only... bee.")
-                        .color(Color::KERBAL)
-                })
-                .ephemeral(true)
-            })
+            ttc_reply::bee_translate_block(
+                &ctx,
+                "You are a bee!",
+                "Bees can't translate, bees can only... bee.",
+            )
             .await?;
             return Ok(());
         }
@@ -154,16 +153,15 @@ pub async fn translate(
     let (source_lang, translated_text) = translate_text(lang.clone(), &text_to_translate).await?;
 
     // Send the translated message
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Translated Message")
-                .description(format!("{} -> {}", source_lang, lang))
-                .field("Original Message", text_to_translate, false)
-                .field("Translated Message", translated_text, false)
-                .color(Color::FOOYOO)
-        })
-        .ephemeral(true)
-    })
+    ttc_reply::translate(
+        &ctx,
+        "Translated Message",
+        &format!("{} -> {}", source_lang, lang),
+        vec![
+            ("Original Message", &text_to_translate),
+            ("Translated Message", &translated_text),
+        ],
+    )
     .await?;
 
     Ok(())
@@ -184,15 +182,15 @@ pub async fn translate_to_en(
     let (source_lang, translated_text) = translate_text("en".to_string(), &msg.content).await?;
 
     // Send the translated message
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Translated Message")
-                .description(format!("{} -> English", source_lang))
-                .field("Original Message", msg.content, false)
-                .field("Translated Message", translated_text, false)
-                .color(Color::FOOYOO)
-        })
-    })
+    ttc_reply::translate(
+        &ctx,
+        "Translated Message",
+        &format!("{} -> English", source_lang),
+        vec![
+            ("Original Message", &msg.content),
+            ("Translated Message", &translated_text),
+        ],
+    )
     .await?;
 
     Ok(())

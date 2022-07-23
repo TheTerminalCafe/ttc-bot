@@ -1,13 +1,10 @@
 use crate::{
     command_error,
     types::{Context, Error},
-    utils::helper_functions::format_datetime,
+    utils::helper_functions::{format_datetime, ttc_reply},
 };
 use chrono::{DateTime, Utc};
-use poise::{
-    serenity_prelude::{Color, CreateEmbed},
-    CreateReply,
-};
+use poise::{serenity_prelude::CreateEmbed, CreateReply};
 
 // ----------------------------
 // Support thread related types
@@ -76,14 +73,7 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
 
     // Make sure thread is not yet solved
     if thread.incident_solved {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("Error")
-                    .description("This ticket is already solved.")
-                    .color(Color::RED)
-            })
-        })
-        .await?;
+        ttc_reply::input_error(&ctx, "Error", "This ticket is already solved.").await?;
     }
 
     // Update the state to be solved
@@ -100,13 +90,11 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
         }
     }
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Great!")
-                .description("Now that this ticket has been solved, this thread will be archived.")
-                .color(Color::FOOYOO)
-        })
-    })
+    ttc_reply::support_info(
+        &ctx,
+        "Great!",
+        "Now that this ticket has been solved, this thread will be archived.",
+    )
     .await?;
 
     let mut new_thread_name = format!(
@@ -179,19 +167,18 @@ async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
     .await?;
 
     let mut msg = if threads.len() != 0 {
+        let color = ctx.data().support_info().await;
         let mut msg = CreateReply::default();
-        msg.embed(|e| {
-            e.title("List of support tickets found:")
-                .color(Color::FOOYOO)
-        });
+        msg.embed(|e| e.title("List of support tickets found:").color(color));
 
         for thread in &threads {
             msg.embed(|e| support_ticket_embed(thread, e));
         }
         msg
     } else {
+        let color = ctx.data().general_error().await;
         let mut msg = CreateReply::default();
-        msg.embed(|e| e.title("No support tickets found.").color(Color::RED));
+        msg.embed(|e| e.title("No support tickets found.").color(color));
         msg
     };
 
@@ -214,11 +201,7 @@ async fn search_id(ctx: Context<'_>, id: u32) -> Result<(), Error> {
     {
         Ok(thread) => thread,
         Err(_) => {
-            ctx.send(|m| {
-                m.ephemeral(true)
-                    .embed(|e| e.title("No such ticket found").color(Color::RED))
-            })
-            .await?;
+            ttc_reply::general_error(&ctx, "No such ticket found", "").await?;
             return Ok(());
         }
     };

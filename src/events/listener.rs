@@ -15,7 +15,7 @@ pub async fn listener(
     match event {
         Message { new_message } => {
             crate::events::conveyance::message(ctx, new_message, data).await;
-            crate::events::bumpy_business::message(ctx, new_message).await;
+            crate::events::bumpy_business::message(ctx, new_message, data).await;
             crate::events::bee::message(ctx, new_message, data).await;
             crate::events::easter_egg::message(ctx, new_message, data, &framework_context).await;
         }
