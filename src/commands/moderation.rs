@@ -2,7 +2,7 @@ use crate::{
     types::{Context, Error},
     utils::{
         bee_utils::{BeeifiedUser, BeezoneChannel},
-        helper_functions::{check_duration, format_duration, ttc_reply},
+        helper_functions::{check_duration, format_duration, reply},
     },
 };
 use chrono::{Duration, Utc};
@@ -30,7 +30,7 @@ pub async fn ban(
 ) -> Result<(), Error> {
     // Make sure people do not ban themselves
     if member.user == *ctx.author() {
-        ttc_reply::input_error(
+        reply::input_error(
             &ctx,
             "That's a bad idea",
             "You should not try to ban yourself.",
@@ -49,7 +49,7 @@ pub async fn ban(
         }
     }
 
-    ttc_reply::mod_punish(
+    reply::mod_punish(
         &ctx,
         "Banhammer has been swung.",
         &format!("{} has been banned.", member.user.tag()),
@@ -77,7 +77,7 @@ pub async fn idban(
     #[description = "Reason"] reason: Option<String>,
 ) -> Result<(), Error> {
     if user_id == ctx.author().id {
-        ttc_reply::input_error(
+        reply::input_error(
             &ctx,
             "That's a bad idea",
             "You should not try to ban yourself.",
@@ -101,7 +101,7 @@ pub async fn idban(
         }
     }
 
-    ttc_reply::mod_punish(
+    reply::mod_punish(
         &ctx,
         "Banhammer has been swung",
         &format!("{} has been banned.", user_id),
@@ -129,7 +129,7 @@ pub async fn pardon(
     let author = ctx.author();
 
     if author.id == user {
-        ttc_reply::input_error(
+        reply::input_error(
             &ctx,
             "I doubt there is a need for that",
             "Why are you trying to unban yourself, why?",
@@ -141,7 +141,7 @@ pub async fn pardon(
     ctx.guild_id().unwrap().unban(&ctx.discord(), user).await?;
 
     let tag = user.to_user(ctx.discord()).await?.tag();
-    ttc_reply::mod_success(
+    reply::mod_success(
         &ctx,
         "User forgiven",
         &format!("User {} has been unbanned", tag),
@@ -169,7 +169,7 @@ pub async fn kick(
 ) -> Result<(), Error> {
     let author: Member = ctx.author_member().await.unwrap();
     if author.user == member.user {
-        ttc_reply::input_error(
+        reply::input_error(
             &ctx,
             "That's a bad idea",
             "You really should not try to kick yourself.",
@@ -183,7 +183,7 @@ pub async fn kick(
         None => member.kick(ctx.discord()).await?,
     }
 
-    ttc_reply::mod_punish(
+    reply::mod_punish(
         &ctx,
         "The boot of justice has decided",
         &format!(
@@ -218,7 +218,7 @@ pub async fn timeout(
 ) -> Result<(), Error> {
     let author: Member = ctx.author_member().await.unwrap();
     if author.user == member.user {
-        ttc_reply::input_error(
+        reply::input_error(
             &ctx,
             "That's a bad idea",
             "If you don't want to speak you can, you know, just not do that.",
@@ -236,7 +236,7 @@ pub async fn timeout(
         )
         .await?;
 
-    ttc_reply::mod_punish(
+    reply::mod_punish(
         &ctx,
         "User timed out",
         &format!(
@@ -266,7 +266,7 @@ pub async fn purge(
     #[description = "Amount"] mut amount: u64,
 ) -> Result<(), Error> {
     if amount == 0 {
-        ttc_reply::input_error(
+        reply::input_error(
             &ctx,
             "It's useless to delete 0 messages",
             "Why would you want to do that?",
@@ -276,7 +276,7 @@ pub async fn purge(
     }
 
     if amount > 100 {
-        ttc_reply::input_warn(
+        reply::input_warn(
             &ctx,
             "n't delete over 100 messages",
             "Setting amount to 100",
@@ -293,7 +293,7 @@ pub async fn purge(
         .delete_messages(ctx.discord(), messages)
         .await?;
 
-    ttc_reply::mod_success(
+    reply::mod_success(
         &ctx,
         "Deleted",
         &format!("Deleted {} messages", amount),
@@ -331,20 +331,20 @@ pub async fn beeify(
     let timestamp: Timestamp = (Utc::now() + duration).into();
 
     if user.user.bot {
-        ttc_reply::input_error(&ctx, "That's a bad idea", "Bots can't be beeified.").await?;
+        reply::input_error(&ctx, "That's a bad idea", "Bots can't be beeified.").await?;
         return Ok(());
     }
 
     let mut beeified_users = ctx.data().beeified_users.write().await;
 
     if beeified_users.contains_key(&user.user.id) {
-        ttc_reply::input_error(&ctx, "Already beeified", "This user is already beeified.").await?;
+        reply::input_error(&ctx, "Already beeified", "This user is already beeified.").await?;
         return Ok(());
     }
 
     beeified_users.insert(user.user.id, BeeifiedUser::new(timestamp, beelate));
 
-    ttc_reply::mod_success(
+    reply::mod_success(
         &ctx,
         "Beeified",
         &format!(
@@ -377,13 +377,13 @@ pub async fn unbeeify(
     let mut beeified_users = ctx.data().beeified_users.write().await;
 
     if !beeified_users.contains_key(&user.user.id) {
-        ttc_reply::input_error(&ctx, "Not beeified", "This user is not beeified").await?;
+        reply::input_error(&ctx, "Not beeified", "This user is not beeified").await?;
         return Ok(());
     }
 
     beeified_users.remove(&user.user.id);
 
-    ttc_reply::mod_success(
+    reply::mod_success(
         &ctx,
         "Unbeeified",
         &format!("User <@{}> unbeeified", user.user.id),
@@ -415,8 +415,7 @@ pub async fn beezone(
     let mut beezone_channels = ctx.data().beezone_channels.write().await;
 
     if beezone_channels.contains_key(&ctx.channel_id()) {
-        ttc_reply::input_error(&ctx, "Already beezoned", "This channel is already beezoned")
-            .await?;
+        reply::input_error(&ctx, "Already beezoned", "This channel is already beezoned").await?;
         return Ok(());
     }
     let duration = Duration::from_std(humantime::parse_duration(&duration_str)?)?;
@@ -426,7 +425,7 @@ pub async fn beezone(
 
     beezone_channels.insert(ctx.channel_id(), BeezoneChannel::new(timestamp, beelate));
 
-    ttc_reply::mod_success(
+    reply::mod_success(
         &ctx,
         "Beezoned",
         &format!(
@@ -456,13 +455,13 @@ pub async fn unbeezone(ctx: Context<'_>) -> Result<(), Error> {
     let mut beezone_channels = ctx.data().beezone_channels.write().await;
 
     if !beezone_channels.contains_key(&ctx.channel_id()) {
-        ttc_reply::input_error(&ctx, "Not beezoned", "This channel is not beezoned.").await?;
+        reply::input_error(&ctx, "Not beezoned", "This channel is not beezoned.").await?;
         return Ok(());
     }
 
     beezone_channels.remove(&ctx.channel_id());
 
-    ttc_reply::mod_success(
+    reply::mod_success(
         &ctx,
         "Unbeezoned",
         &format!("Channel <#{}> unbeezoned", ctx.channel_id()),

@@ -1,6 +1,6 @@
 use poise::serenity_prelude::{Color, Context, GuildChannel};
 
-use crate::{commands::support::SupportThread, types::Data, utils::helper_functions::embed_msg, ttc_unwrap};
+use crate::{commands::support::SupportThread, types::Data, utils::helper_functions::embed_msg, unwrap_or_return};
 
 pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
     // Make sure the updated part is the archived value
@@ -23,7 +23,7 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
 
         // Make sure the thread isn't marked as solved
         if !db_thread.incident_solved {
-            ttc_unwrap!(thread.edit_thread(&ctx, |t| t.archived(false)).await, "Thread unarchival failed");
+            unwrap_or_return!(thread.edit_thread(&ctx, |t| t.archived(false)).await, "Thread unarchival failed");
 
             // If the unarchival limit has been reached archive the thread for good
             if db_thread.unarchivals >= 3 {
@@ -42,14 +42,14 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
                 }
 
                 // Mark the thread as solved on the database
-                ttc_unwrap!(sqlx::query!(
+                unwrap_or_return!(sqlx::query!(
                     r#"UPDATE ttc_support_tickets SET incident_solved = 't' WHERE incident_id = $1"#,
                     db_thread.incident_id
                 )
                 .execute(pool)
                 .await, "Error writing to database");
 
-                ttc_unwrap!(thread
+                unwrap_or_return!(thread
                     .edit_thread(&ctx, |t| t.archived(true).locked(true))
                     .await, "Thread archival failed");
 

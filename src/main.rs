@@ -255,7 +255,7 @@ async fn main() {
         file.read_to_string(&mut raw_string).unwrap();
 
         if !matches.is_present("append-bad-words") {
-            ttc_unwrap!(
+            unwrap_or_return!(
                 sqlx::query!(r#"DELETE FROM ttc_bad_words"#)
                     .execute(&pool)
                     .await,
@@ -264,7 +264,7 @@ async fn main() {
         }
         for line in raw_string.lines() {
             let line = line.trim();
-            ttc_unwrap!(
+            unwrap_or_return!(
                 sqlx::query!(r#"INSERT INTO ttc_bad_words (word) VALUES($1)"#, line)
                     .execute(&pool)
                     .await,

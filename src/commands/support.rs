@@ -1,7 +1,7 @@
 use crate::{
     command_error,
     types::{Context, Error},
-    utils::helper_functions::{format_datetime, ttc_reply},
+    utils::helper_functions::{format_datetime, reply},
 };
 use chrono::{DateTime, Utc};
 use poise::{serenity_prelude::CreateEmbed, CreateReply};
@@ -73,7 +73,7 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
 
     // Make sure thread is not yet solved
     if thread.incident_solved {
-        ttc_reply::input_error(&ctx, "Error", "This ticket is already solved.").await?;
+        reply::input_error(&ctx, "Error", "This ticket is already solved.").await?;
     }
 
     // Update the state to be solved
@@ -90,7 +90,7 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
         }
     }
 
-    ttc_reply::support_info(
+    reply::support_info(
         &ctx,
         "Great!",
         "Now that this ticket has been solved, this thread will be archived.",
@@ -201,7 +201,7 @@ async fn search_id(ctx: Context<'_>, id: u32) -> Result<(), Error> {
     {
         Ok(thread) => thread,
         Err(_) => {
-            ttc_reply::general_error(&ctx, "No such ticket found", "").await?;
+            reply::general_error(&ctx, "No such ticket found", "").await?;
             return Ok(());
         }
     };

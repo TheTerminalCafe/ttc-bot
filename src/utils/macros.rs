@@ -64,7 +64,7 @@ macro_rules! config_function {
 }
 
 #[macro_export]
-macro_rules! ttc_unwrap {
+macro_rules! unwrap_or_return {
     ($_data:expr, $_str:expr) => {
         match $_data {
             Ok(data) => data,
@@ -77,13 +77,34 @@ macro_rules! ttc_unwrap {
 }
 
 #[macro_export]
-macro_rules! ttc_embed_color {
-    ($_name:ident, $_cname: expr, $_default_color:expr) => {
+macro_rules! embed_color {
+    ($_name:ident, $_default_color:expr) => {
         pub async fn $_name(&self) -> ::poise::serenity_prelude::Color {
-            match self.get_embed_color($_cname).await {
-                Ok(color) => color,
+            let data = match sqlx::query!(
+                r#"SELECT color FROM ttc_embed_colors WHERE embed_type = $1"#,
+                stringify!($_name)
+            )
+            .fetch_one(&self.pool)
+            .await
+            {
+                Ok(c) => Ok(c.color),
+                Err(why) => Err(why),
+            };
+            match data {
+                Ok(data) => {
+                    if data.len() >= 3 {
+                        return Color::from_rgb(data[0], data[1], data[2]);
+                    } else {
+                        ::log::warn!("Not enough color bytes in Database");
+                        return $_default_color;
+                    }
+                }
                 Err(why) => {
-                    ::log::warn!("Error getting color for reply: {}", why);
+                    ::log::warn!(
+                        "Error getting color \"{}\" for reply: {}",
+                        stringify!($_name),
+                        why
+                    );
                     $_default_color
                 }
             }

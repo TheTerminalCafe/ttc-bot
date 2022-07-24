@@ -4,7 +4,7 @@ use poise::serenity_prelude::{ChannelId, Color, Message, RwLock, UserId, Webhook
 use sqlx::PgPool;
 
 use crate::{
-    config_function, ttc_embed_color,
+    config_function, embed_color,
     utils::bee_utils::{BeeifiedUser, BeezoneChannel},
 };
 
@@ -102,112 +102,51 @@ impl Data {
         emoji_name,
         Vec<(i64, Option<String>)>
     );
-    pub async fn get_embed_color(&self, embed_type: &str) -> Result<Color, Error> {
-        let data = sqlx::query!(
-            r#"SELECT color FROM ttc_embed_colors WHERE embed_type = $1"#,
-            embed_type
-        )
-        .fetch_one(&self.pool)
-        .await?
-        .color;
-        if data.len() < 3 {
-            return Err(Error::from("Not enough color bytes in Database"));
-        }
-        return Ok(Color::from_rgb(data[0], data[1], data[2]));
-    }
 
     // General
-    ttc_embed_color!(verification_message, "verification_message", Color::FOOYOO);
-    ttc_embed_color!(ping, "ping", Color::BLUE);
-    ttc_embed_color!(help, "help", Color::FOOYOO);
-    ttc_embed_color!(user_server_info, "user_server_info", Color::BLITZ_BLUE);
-    ttc_embed_color!(translate, "translate", Color::FOOYOO);
-    ttc_embed_color!(support_info, "support_info", Color::FOOYOO);
+    embed_color!(verification_message, Color::FOOYOO);
+    embed_color!(ping, Color::BLUE);
+    embed_color!(help, Color::FOOYOO);
+    embed_color!(user_server_info, Color::BLITZ_BLUE);
+    embed_color!(translate, Color::FOOYOO);
+    embed_color!(support_info, Color::FOOYOO);
 
     // Moderation + Admin
-    ttc_embed_color!(admin_success, "admin_success", Color::FOOYOO);
-    ttc_embed_color!(mod_success, "mod_success", Color::FOOYOO);
-    ttc_embed_color!(mod_punish, "mod_punish", Color::RED);
+    embed_color!(admin_success, Color::FOOYOO);
+    embed_color!(mod_success, Color::FOOYOO);
+    embed_color!(mod_punish, Color::RED);
 
     // Conveyance
-    ttc_embed_color!(conveyance_msg_delete, "conveyance_msg_delete", Color::GOLD);
-    ttc_embed_color!(
-        conveyance_msg_update,
-        "conveyance_msg_update",
-        Color::DARK_GOLD
-    );
-    ttc_embed_color!(
-        conveyance_member_join,
-        "conveyance_member_join",
-        Color::FOOYOO
-    );
-    ttc_embed_color!(
-        conveyance_member_leave,
-        "conveyance_member_leave",
-        Color::RED
-    );
-    ttc_embed_color!(
-        conveyance_member_update,
-        "conveyance_member_update",
-        Color::ORANGE
-    );
-    ttc_embed_color!(
-        conveyance_ban_addition,
-        "conveyance_ban_addition",
-        Color::DARK_RED
-    );
-    ttc_embed_color!(conveyance_unban, "conveyance_unban", Color::FOOYOO);
+    embed_color!(conveyance_msg_delete, Color::GOLD);
+    embed_color!(conveyance_msg_update, Color::DARK_GOLD);
+    embed_color!(conveyance_member_join, Color::FOOYOO);
+    embed_color!(conveyance_member_leave, Color::RED);
+    embed_color!(conveyance_member_update, Color::ORANGE);
+    embed_color!(conveyance_ban_addition, Color::DARK_RED);
+    embed_color!(conveyance_unban, Color::FOOYOO);
 
     // Interactions
-    ttc_embed_color!(verify_color, "verify_color", Color::FOOYOO);
-    ttc_embed_color!(selfrole_selection, "selfrole_selection", Color::PURPLE);
-    ttc_embed_color!(
-        selfrole_post_edit_msg,
-        "selfrole_post_edit_msg",
-        Color::FOOYOO
-    );
-    ttc_embed_color!(
-        ticket_has_already_ticket,
-        "ticket_has_already_ticket",
-        Color::PURPLE
-    );
-    ttc_embed_color!(
-        ticket_thread_created,
-        "ticket_thread_created",
-        Color::FOOYOO
-    );
-    ttc_embed_color!(ticket_summary, "ticket_summary", Color::FOOYOO);
+    embed_color!(verify_color, Color::FOOYOO);
+    embed_color!(selfrole_selection, Color::PURPLE);
+    embed_color!(selfrole_post_edit_msg, Color::FOOYOO);
+    embed_color!(ticket_has_already_ticket, Color::PURPLE);
+    embed_color!(ticket_thread_created, Color::FOOYOO);
+    embed_color!(ticket_summary, Color::FOOYOO);
 
     // Leaderboard
-    ttc_embed_color!(
-        leaderboard_harold_leaderboard,
-        "leaderboard_harold_leaderboard",
-        Color::FOOYOO
-    );
-    ttc_embed_color!(
-        leaderboard_message_count_leaderboard,
-        "leaderboard_message_count_leaderboard",
-        Color::BLUE
-    );
-    ttc_embed_color!(
-        leaderboard_harold_percentage_leaderboard,
-        "leaderboard_harold_percentage_leaderboard",
-        Color::PURPLE
-    );
-    ttc_embed_color!(leaderboard_global, "leaderboard_global", Color::DARK_GOLD);
-    ttc_embed_color!(
-        leaderboard_user_overview,
-        "leaderboard_user_overview",
-        Color::BLURPLE
-    );
+    embed_color!(leaderboard_harold_leaderboard, Color::FOOYOO);
+    embed_color!(leaderboard_message_count_leaderboard, Color::BLUE);
+    embed_color!(leaderboard_harold_percentage_leaderboard, Color::PURPLE);
+    embed_color!(leaderboard_global, Color::DARK_GOLD);
+    embed_color!(leaderboard_user_overview, Color::BLURPLE);
 
     // Other
-    ttc_embed_color!(input_error, "input_error", Color::RED);
-    ttc_embed_color!(input_warn, "input_warn", Color::ORANGE);
-    ttc_embed_color!(general_error, "general_error", Color::RED);
-    ttc_embed_color!(bump_message, "bump_message", Color::PURPLE);
-    ttc_embed_color!(emoji_info, "emoji_info", Color::FOOYOO);
-    ttc_embed_color!(bee_translate_block, "bee_translate_block", Color::KERBAL);
+    embed_color!(input_error, Color::RED);
+    embed_color!(input_warn, Color::ORANGE);
+    embed_color!(general_error, Color::RED);
+    embed_color!(bump_message, Color::PURPLE);
+    embed_color!(emoji_info, Color::FOOYOO);
+    embed_color!(bee_translate_block, Color::KERBAL);
 }
 
 /*#[derive(Debug, Clone)]

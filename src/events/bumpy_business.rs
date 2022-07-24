@@ -2,17 +2,17 @@ use std::time::Duration;
 
 use poise::serenity_prelude::{Context, Mentionable, Message, MessageType, Timestamp};
 
-use crate::{ttc_unwrap, types::Data};
+use crate::{unwrap_or_return, types::Data};
 
 pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
-    let color = data.bump_message().await;
     match msg.kind {
         MessageType::ChatInputCommand => {
             if msg.interaction.as_ref().unwrap().name == "bump" {
+                let color = data.bump_message().await;
                 match msg.flags {
                     Some(flags) => {
                         if flags.is_empty() {
-                            ttc_unwrap!(msg.channel_id.send_message(
+                            unwrap_or_return!(msg.channel_id.send_message(
                                 ctx, 
                                 |m| 
                                     m.content(format!("{}", msg.interaction.as_ref().unwrap().user.mention()))
@@ -26,7 +26,7 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
                                         .await, "Error sending message");
                             // 2 hours
                             tokio::time::sleep(Duration::from_secs(7200)).await;
-                            ttc_unwrap!(msg.channel_id.send_message(
+                            unwrap_or_return!(msg.channel_id.send_message(
                                 ctx, 
                                 |m| 
                                     m.content(format!("{}", msg.interaction.as_ref().unwrap().user.mention()))

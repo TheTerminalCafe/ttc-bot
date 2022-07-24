@@ -1,8 +1,8 @@
 use poise::serenity_prelude::{Context, Message};
 
 use crate::{
-    ttc_unwrap,
     types::Data,
+    unwrap_or_return,
     utils::{bee_utils, helper_functions},
 };
 
@@ -31,7 +31,7 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
             }
 
             (
-                ttc_unwrap!(
+                unwrap_or_return!(
                     helper_functions::get_webhook(ctx, data, &msg.channel_id).await,
                     "Error getting webhook"
                 ),
@@ -51,7 +51,7 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
             }
 
             (
-                ttc_unwrap!(
+                unwrap_or_return!(
                     helper_functions::get_webhook(ctx, data, &msg.channel_id).await,
                     "Error getting webhook"
                 ),

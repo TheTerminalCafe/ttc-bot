@@ -1,4 +1,4 @@
-use chrono::{DateTime, Duration as CDuration, Utc};
+use chrono::{DateTime, Utc};
 use poise::serenity_prelude::{
     ChannelId, Color, Context, CreateEmbed, CreateMessage, Message, User, Webhook,
 };
@@ -244,7 +244,7 @@ pub fn format_datetime(timestamp: &DateTime<Utc>) -> String {
     .to_owned()
 }
 
-pub fn check_duration(duration: CDuration, max_days: i64) -> Result<(), Error> {
+pub fn check_duration(duration: chrono::Duration, max_days: i64) -> Result<(), Error> {
     if duration.num_days() > max_days {
         return Err(Error::from(format!(
             "Your specified number of days is over the maximum of {} days",
@@ -254,7 +254,7 @@ pub fn check_duration(duration: CDuration, max_days: i64) -> Result<(), Error> {
     Ok(())
 }
 
-pub mod ttc_reply {
+pub mod reply {
     use crate::{ttc_reply_generate, Data, Error};
     use poise::serenity_prelude::Color;
     use poise::Context;

@@ -1,4 +1,4 @@
-use crate::{ttc_unwrap, types::Data, utils::helper_functions::format_datetime};
+use crate::{types::Data, unwrap_or_return, utils::helper_functions::format_datetime};
 use chrono::{DateTime, Utc};
 use poise::serenity_prelude::*;
 
@@ -27,7 +27,7 @@ struct CachedMessage {
 pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
     let pool = &data.pool;
 
-    let mut id = ttc_unwrap!(
+    let mut id = unwrap_or_return!(
         sqlx::query_as!(
             CurrentIndex,
             r#"SELECT current_message_id AS current_id FROM ttc_conveyance_state"#
@@ -45,7 +45,7 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
     id.current_id += 1;
 
     // Write the message contents to the cache
-    ttc_unwrap!(sqlx::query!(
+    unwrap_or_return!(sqlx::query!(
         r#"UPDATE ttc_message_cache SET message_id = $1, channel_id = $2, user_id = $3, message_time = $4, content = $5, attachments = $6 WHERE id = $7"#, 
         msg.id.0 as i64,
         msg.channel_id.0 as i64,
@@ -58,7 +58,7 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
     .execute(pool)
     .await, "Writing to database failed");
 
-    ttc_unwrap!(
+    unwrap_or_return!(
         sqlx::query!(
             r#"UPDATE ttc_conveyance_state SET current_message_id = $1"#,
             id.current_id
@@ -77,7 +77,7 @@ pub async fn message_delete(
     data: &Data,
 ) {
     // Make sure the channel isn't blacklisted from conveyance
-    if ttc_unwrap!(
+    if unwrap_or_return!(
         data.conveyance_blacklist_channel().await,
         "Error getting conveyance blacklisted channels"
     )
@@ -133,14 +133,14 @@ pub async fn message_delete(
     content.truncate(1024);
     attachments.truncate(1024);
 
-    let conv_channels = ttc_unwrap!(
+    let conv_channels = unwrap_or_return!(
         data.conveyance_channel().await,
         "Error getting conveyance channels"
     );
 
     let color = data.conveyance_msg_delete().await;
     for channel in &conv_channels {
-        ttc_unwrap!(
+        unwrap_or_return!(
             ChannelId(*channel as u64)
                 .send_message(ctx, |m| {
                     m.embed(|e| {
@@ -184,7 +184,7 @@ pub async fn message_update(
     data: &Data,
 ) {
     // Make sure the channel isn't blacklisted from conveyance
-    if ttc_unwrap!(
+    if unwrap_or_return!(
         data.conveyance_blacklist_channel().await,
         "Error getting conveyance blacklisted channels"
     )
@@ -301,7 +301,7 @@ pub async fn message_update(
 
     message_embed.field("New", &new_content, false);
 
-    ttc_unwrap!(
+    unwrap_or_return!(
         sqlx::query!(
             r#"UPDATE ttc_message_cache SET content = $1 WHERE message_id = $2"#,
             new_content,
@@ -312,13 +312,13 @@ pub async fn message_update(
         "Error updating message cache"
     );
 
-    let conv_channels = ttc_unwrap!(
+    let conv_channels = unwrap_or_return!(
         data.conveyance_channel().await,
         "Error getting conveyance channels"
     );
 
     for channel in &conv_channels {
-        ttc_unwrap!(
+        unwrap_or_return!(
             ChannelId(*channel as u64)
                 .send_message(ctx, |m| m.set_embed(message_embed.clone()))
                 .await,
@@ -328,13 +328,13 @@ pub async fn message_update(
 }
 
 pub async fn guild_member_addition(ctx: &Context, new_member: &Member, data: &Data) {
-    let conv_channels = ttc_unwrap!(
+    let conv_channels = unwrap_or_return!(
         data.conveyance_channel().await,
         "Error getting conveyance channels"
     );
     let color = data.conveyance_member_join().await;
     for channel in &conv_channels {
-        ttc_unwrap!(
+        unwrap_or_return!(
             ChannelId(*channel as u64)
                 .send_message(ctx, |m| {
                     m.embed(|e| {
@@ -369,13 +369,13 @@ pub async fn guild_member_removal(
         None => "Join date not available".to_string(),
     };
 
-    let conv_channels = ttc_unwrap!(
+    let conv_channels = unwrap_or_return!(
         data.conveyance_channel().await,
         "Error getting conveyance channels"
     );
     let color = data.conveyance_member_leave().await;
     for channel in &conv_channels {
-        ttc_unwrap!(
+        unwrap_or_return!(
             ChannelId(*channel as u64)
                 .send_message(ctx, |m| {
                     m.embed(|e| {
@@ -392,14 +392,14 @@ pub async fn guild_member_removal(
     }
 }
 pub async fn guild_ban_addition(ctx: &Context, banned_user: &User, data: &Data) {
-    let conv_channels = ttc_unwrap!(
+    let conv_channels = unwrap_or_return!(
         data.conveyance_channel().await,
         "Error getting conveyance channels"
     );
 
     let color = data.conveyance_ban_addition().await;
     for channel in &conv_channels {
-        ttc_unwrap!(
+        unwrap_or_return!(
             ChannelId(*channel as u64)
                 .send_message(ctx, |m| {
                     m.embed(|e| {
@@ -416,13 +416,13 @@ pub async fn guild_ban_addition(ctx: &Context, banned_user: &User, data: &Data) 
 }
 
 pub async fn guild_ban_removal(ctx: &Context, unbanned_user: &User, data: &Data) {
-    let conv_channels = ttc_unwrap!(
+    let conv_channels = unwrap_or_return!(
         data.conveyance_channel().await,
         "Error getting conveyance channels"
     );
     let color = data.conveyance_unban().await;
     for channel in &conv_channels {
-        ttc_unwrap!(
+        unwrap_or_return!(
             ChannelId(*channel as u64)
                 .send_message(ctx, |m| {
                     m.embed(|e| {
@@ -518,13 +518,13 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
         new_roles_string.pop();
     }
 
-    let conv_channels = ttc_unwrap!(
+    let conv_channels = unwrap_or_return!(
         data.conveyance_channel().await,
         "Error getting conveyance channels"
     );
     let color = data.conveyance_member_update().await;
     for channel in &conv_channels {
-        ttc_unwrap!(
+        unwrap_or_return!(
             ChannelId(*channel as u64)
                 .send_message(ctx, |m| {
                     m.embed(|e| {

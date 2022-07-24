@@ -1,6 +1,6 @@
 use crate::{
-    ttc_unwrap,
     types::{Data, Error},
+    unwrap_or_return,
 };
 use poise::{
     serenity_prelude::{Context, Message},
@@ -19,7 +19,7 @@ pub async fn message(
         .contains(&format!("<@{}>", framework_context.bot_id.0))
     {
         if rand::thread_rng().gen_bool(0.1) {
-            let gif = ttc_unwrap!(
+            let gif = unwrap_or_return!(
                 sqlx::query!(
                     r#"SELECT content FROM ttc_easter_egg_gifs ORDER BY RANDOM() LIMIT 1"#
                 )
@@ -28,7 +28,7 @@ pub async fn message(
                 "Error getting a GIF from the DB"
             )
             .content;
-            ttc_unwrap!(
+            unwrap_or_return!(
                 msg.channel_id.send_message(ctx, |m| m.content(gif)).await,
                 "Error sending GIF"
             );

@@ -1,8 +1,6 @@
 use crate::{
     command_error,
-    utils::{
-        autocomplete_functions::language_autocomplete, bee_utils, helper_functions::ttc_reply,
-    },
+    utils::{autocomplete_functions::language_autocomplete, bee_utils, helper_functions::reply},
     Context, Error,
 };
 use poise::serenity_prelude::Message;
@@ -138,7 +136,7 @@ pub async fn translate(
         if beeified_users.contains_key(&ctx.author().id)
             || beezone_channels.contains_key(&ctx.channel_id())
         {
-            ttc_reply::bee_translate_block(
+            reply::bee_translate_block(
                 &ctx,
                 "You are a bee!",
                 "Bees can't translate, bees can only... bee.",
@@ -153,7 +151,7 @@ pub async fn translate(
     let (source_lang, translated_text) = translate_text(lang.clone(), &text_to_translate).await?;
 
     // Send the translated message
-    ttc_reply::translate(
+    reply::translate(
         &ctx,
         "Translated Message",
         &format!("{} -> {}", source_lang, lang),
@@ -182,7 +180,7 @@ pub async fn translate_to_en(
     let (source_lang, translated_text) = translate_text("en".to_string(), &msg.content).await?;
 
     // Send the translated message
-    ttc_reply::translate(
+    reply::translate(
         &ctx,
         "Translated Message",
         &format!("{} -> English", source_lang),

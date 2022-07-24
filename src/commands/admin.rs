@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use crate::{
     types::{self, Context, Error},
-    utils::{emoji_cache::EmojiCache, helper_functions::ttc_reply},
+    utils::{emoji_cache::EmojiCache, helper_functions::reply},
 };
 
 /// Shutdown the bot
@@ -24,7 +24,7 @@ use crate::{
     category = "Admin"
 )]
 pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
-    ttc_reply::admin_success(&ctx, "Goodbye!", "").await?;
+    reply::admin_success(&ctx, "Goodbye!", "").await?;
 
     ctx.framework()
         .shard_manager
@@ -78,7 +78,7 @@ pub async fn create_verification(
         })
         .await?;
 
-    ttc_reply::admin_success(
+    reply::admin_success(
         &ctx,
         "Verification created",
         &format!("Verification prompt created in <#{}>.", channel.id),
@@ -167,7 +167,7 @@ pub async fn create_selfroles(
         .await?;
 
     // Reply to the user
-    ttc_reply::admin_success(
+    reply::admin_success(
         &ctx,
         "Self-role menu created",
         &format!("Self-role menu created in <#{}>.", channel.id),
@@ -217,7 +217,7 @@ pub async fn create_support_ticket_button(
         })
         .await?;
 
-    ttc_reply::admin_success(
+    reply::admin_success(
         &ctx,
         "Support button created",
         &format!("Support ticket button created in <#{}>", channel.id),
@@ -241,7 +241,7 @@ pub async fn create_support_ticket_button(
 )]
 pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
     if EmojiCache::is_running() {
-        ttc_reply::general_error(
+        reply::general_error(
             &ctx,
             "Emoji cache is already being updated",
             "Please try using this command later again",
@@ -250,7 +250,7 @@ pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
     } else {
         let start_time = Instant::now();
         let mut emoji_cache = EmojiCache::new(&ctx.data().pool);
-        ttc_reply::emoji_info(
+        reply::emoji_info(
             &ctx,
             "Starting to rebuild the complete Emoji cache",
             "This is going to take *some* time",
@@ -258,7 +258,7 @@ pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
         .await?;
         emoji_cache.update_emoji_cache_poise(&ctx, true).await?;
         let elapsed = chrono::Duration::from_std(start_time.elapsed())?;
-        ttc_reply::emoji_info(
+        reply::emoji_info(
             &ctx,
             "Finished rebuilding the Emoji cache",
             &format!(
