@@ -2,16 +2,14 @@
 // Admin group commands
 // --------------------
 
-use std::{collections::HashMap, time::Instant};
+use std::time::Instant;
 
-use poise::serenity_prelude::{
-    ButtonStyle, ChannelType, Color, CreateSelectMenu, GuildChannel, Role, RoleId,
-};
+use poise::serenity_prelude::{ButtonStyle, CreateSelectMenu, Emoji, GuildChannel, Role, RoleId};
+use std::collections::HashMap;
 
 use crate::{
-    get_config,
     types::{self, Context, Error},
-    utils::emoji_cache::EmojiCache,
+    utils::{emoji_cache::EmojiCache, helper_functions::reply},
 };
 
 /// Shutdown the bot
@@ -26,8 +24,7 @@ use crate::{
     category = "Admin"
 )]
 pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.send(|m| m.embed(|e| e.title("Goodbye!").color(Color::PURPLE)))
-        .await?;
+    reply::admin_success(&ctx, "Goodbye!", "").await?;
 
     ctx.framework()
         .shard_manager
@@ -56,6 +53,7 @@ pub async fn manage_commands(ctx: types::Context<'_>) -> Result<(), types::Error
 #[poise::command(
     prefix_command,
     slash_command,
+    guild_only,
     owners_only,
     hide_in_help,
     category = "Admin"
@@ -64,9 +62,10 @@ pub async fn create_verification(
     ctx: Context<'_>,
     #[description = "Channel to send it in"] channel: GuildChannel,
 ) -> Result<(), Error> {
+    let color = ctx.data().verification_message().await;
     channel
         .send_message(ctx.discord(), |m| {
-            m.embed(|e| e.color(Color::FOOYOO).title("Be sure to follow the rules!"))
+            m.embed(|e| e.color(color).title("Be sure to follow the rules!"))
                 .components(|c| {
                     c.create_action_row(|a| {
                         a.create_button(|b| {
@@ -79,13 +78,11 @@ pub async fn create_verification(
         })
         .await?;
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Verification created")
-                .description(format!("Verification prompt created in <#{}>.", channel.id))
-                .color(Color::FOOYOO)
-        })
-    })
+    reply::admin_success(
+        &ctx,
+        "Verification created",
+        &format!("Verification prompt created in <#{}>.", channel.id),
+    )
     .await?;
 
     Ok(())
@@ -98,6 +95,7 @@ pub async fn create_verification(
 #[poise::command(
     prefix_command,
     slash_command,
+    guild_only,
     owners_only,
     hide_in_help,
     category = "Admin"
@@ -105,7 +103,6 @@ pub async fn create_verification(
 pub async fn create_selfroles(
     ctx: Context<'_>,
     #[description = "Channel to send it in"] channel: GuildChannel,
-    #[description = "List of roles separated by commas"] roles_string: String,
 ) -> Result<(), Error> {
     // Get the channel and guild ids
     let guild_id = ctx.guild_id().unwrap();
@@ -114,66 +111,67 @@ pub async fn create_selfroles(
     let mut menu = CreateSelectMenu::default();
     menu.custom_id("ttc-bot-self-role-menu");
 
-    let raw_role_list = roles_string
-        .split(",")
-        .map(|role| role.parse::<RoleId>().unwrap_or(RoleId(0)))
-        .collect::<Vec<RoleId>>();
+    let raw_selfroles = ctx.data().selfroles().await?;
 
-    // Create the list for the roles
-    let mut role_list: Vec<Role> = Vec::new();
-
-    let roles = guild_id.roles(ctx.discord()).await?;
-
-    // Get the roles
-    for role_id in &raw_role_list {
-        if roles.contains_key(role_id) {
-            let role = roles[&role_id].clone();
-            role_list.push(role);
-        } else {
-            ctx.send(|m| {
-                m.embed(|e| {
-                    e.title("Invalid role")
-                        .description("No role with id {} found on this server")
-                        .color(Color::RED)
-                })
-                .ephemeral(true)
-            })
-            .await?;
-        }
-    }
-
-    // Make sure some valid roles were procided
-    if role_list.len() == 0 {
-        return Err(Error::from("None of the provided roles were valid."));
+    if raw_selfroles.len() == 0 {
+        return Err(Error::from("No roles in the Database"));
     }
 
     // Set the menu values properly
     menu.min_values(0);
-    menu.max_values(role_list.len() as u64);
+    menu.max_values(raw_selfroles.len() as u64);
+
+    let role_hmap = guild_id.roles(ctx.discord()).await?;
+    let emojis = guild_id.emojis(ctx.discord()).await?;
+
+    let mut option_data: Vec<(Role, Option<&Emoji>)> = Vec::new();
+    let mut emoji_hmap = HashMap::new();
+    for emoji in &emojis {
+        emoji_hmap.insert(emoji.name.clone(), emoji.clone());
+    }
+
+    for val in raw_selfroles {
+        let role = match role_hmap.get(&RoleId(val.0 as u64)) {
+            Some(role) => role,
+            None => {
+                return Err(Error::from(format!("Invalid role with ID {}", val.0)));
+            }
+        };
+        let emoji = emoji_hmap.get(&val.1.unwrap_or(String::from("")));
+        option_data.push((role.clone(), emoji));
+    }
 
     // Create the options for the roles
     menu.options(|m| {
-        for role in role_list {
-            m.create_option(|o| o.label(role.name).value(role.id));
+        for val in option_data {
+            let role = val.0;
+            match val.1 {
+                Some(emoji) => {
+                    m.create_option(|o| o.label(role.name).value(role.id).emoji(emoji.clone()));
+                }
+                None => {
+                    m.create_option(|o| o.label(role.name).value(role.id));
+                }
+            }
         }
         m
     });
 
     // Create the menu in the specified channel
+    let color = ctx.data().selfrole_selection().await;
     channel
         .send_message(ctx.discord(), |m| {
             m.components(|c| c.create_action_row(|a| a.add_select_menu(menu)))
-                .embed(|e| e.title("Manage your self roles here").color(Color::PURPLE))
+                .embed(|e| e.title("Manage your self roles here").color(color))
         })
         .await?;
 
     // Reply to the user
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Self-role menu created")
-                .description(format!("Self-role menu created in <#{}>.", channel.id))
-        })
-    })
+    reply::admin_success(
+        &ctx,
+        "Self-role menu created",
+        &format!("Self-role menu created in <#{}>.", channel.id),
+    )
     .await?;
 
     Ok(())
@@ -197,19 +195,15 @@ pub async fn create_support_ticket_button(
     #[description = "Channel to send it in"] channel: GuildChannel,
     #[description = "Description for the support system"] description: String,
 ) -> Result<(), Error> {
-    let config = get_config!(ctx.data(), {
-        return Err(Error::from("Unable to obtain config"));
-    });
-
+    let support_channel = ctx.data().support_channel().await?;
+    let color = ctx.data().admin_success().await;
     channel
         .send_message(ctx.discord(), |m| {
             m.embed(|e| {
-                e.color(Color::FOOYOO)
-                    .title("Support tickets")
-                    .description(format!(
-                        "{}\n\nAll support tickets are created in <#{}>",
-                        description, config.support_channel
-                    ))
+                e.color(color).title("Support tickets").description(format!(
+                    "{}\n\nAll support tickets are created in <#{}>",
+                    description, support_channel
+                ))
             })
             .components(|c| {
                 c.create_action_row(|a| {
@@ -223,111 +217,11 @@ pub async fn create_support_ticket_button(
         })
         .await?;
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Support button created").description(format!(
-                "Support ticket button created in <#{}>",
-                channel.id
-            ))
-        })
-    })
-    .await?;
-
-    Ok(())
-}
-
-/// Create webhooks
-///
-/// Command to create webhooks for the bot
-/// ``create_webhooks [channel_id] [webhook_name]``
-#[poise::command(
-    prefix_command,
-    slash_command,
-    owners_only,
-    guild_only,
-    hide_in_help,
-    category = "Admin"
-)]
-pub async fn create_webhooks(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Creating webhooks")
-                .description("This may take a while, please be patient")
-                .color(Color::FOOYOO)
-        })
-    })
-    .await?;
-    {
-        let mut webhooks = ctx.data().webhooks.write().await;
-
-        for (_, webhook) in webhooks.iter() {
-            webhook.delete(ctx.discord()).await?;
-            log::info!("Deleted webhook {:?}", webhook.name);
-        }
-        webhooks.clear();
-    }
-
-    let mut webhooks = HashMap::new();
-
-    let channels = ctx.guild_id().unwrap().channels(ctx.discord()).await?;
-
-    log::info!("Creating new webhooks");
-
-    for (channel_id, channel) in &channels {
-        if channel.kind == ChannelType::Text {
-            let webhook = channel_id
-                .create_webhook(
-                    ctx.discord(),
-                    format!("ttc-bot fancy webhook {}", channel_id),
-                )
-                .await?;
-
-            log::info!("Created webhook for channel {}", channel_id);
-
-            webhooks.insert(channel_id, webhook);
-
-            ctx.channel_id()
-                .send_message(ctx.discord(), |m| {
-                    m.content(format!("Webhook created in <#{}>", channel_id))
-                })
-                .await?;
-        }
-    }
-
-    log::info!("Clearing the old database table");
-
-    sqlx::query!(r#"DELETE FROM ttc_webhooks"#)
-        .execute(&ctx.data().pool)
-        .await?;
-
-    let mut webhooks_data = ctx.data().webhooks.write().await;
-
-    log::info!("Updating runtime variables and database");
-
-    for (channel_id, webhook) in &webhooks {
-        webhooks_data.insert(**channel_id, webhook.clone());
-        sqlx::query!(
-            r#"INSERT INTO ttc_webhooks (channel_id, webhook_url) VALUES ($1, $2)"#,
-            channel_id.0 as i64,
-            match webhook.url() {
-                Ok(url) => url,
-                Err(why) => {
-                    log::error!("Malformed webhook: {}", why);
-                    continue;
-                }
-            }
-        )
-        .execute(&ctx.data().pool)
-        .await?;
-    }
-
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Webhooks created")
-                .description("Webhooks created in all text channels")
-                .color(Color::FOOYOO)
-        })
-    })
+    reply::admin_success(
+        &ctx,
+        "Support button created",
+        &format!("Support ticket button created in <#{}>", channel.id),
+    )
     .await?;
 
     Ok(())
@@ -347,38 +241,31 @@ pub async fn create_webhooks(ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
     if EmojiCache::is_running() {
-        ctx.send(|b| {
-            b.embed(|e| {
-                e.title("Emoji cache is already being updated")
-                    .description("Please try using this command later again")
-                    .color(Color::RED)
-            })
-            .ephemeral(true)
-        })
+        reply::general_error(
+            &ctx,
+            "Emoji cache is already being updated",
+            "Please try using this command later again",
+        )
         .await?;
     } else {
         let start_time = Instant::now();
         let mut emoji_cache = EmojiCache::new(&ctx.data().pool);
-        ctx.send(|b| {
-            b.embed(|e| {
-                e.title("Starting to rebuild the complete Emoji cache")
-                    .description("This is going to take *some* time")
-                    .color(Color::FOOYOO)
-            })
-        })
+        reply::emoji_info(
+            &ctx,
+            "Starting to rebuild the complete Emoji cache",
+            "This is going to take *some* time",
+        )
         .await?;
         emoji_cache.update_emoji_cache_poise(&ctx, true).await?;
         let elapsed = chrono::Duration::from_std(start_time.elapsed())?;
-        ctx.send(|b| {
-            b.embed(|e| {
-                e.title("Finished rebuilding the Emoji cache")
-                    .description(format!(
-                        "Things should be synced now again, time taken: {}",
-                        crate::utils::helper_functions::format_duration(&elapsed)
-                    ))
-                    .color(Color::FOOYOO)
-            })
-        })
+        reply::emoji_info(
+            &ctx,
+            "Finished rebuilding the Emoji cache",
+            &format!(
+                "Things should be synced now again, time taken: {}",
+                crate::utils::helper_functions::format_duration(&elapsed)
+            ),
+        )
         .await?;
     }
 

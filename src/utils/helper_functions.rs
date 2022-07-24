@@ -3,10 +3,7 @@ use poise::serenity_prelude::{
     ChannelId, Color, Context, CreateEmbed, CreateMessage, Message, User, Webhook,
 };
 
-use crate::{
-    command_error, get_config,
-    types::{Data, Error},
-};
+use crate::types::{Data, Error};
 use std::{sync::Arc, time::Duration};
 
 // ----------------
@@ -149,12 +146,11 @@ where
 // May be useful later, but is not right now
 #[allow(dead_code)]
 pub async fn alert_mods(ctx: &Context, embed: CreateEmbed, data: &Data) -> Result<(), Error> {
-    let config = get_config!(data, { return command_error!("Database error.") });
-
-    for channel in &config.conveyance_channels {
+    let mod_role = data.moderator_role().await?;
+    for channel in &data.conveyance_channel().await? {
         ChannelId(*channel as u64)
             .send_message(ctx, |m| {
-                m.content(format!("<@&{}>", config.moderator_role))
+                m.content(format!("<@&{}>", mod_role))
                     .set_embed(embed.clone())
             })
             .await?;
@@ -192,6 +188,9 @@ pub fn format_duration(dur: &chrono::Duration) -> String {
         0 => {}
         1 => result = format!("{} {} Second", result, seconds),
         _ => result = format!("{} {} Seconds", result, seconds),
+    }
+    if result.len() == 0 {
+        result = format!("0 Seconds");
     }
     result.trim_end().to_owned()
 }
@@ -243,4 +242,92 @@ pub fn format_datetime(timestamp: &DateTime<Utc>) -> String {
         timestamp.timezone()
     )
     .to_owned()
+}
+
+pub fn check_duration(duration: chrono::Duration, max_days: i64) -> Result<(), Error> {
+    if duration.num_days() > max_days {
+        return Err(Error::from(format!(
+            "Your specified number of days is over the maximum of {} days",
+            max_days
+        )));
+    }
+    Ok(())
+}
+
+pub mod reply {
+    use crate::{ttc_reply_generate, Data, Error};
+    use poise::serenity_prelude::Color;
+    use poise::Context;
+
+    // Only call it over ``ttc_reply_error`` etc. to enforce the usage of DB colors
+    async fn ttc_reply<T>(
+        ctx: &'_ Context<'_, Data, Error>,
+        color: Color,
+        ephemeral: bool,
+        title: T,
+        description: T,
+        fields: Vec<(T, T, bool)>,
+    ) -> Result<(), Error>
+    where
+        T: ToString,
+    {
+        ctx.send(|b| {
+            b.embed(|e| {
+                e.title(title)
+                    .description(description)
+                    .fields(fields)
+                    .color(color)
+            })
+            .ephemeral(ephemeral)
+        })
+        .await?;
+        Ok(())
+    }
+
+    // Used for warnings about user input (currently only used when over 100
+    // messages are attempted to be deleted)
+    ttc_reply_generate!(input_warn, Color::ORANGE, true);
+
+    // When a user sends wrong/weird input (e.g. kicking themself)
+    ttc_reply_generate!(input_error, Color::RED, true);
+
+    // Default moderation color for punishments (e.g. banning/muting)
+    ttc_reply_generate!(mod_punish, Color::FOOYOO, false);
+
+    // Moderation color for success (e.g. message purges)
+    ttc_reply_generate!(mod_success, Color::FOOYOO);
+
+    // Admin color for success (e.g. create verification/selfroles)
+    ttc_reply_generate!(admin_success, Color::FOOYOO, false);
+
+    // Other Errors (e.g. EmojiCache already being updated)
+    ttc_reply_generate!(general_error, Color::RED, true);
+
+    // Normal Info about the Emoji cache
+    ttc_reply_generate!(emoji_info, Color::FOOYOO, true);
+
+    // When a Bee is trying to translate something
+    ttc_reply_generate!(bee_translate_block, Color::KERBAL, true);
+
+    // Translate color
+    pub async fn translate<T>(
+        ctx: &'_ Context<'_, Data, Error>,
+        title: T,
+        description: T,
+        fields: Vec<(T, T)>,
+    ) -> Result<(), Error>
+    where
+        T: ToString,
+    {
+        let color = ctx.data().translate().await;
+        let fields = fields
+            .into_iter()
+            .map(|val| (val.0, val.1, false))
+            .collect::<Vec<(T, T, bool)>>();
+        ttc_reply(ctx, color, false, title, description, fields).await?;
+        Ok(())
+    }
+
+    // When a Bee is trying to translate something
+    ttc_reply_generate!(support_info, Color::FOOYOO, false);
 }

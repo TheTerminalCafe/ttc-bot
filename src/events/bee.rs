@@ -2,6 +2,7 @@ use poise::serenity_prelude::{Context, Message};
 
 use crate::{
     types::Data,
+    unwrap_or_return,
     utils::{bee_utils, helper_functions},
 };
 
@@ -30,13 +31,10 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
             }
 
             (
-                match helper_functions::get_webhook(ctx, data, &msg.channel_id).await {
-                    Ok(webhook) => webhook,
-                    Err(why) => {
-                        log::error!("Error getting webhook: {}", why);
-                        return;
-                    }
-                },
+                unwrap_or_return!(
+                    helper_functions::get_webhook(ctx, data, &msg.channel_id).await,
+                    "Error getting webhook"
+                ),
                 beezone_channel.beelate,
             )
         } else if beeified_users.contains_key(&msg.author.id) {
@@ -53,13 +51,10 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
             }
 
             (
-                match helper_functions::get_webhook(ctx, data, &msg.channel_id).await {
-                    Ok(webhook) => webhook,
-                    Err(why) => {
-                        log::error!("Error getting webhook: {}", why);
-                        return;
-                    }
-                },
+                unwrap_or_return!(
+                    helper_functions::get_webhook(ctx, data, &msg.channel_id).await,
+                    "Error getting webhook"
+                ),
                 beeified_user.beelate,
             )
         } else {

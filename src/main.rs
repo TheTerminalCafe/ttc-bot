@@ -36,7 +36,7 @@ mod types;
 
 use clap::{App, Arg};
 use futures::stream::StreamExt;
-use poise::serenity_prelude::{Activity, ChannelId, Color, GatewayIntents, RwLock};
+use poise::serenity_prelude::{Activity, ChannelId, GatewayIntents, RwLock};
 use regex::Regex;
 use serde_yaml::Value;
 use signal_hook::consts::TERM_SIGNALS;
@@ -47,8 +47,6 @@ use std::io::Read;
 use std::time::Instant;
 use std::{collections::HashSet, fs::File, sync::Arc};
 use types::{Context, Data, Error};
-
-use crate::types::Config;
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // This is our custom error handler
@@ -149,9 +147,10 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
         }
     };
 
+    let color = ctx.data().general_error().await;
     match ctx
         .send(|m| {
-            m.embed(|e| e.title(title).description(description).color(Color::RED))
+            m.embed(|e| e.title(title).description(description).color(color))
                 .ephemeral(true)
         })
         .await
@@ -172,6 +171,7 @@ async fn main() {
                 .long("core-config")
                 .help("Configuration file"),
         )
+        /*
         .arg(
             Arg::with_name("write-db")
                 .takes_value(false)
@@ -179,7 +179,7 @@ async fn main() {
                 .short("w")
                 .long("write")
                 .help("Write the config to the database"),
-        )
+        )*/
         .arg(
             Arg::with_name("bad-words")
                 .takes_value(true)
@@ -212,6 +212,7 @@ async fn main() {
     let token = config["token"].as_str().unwrap();
     let application_id = config["application_id"].as_u64().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
+    /*
     let support_channel_id = config["support_channel"].as_u64().unwrap();
     let verified_role_id = config["verified_role"].as_u64().unwrap();
     let moderator_role_id = config["moderator_role"].as_u64().unwrap();
@@ -234,6 +235,7 @@ async fn main() {
         .iter()
         .map(|val| val.as_str().unwrap().to_string())
         .collect::<Vec<String>>();
+    */
     let mut owners = HashSet::new();
 
     for owner in config["owners"].as_sequence().unwrap() {
@@ -253,32 +255,25 @@ async fn main() {
         file.read_to_string(&mut raw_string).unwrap();
 
         if !matches.is_present("append-bad-words") {
-            match sqlx::query!(r#"DELETE FROM ttc_bad_words"#)
-                .execute(&pool)
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => {
-                    log::error!("Failed to clear bad word database: {}", why);
-                    return;
-                }
-            }
+            unwrap_or_return!(
+                sqlx::query!(r#"DELETE FROM ttc_bad_words"#)
+                    .execute(&pool)
+                    .await,
+                "Failed to clear bad word database"
+            );
         }
         for line in raw_string.lines() {
             let line = line.trim();
-            match sqlx::query!(r#"INSERT INTO ttc_bad_words (word) VALUES($1)"#, line)
-                .execute(&pool)
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => {
-                    log::error!("Failed to write bad words into the database: {}", why);
-                    return;
-                }
-            }
+            unwrap_or_return!(
+                sqlx::query!(r#"INSERT INTO ttc_bad_words (word) VALUES($1)"#, line)
+                    .execute(&pool)
+                    .await,
+                "Failed to write bad words into the database"
+            );
         }
     }
 
+    /*
     // Write the config to the database if correct argument is present
     if matches.is_present("write-db") {
         let config = Config {
@@ -299,6 +294,7 @@ async fn main() {
             }
         }
     }
+    */
 
     // Create the framework of the bot
     let framework = poise::Framework::build()
@@ -348,7 +344,6 @@ async fn main() {
                 commands::admin::create_verification(),
                 commands::admin::create_selfroles(),
                 commands::admin::create_support_ticket_button(),
-                commands::admin::create_webhooks(),
                 commands::admin::rebuild_emoji_cache(),
                 // General commands
                 commands::general::ping(),

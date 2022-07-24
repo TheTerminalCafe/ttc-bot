@@ -44,7 +44,7 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                             }
                         }
                         // Self role menu interaction
-                        "ttc-bot-self-role-menu" => match interactions::self_role_menu(ctx, intr)
+                        "ttc-bot-self-role-menu" => match interactions::self_role_menu(ctx, intr, data)
                             .await
                         {
                             Ok(_) => (),
@@ -103,12 +103,11 @@ mod interactions {
         InteractionApplicationCommandCallbackDataFlags, 
         InteractionResponseType,
         Mentionable,
-        Color,
     };
     use std::time::Duration;
 
     use crate::{
-        command_error, get_config,
+        command_error,
         commands::support::SupportThread,
         utils::helper_functions::get_message_reply, types::{Error, Data},
     };
@@ -128,36 +127,36 @@ mod interactions {
         })
         .await?;
 
-        let config = get_config!(data, { return command_error!("Failed to get config") });
-        
         // Make sure accounts that enter are older than 7 days
         if Utc::now().timestamp() - intr.member.clone().unwrap().user.created_at().unix_timestamp() < chrono::Duration::days(7).num_seconds() {
+            let color = data.general_error().await;
             intr.edit_original_interaction_response(
                 ctx, 
                 |i| {
                     i.embed(|e| 
                         e.title("An error occurred")
                         .description("Something went wrong.")
-                        .color(Color::RED))
+                        .color(color))
                     }
                 )
                 .await?;
             return Ok(());
         }
 
+        let color = data.verify_color().await;
         // Check if the user already has the verified role
         if !intr
             .member
             .clone()
             .unwrap()
             .roles
-            .contains(&RoleId(config.verified_role as u64))
+            .contains(&RoleId(data.verified_role().await? as u64))
         {
             match intr
                 .member
                 .clone()
                 .unwrap()
-                .add_role(ctx, &RoleId(config.verified_role as u64))
+                .add_role(ctx, &RoleId(data.verified_role().await? as u64))
                 .await
             {
                 Ok(_) => {
@@ -167,21 +166,22 @@ mod interactions {
                             i.embed(|e: &mut CreateEmbed| {
                                 e.title("Verified!")
                                     .description("Successfully verified, enjoy your stay!")
-                                    .color(Color::FOOYOO)
+                                    .color(color)
                             })
                         })
                         .await
                     {
                         Ok(_) => {
                             tokio::time::sleep(Duration::from_secs(2)).await;
-                            let welcome_message = config
-                                .welcome_messages
+                            
+                            let welcome_message = data.welcome_message().await?;
+                            let welcome_message = welcome_message
                                 .choose(&mut rand::thread_rng())
                                 .unwrap();
                             let welcome_message =
                                 welcome_message.replace("%user%", &intr.user.mention().to_string());
 
-                            ChannelId(config.welcome_channel as u64)
+                            ChannelId(data.welcome_channel().await? as u64)
                                 .send_message(ctx, |m| m.content(welcome_message))
                                 .await?;
                         }
@@ -195,6 +195,7 @@ mod interactions {
                 }
             }
         } else {
+            let color = data.general_error().await;
             // If the user has already verified tell them about it
             intr.edit_original_interaction_response(ctx, |i| {
                     i.embed(|e: &mut CreateEmbed| {
@@ -202,7 +203,7 @@ mod interactions {
                             .description(
                                 "You are already verified! You can't over-verify yourself.",
                             )
-                            .color(Color::RED)
+                            .color(color)
                     })
                 })
             .await?;
@@ -211,7 +212,7 @@ mod interactions {
     }
     
     // Interaction for the self role menu
-    pub async fn self_role_menu(ctx: &Context, intr: MessageComponentInteraction) -> Result<(), Error>  {
+    pub async fn self_role_menu(ctx: &Context, intr: MessageComponentInteraction, data: &Data) -> Result<(), Error>  {
         // Select the first component from the first action row which *should*
         // be the selection menu, still check just in case.
         match &intr.message.components[0].components[0] {
@@ -259,10 +260,11 @@ mod interactions {
                     member.remove_roles(ctx, &roles_to_remove).await?;
                 }
 
+                let color = data.selfrole_post_edit_msg().await;
                 // Notify the user that their selection of self roles has been
                 intr.edit_original_interaction_response(ctx, |i| {
                     i.embed(|e| {
-                        e.color(Color::FOOYOO)
+                        e.color(color)
                             .title("Self roles modified")
                             .description("Self role modifications successfully completed")
                     })
@@ -290,10 +292,11 @@ mod interactions {
 
         {
             let mut users_currently_questioned = data.users_currently_questioned.write().await;
+            let color = data.ticket_has_already_ticket().await;
             if users_currently_questioned.contains(&intr.user.id) {
                 match intr.edit_original_interaction_response(ctx, |i| {
                     i.embed(|e| {
-                        e.color(Color::FOOYOO)
+                        e.color(color)
                             .title("You are already opening a ticket!")
                             .description("Please finish that before opening a new one.")
                     })
@@ -307,9 +310,7 @@ mod interactions {
             }
         }
 
-        let config = get_config!(data, { return command_error!("Failed to get config") });
-
-        let support_channel = ChannelId(config.support_channel as u64);
+        let support_channel = ChannelId(data.support_channel().await? as u64);
 
         let mut thread_msg = support_channel
             .send_message(ctx, |m| m.embed(|e| e.title("Pending info...")))
@@ -321,11 +322,12 @@ mod interactions {
             .create_public_thread(ctx, thread_msg.id, |ct| ct.name("Pending title..."))
             .await?;
 
+        let color = data.ticket_thread_created().await;
         intr.edit_original_interaction_response(ctx, |i| {
             i.embed(|e| {
                 e.title("Ticket created")
                     .description(format!("A ticket has been created for you in <#{}>", thread.id))
-                    .color(Color::FOOYOO)
+                    .color(color)
             })
         }).await?;
 
@@ -415,11 +417,12 @@ mod interactions {
             None => intr.user.name.clone(),
         };
         
+        let color = data.ticket_summary().await;
         thread_msg.edit(ctx, |m| m.content("").embed(|e|
             e.title(new_thread_name)
                 .description(description)
                 .author(|a| a.name(user_name).icon_url(intr.user.face()))
-                .color(Color::FOOYOO)
+                .color(color)
         )).await?;
 
 
