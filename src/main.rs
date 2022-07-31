@@ -28,7 +28,15 @@ mod events {
     pub mod listener;
     pub mod support;
 }
-mod types;
+mod types {
+    pub mod colors;
+    pub mod config;
+    pub mod data;
+}
+mod traits {
+    pub mod context_ext;
+    pub mod readable;
+}
 
 // ----------------------
 // Imports from libraries
@@ -46,7 +54,11 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::time::Instant;
 use std::{collections::HashSet, fs::File, sync::Arc};
-use types::{Context, Data, Error};
+use types::{colors::Colors, config::Config, data::Data};
+
+// Context and error types to be used in the crate
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
+pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // This is our custom error handler
@@ -147,7 +159,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
         }
     };
 
-    let color = ctx.data().general_error().await;
+    let color = ctx.data().colors.general_error().await;
     match ctx
         .send(|m| {
             m.embed(|e| e.title(title).description(description).color(color))
@@ -324,6 +336,10 @@ async fn main() {
                     );
                 }
 
+                let pool = Arc::new(pool);
+                let config = Config::new(Arc::clone(&pool));
+                let colors = Colors::new(Arc::clone(&pool));
+
                 Ok(Data {
                     users_currently_questioned: RwLock::new(Vec::new()),
                     harold_message: RwLock::new(None),
@@ -333,6 +349,8 @@ async fn main() {
                     pool: pool,
                     thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
                     startup_time: Instant::now(),
+                    config: config,
+                    colors: colors,
                 })
             })
         })

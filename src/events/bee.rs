@@ -1,7 +1,7 @@
 use poise::serenity_prelude::{Context, Message};
 
 use crate::{
-    types::Data,
+    types::data::Data,
     unwrap_or_return,
     utils::{bee_utils, helper_functions},
 };

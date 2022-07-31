@@ -1,9 +1,5 @@
 use crate::{
-    types::{Context, Data, Error},
-    utils::{
-        emoji_cache::EmojiCache,
-        helper_functions::{format_datetime, format_duration},
-    },
+    traits::readable::Readable, types::data::Data, utils::emoji_cache::EmojiCache, Context, Error,
 };
 use futures::StreamExt;
 use poise::{
@@ -21,14 +17,14 @@ use std::{collections::HashMap, iter::Iterator, time::Duration};
 /// ``ping``
 #[poise::command(prefix_command, slash_command, category = "General")]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
-    let uptime = chrono::Duration::from_std(ctx.data().startup_time.elapsed())?;
     let mut embed = CreateEmbed::default();
-    let color = ctx.data().ping().await;
+    let color = ctx.data().colors.ping().await;
 
-    embed
-        .title("Pong!")
-        .color(color)
-        .field("Uptime", format_duration(&uptime), false);
+    embed.title("Pong!").color(color).field(
+        "Uptime",
+        ctx.data().startup_time.elapsed().readable(),
+        false,
+    );
     let message = ctx
         .send(|m| {
             m.embed(|e| {
@@ -67,7 +63,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let color = ctx.data().user_server_info().await;
+    let color = ctx.data().colors.user_server_info().await;
 
     let (nickname, joined_at, roles) = match ctx.guild() {
         Some(guild) => {
@@ -75,7 +71,7 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
                 Ok(member) => {
                     let nick = member.nick.clone().unwrap_or("None".to_string());
                     let joined_at = match member.joined_at {
-                        Some(joined_at) => format_datetime(&joined_at),
+                        Some(joined_at) => joined_at.readable(),
                         None => "N/A".to_string(),
                     };
                     let mut roles = match member.roles(ctx.discord()) {
@@ -106,7 +102,7 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
             e.author(|a| a.name(user.tag()).icon_url(user.face()))
                 .field("User ID", user.id.0, true)
                 .field("Nickname", nickname, true)
-                .field("Created At", format_datetime(&user.id.created_at()), false)
+                .field("Created At", user.id.created_at().readable(), false)
                 .field("Joined At", joined_at, false)
                 .field("Roles", roles, false)
                 .field("Icon URL", user.face(), false)
@@ -126,7 +122,7 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
 #[poise::command(prefix_command, slash_command, guild_only, category = "General")]
 pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let color = ctx.data().user_server_info().await;
+    let color = ctx.data().colors.user_server_info().await;
     let guild = ctx.guild().unwrap();
     let guild_id_part = guild.id.to_partial_guild_with_counts(ctx.discord()).await?;
     let online_members = match guild_id_part.approximate_presence_count {
@@ -274,7 +270,7 @@ pub async fn leaderboard(
     }
     let mut data = data.get_data().await?;
 
-    let harold_emojis = ctx.data().harold_emoji().await?;
+    let harold_emojis = ctx.data().config.harold_emoji().await?;
     let mut user_list = Vec::new();
     let mut members = ctx.guild_id().unwrap().members_iter(ctx.discord()).boxed();
     while let Some(member) = members.next().await {
@@ -364,7 +360,7 @@ pub async fn leaderboard(
     let mut global_stats = CreateEmbed::default();
 
     // Populate the embeds
-    let color = ctx.data().leaderboard_harold_leaderboard().await;
+    let color = ctx.data().colors.leaderboard_harold_leaderboard().await;
     harold_embed
         .title("Harold message count")
         .description("Leaderboard of users with the highest amounts of harolds in their messages.")
@@ -373,7 +369,11 @@ pub async fn leaderboard(
             Some(harold) => Some((i + 1, format!("<@{}> - {}", harold.0, harold.1,), false)),
             None => None,
         }));
-    let color = ctx.data().leaderboard_message_count_leaderboard().await;
+    let color = ctx
+        .data()
+        .colors
+        .leaderboard_message_count_leaderboard()
+        .await;
     message_embed
         .title("Message count")
         .description("Leaderboard of users with the highest amounts of messages.")
@@ -382,7 +382,11 @@ pub async fn leaderboard(
             Some(messages) => Some((i + 1, format!("<@{}> - {}", messages.0, messages.1,), false)),
             None => None,
         }));
-    let color = ctx.data().leaderboard_harold_percentage_leaderboard().await;
+    let color = ctx
+        .data()
+        .colors
+        .leaderboard_harold_percentage_leaderboard()
+        .await;
     percentage_embed
         .title("Harold percentage")
         .description("Leaderboard of users with the highest percentages of harold messages. NOTE: Only users with more than 500 messages in total are accounted for to avoid inaccurate results.")
@@ -392,7 +396,7 @@ pub async fn leaderboard(
             None => None,
         }));
 
-    let color = ctx.data().leaderboard_global().await;
+    let color = ctx.data().colors.leaderboard_global().await;
     global_stats
         .title("Global statistics")
         .description("Statistics among all users on the server.")
@@ -408,7 +412,7 @@ pub async fn leaderboard(
         )
         .color(color);
 
-    let color = ctx.data().leaderboard_user_overview().await;
+    let color = ctx.data().colors.leaderboard_user_overview().await;
     user_stats
         .title("User statistics")
         .description(format!(
@@ -545,8 +549,8 @@ pub async fn help(
     #[autocomplete = "poise::builtins::autocomplete_command"]
     command: Option<String>,
 ) -> Result<(), Error> {
-    let color_error = ctx.data().general_error().await;
-    let color_help = ctx.data().help().await;
+    let color_error = ctx.data().colors.general_error().await;
+    let color_help = ctx.data().colors.help().await;
     ctx.defer_ephemeral().await?;
     match command {
         Some(command) => {

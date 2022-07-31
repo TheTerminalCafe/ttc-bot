@@ -2,13 +2,13 @@ use std::time::Duration;
 
 use poise::serenity_prelude::{Context, Mentionable, Message, MessageType, Timestamp};
 
-use crate::{unwrap_or_return, types::Data};
+use crate::{unwrap_or_return, types::data::Data};
 
 pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
     match msg.kind {
         MessageType::ChatInputCommand => {
             if msg.interaction.as_ref().unwrap().name == "bump" {
-                let color = data.bump_message().await;
+                let color = data.colors.bump_message().await;
                 match msg.flags {
                     Some(flags) => {
                         if flags.is_empty() {

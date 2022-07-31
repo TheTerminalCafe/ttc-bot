@@ -8,8 +8,8 @@ use poise::serenity_prelude::{ButtonStyle, CreateSelectMenu, Emoji, GuildChannel
 use std::collections::HashMap;
 
 use crate::{
-    types::{self, Context, Error},
-    utils::{emoji_cache::EmojiCache, helper_functions::reply},
+    traits::context_ext::ContextExt, traits::readable::Readable, utils::emoji_cache::EmojiCache,
+    Context, Error,
 };
 
 /// Shutdown the bot
@@ -24,7 +24,13 @@ use crate::{
     category = "Admin"
 )]
 pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
-    reply::admin_success(&ctx, "Goodbye!", "").await?;
+    ctx.send_simple(
+        false,
+        "Goodbye!",
+        None,
+        ctx.data().colors.admin_success().await,
+    )
+    .await?;
 
     ctx.framework()
         .shard_manager
@@ -41,7 +47,7 @@ pub async fn shutdown(ctx: Context<'_>) -> Result<(), Error> {
 /// Command to register the slash commands
 /// ``register``
 #[poise::command(prefix_command, owners_only, hide_in_help, category = "Admin")]
-pub async fn manage_commands(ctx: types::Context<'_>) -> Result<(), types::Error> {
+pub async fn manage_commands(ctx: Context<'_>) -> Result<(), Error> {
     poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
 }
@@ -62,7 +68,7 @@ pub async fn create_verification(
     ctx: Context<'_>,
     #[description = "Channel to send it in"] channel: GuildChannel,
 ) -> Result<(), Error> {
-    let color = ctx.data().verification_message().await;
+    let color = ctx.data().colors.verification_message().await;
     channel
         .send_message(ctx.discord(), |m| {
             m.embed(|e| e.color(color).title("Be sure to follow the rules!"))
@@ -78,10 +84,14 @@ pub async fn create_verification(
         })
         .await?;
 
-    reply::admin_success(
-        &ctx,
+    ctx.send_simple(
+        false,
         "Verification created",
-        &format!("Verification prompt created in <#{}>.", channel.id),
+        Some(&format!(
+            "Verification prompt created in <#{}>.",
+            channel.id
+        )),
+        ctx.data().colors.admin_success().await,
     )
     .await?;
 
@@ -111,7 +121,7 @@ pub async fn create_selfroles(
     let mut menu = CreateSelectMenu::default();
     menu.custom_id("ttc-bot-self-role-menu");
 
-    let raw_selfroles = ctx.data().selfroles().await?;
+    let raw_selfroles = ctx.data().config.selfroles().await?;
 
     if raw_selfroles.len() == 0 {
         return Err(Error::from("No roles in the Database"));
@@ -158,7 +168,7 @@ pub async fn create_selfroles(
     });
 
     // Create the menu in the specified channel
-    let color = ctx.data().selfrole_selection().await;
+    let color = ctx.data().colors.selfrole_selection().await;
     channel
         .send_message(ctx.discord(), |m| {
             m.components(|c| c.create_action_row(|a| a.add_select_menu(menu)))
@@ -167,10 +177,11 @@ pub async fn create_selfroles(
         .await?;
 
     // Reply to the user
-    reply::admin_success(
-        &ctx,
+    ctx.send_simple(
+        false,
         "Self-role menu created",
-        &format!("Self-role menu created in <#{}>.", channel.id),
+        Some(&format!("Self-role menu created in <#{}>.", channel.id)),
+        ctx.data().colors.admin_success().await,
     )
     .await?;
 
@@ -195,8 +206,8 @@ pub async fn create_support_ticket_button(
     #[description = "Channel to send it in"] channel: GuildChannel,
     #[description = "Description for the support system"] description: String,
 ) -> Result<(), Error> {
-    let support_channel = ctx.data().support_channel().await?;
-    let color = ctx.data().admin_success().await;
+    let support_channel = ctx.data().config.support_channel().await?;
+    let color = ctx.data().colors.admin_success().await;
     channel
         .send_message(ctx.discord(), |m| {
             m.embed(|e| {
@@ -217,10 +228,14 @@ pub async fn create_support_ticket_button(
         })
         .await?;
 
-    reply::admin_success(
-        &ctx,
+    ctx.send_simple(
+        false,
         "Support button created",
-        &format!("Support ticket button created in <#{}>", channel.id),
+        Some(&format!(
+            "Support ticket button created in <#{}>",
+            channel.id
+        )),
+        ctx.data().colors.admin_success().await,
     )
     .await?;
 
@@ -241,30 +256,32 @@ pub async fn create_support_ticket_button(
 )]
 pub async fn rebuild_emoji_cache(ctx: Context<'_>) -> Result<(), Error> {
     if EmojiCache::is_running() {
-        reply::general_error(
-            &ctx,
+        ctx.send_simple(
+            true,
             "Emoji cache is already being updated",
-            "Please try using this command later again",
+            Some("Please try using this command later again"),
+            ctx.data().colors.input_error().await,
         )
         .await?;
     } else {
         let start_time = Instant::now();
         let mut emoji_cache = EmojiCache::new(&ctx.data().pool);
-        reply::emoji_info(
-            &ctx,
+        ctx.send_simple(
+            false,
             "Starting to rebuild the complete Emoji cache",
-            "This is going to take *some* time",
+            Some("This is going to take *some* time"),
+            ctx.data().colors.emoji_info().await,
         )
         .await?;
         emoji_cache.update_emoji_cache_poise(&ctx, true).await?;
-        let elapsed = chrono::Duration::from_std(start_time.elapsed())?;
-        reply::emoji_info(
-            &ctx,
+        ctx.send_simple(
+            false,
             "Finished rebuilding the Emoji cache",
-            &format!(
+            Some(&format!(
                 "Things should be synced now again, time taken: {}",
-                crate::utils::helper_functions::format_duration(&elapsed)
-            ),
+                start_time.elapsed().readable()
+            )),
+            ctx.data().colors.admin_success().await,
         )
         .await?;
     }

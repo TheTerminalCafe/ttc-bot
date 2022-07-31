@@ -1,4 +1,4 @@
-use crate::{types::Data, unwrap_or_return, utils::emoji_cache::EmojiCache};
+use crate::{types::data::Data, unwrap_or_return, utils::emoji_cache::EmojiCache};
 use poise::serenity_prelude::{
     ChannelId, Context, GuildId, Message, MessageId, MessageUpdateEvent,
 };
@@ -20,7 +20,7 @@ pub async fn message_delete(
         r#"SELECT * FROM ttc_emoji_cache_channels WHERE channel_id = $1"#,
         channel_id.0 as i64
     )
-    .fetch_one(&data.pool)
+    .fetch_one(&*data.pool)
     .await
     {
         Ok(cache) => cache,
@@ -36,7 +36,7 @@ pub async fn message_delete(
         r#"SELECT * FROM ttc_message_cache WHERE message_id = $1"#,
         deleted_message_id.0 as i64
     )
-    .fetch_one(&data.pool)
+    .fetch_one(&*data.pool)
     .await
     {
         Ok(msg) => msg,
@@ -53,7 +53,7 @@ pub async fn message_delete(
     };
     // If the deleted message was sent before the latest cache message
     if msg.message_time.unwrap().timestamp() < cache.timestamp_unix {
-        let mut emoji_cache = EmojiCache::new(&data.pool);
+        let mut emoji_cache = EmojiCache::new(&*data.pool);
         let emojis = unwrap_or_return!(
             guild_id.unwrap().emojis(ctx).await,
             "can't get emojis from guild"
@@ -108,7 +108,7 @@ pub async fn message_update(
         r#"SELECT * FROM ttc_emoji_cache_channels WHERE channel_id = $1"#,
         event.channel_id.0 as i64
     )
-    .fetch_one(&data.pool)
+    .fetch_one(&*data.pool)
     .await
     {
         Ok(cache) => cache,
@@ -125,7 +125,7 @@ pub async fn message_update(
         r#"SELECT * FROM ttc_message_cache WHERE message_id = $1"#,
         event.id.0 as i64
     )
-    .fetch_one(&data.pool)
+    .fetch_one(&*data.pool)
     .await
     {
         Ok(msg) => msg,
@@ -151,7 +151,7 @@ pub async fn message_update(
 
     if new.id.created_at().timestamp() < cache.timestamp_unix {
         // Store possible modifications to the users emojis
-        let mut emoji_cache = EmojiCache::new(&data.pool);
+        let mut emoji_cache = EmojiCache::new(&*data.pool);
         for emoji in &emoji_list {
             let emoji_pattern = format!("<:{}:", emoji.name);
             let new_contains = new.content.contains(&emoji_pattern);

@@ -1,7 +1,4 @@
-use crate::{
-    types::{Data, Error},
-    unwrap_or_return,
-};
+use crate::{types::data::Data, unwrap_or_return, Error};
 use poise::{
     serenity_prelude::{Context, Message},
     FrameworkContext,
@@ -23,7 +20,7 @@ pub async fn message(
                 sqlx::query!(
                     r#"SELECT content FROM ttc_easter_egg_gifs ORDER BY RANDOM() LIMIT 1"#
                 )
-                .fetch_one(&data.pool)
+                .fetch_one(&*data.pool)
                 .await,
                 "Error getting a GIF from the DB"
             )

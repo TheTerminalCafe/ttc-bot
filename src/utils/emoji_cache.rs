@@ -2,7 +2,7 @@ use futures::StreamExt;
 use poise::serenity_prelude::{Context, GuildId};
 use sqlx::{Pool, Postgres};
 
-use crate::types::{self, Error};
+use crate::Error;
 use std::{collections::HashMap, sync::atomic::AtomicBool};
 
 // idk how to put this in the struct as shared static
@@ -246,7 +246,7 @@ impl<'a> EmojiCache<'a> {
     /// Please note that the UserID 0 is used for global messages
     pub async fn update_emoji_cache_poise(
         &mut self,
-        ctx: &'a types::Context<'_>,
+        ctx: &'a crate::Context<'_>,
         full_rebuild: bool,
     ) -> Result<(), Error> {
         let guild = match ctx.guild_id() {

@@ -4,7 +4,7 @@ use poise::{
     FrameworkContext,
 };
 
-use crate::types::{Data, Error};
+use crate::{types::data::Data, Error};
 
 pub async fn listener(
     ctx: &Context,

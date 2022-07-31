@@ -1,6 +1,7 @@
 use crate::{
     command_error,
-    utils::{autocomplete_functions::language_autocomplete, bee_utils, helper_functions::reply},
+    traits::context_ext::ContextExt,
+    utils::{autocomplete_functions::language_autocomplete, bee_utils},
     Context, Error,
 };
 use poise::serenity_prelude::Message;
@@ -136,10 +137,11 @@ pub async fn translate(
         if beeified_users.contains_key(&ctx.author().id)
             || beezone_channels.contains_key(&ctx.channel_id())
         {
-            reply::bee_translate_block(
-                &ctx,
+            ctx.send_simple(
+                false,
                 "You are a bee!",
-                "Bees can't translate, bees can only... bee.",
+                Some("Bees can't translate, bees can only... bee."),
+                ctx.data().colors.bee_translate_block().await,
             )
             .await?;
             return Ok(());
@@ -150,16 +152,16 @@ pub async fn translate(
 
     let (source_lang, translated_text) = translate_text(lang.clone(), &text_to_translate).await?;
 
+    let color = ctx.data().colors.translate().await;
+
     // Send the translated message
-    reply::translate(
-        &ctx,
-        "Translated Message",
-        &format!("{} -> {}", source_lang, lang),
-        vec![
-            ("Original Message", &text_to_translate),
-            ("Translated Message", &translated_text),
-        ],
-    )
+    ctx.send_embed(false, |e| {
+        e.title("Translated Message")
+            .description(format!("{} -> {}", source_lang, lang))
+            .field("Original Message", &text_to_translate, false)
+            .field("Translated Message", &translated_text, false)
+            .color(color)
+    })
     .await?;
 
     Ok(())
@@ -179,16 +181,15 @@ pub async fn translate_to_en(
 
     let (source_lang, translated_text) = translate_text("en".to_string(), &msg.content).await?;
 
+    let color = ctx.data().colors.translate().await;
     // Send the translated message
-    reply::translate(
-        &ctx,
-        "Translated Message",
-        &format!("{} -> English", source_lang),
-        vec![
-            ("Original Message", &msg.content),
-            ("Translated Message", &translated_text),
-        ],
-    )
+    ctx.send_embed(false, |e| {
+        e.title("Translated Message")
+            .description(format!("{} -> English", source_lang))
+            .field("Original Message", &msg.content, false)
+            .field("Translated Message", &translated_text, false)
+            .color(color)
+    })
     .await?;
 
     Ok(())

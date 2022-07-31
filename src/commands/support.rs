@@ -1,7 +1,7 @@
 use crate::{
     command_error,
-    types::{Context, Error},
-    utils::helper_functions::{format_datetime, reply},
+    traits::{context_ext::ContextExt, readable::Readable},
+    Context, Error,
 };
 use chrono::{DateTime, Utc};
 use poise::{serenity_prelude::CreateEmbed, CreateReply};
@@ -54,7 +54,7 @@ impl PartialEq for ThreadId {
 )]
 pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
     // Get a reference to the database
-    let pool = &ctx.data().pool;
+    let pool = &*ctx.data().pool;
 
     // Get the row with the current channel id from the database
     let thread = match sqlx::query_as!(
@@ -73,7 +73,13 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
 
     // Make sure thread is not yet solved
     if thread.incident_solved {
-        reply::input_error(&ctx, "Error", "This ticket is already solved.").await?;
+        ctx.send_simple(
+            true,
+            "Error",
+            Some("This ticket is already solved."),
+            ctx.data().colors.input_error().await,
+        )
+        .await?;
     }
 
     // Update the state to be solved
@@ -90,10 +96,11 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
         }
     }
 
-    reply::support_info(
-        &ctx,
+    ctx.send_simple(
+        false,
         "Great!",
-        "Now that this ticket has been solved, this thread will be archived.",
+        Some("Now that this ticket has been solved, this thread will be archived."),
+        ctx.data().colors.support_info().await,
     )
     .await?;
 
@@ -154,7 +161,7 @@ pub async fn search(
 }
 
 async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
-    let pool = &ctx.data().pool;
+    let pool = &*ctx.data().pool;
 
     // Loop through the arguments and with each iteration search for them from the database, if
     // found send a message with the information about the ticket
@@ -167,7 +174,7 @@ async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
     .await?;
 
     let mut msg = if threads.len() != 0 {
-        let color = ctx.data().support_info().await;
+        let color = ctx.data().colors.support_info().await;
         let mut msg = CreateReply::default();
         msg.embed(|e| e.title("List of support tickets found:").color(color));
 
@@ -176,7 +183,7 @@ async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
         }
         msg
     } else {
-        let color = ctx.data().general_error().await;
+        let color = ctx.data().colors.general_error().await;
         let mut msg = CreateReply::default();
         msg.embed(|e| e.title("No support tickets found.").color(color));
         msg
@@ -188,7 +195,7 @@ async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
 }
 
 async fn search_id(ctx: Context<'_>, id: u32) -> Result<(), Error> {
-    let pool = &ctx.data().pool;
+    let pool = &*ctx.data().pool;
 
     // Get the support ticket from the database
     let thread = match sqlx::query_as!(
@@ -201,7 +208,13 @@ async fn search_id(ctx: Context<'_>, id: u32) -> Result<(), Error> {
     {
         Ok(thread) => thread,
         Err(_) => {
-            reply::general_error(&ctx, "No such ticket found", "").await?;
+            ctx.send_simple(
+                true,
+                "No such ticket found",
+                None,
+                ctx.data().colors.input_error().await,
+            )
+            .await?;
             return Ok(());
         }
     };
@@ -288,7 +301,7 @@ async fn is_in_support_channel(ctx: &Context, msg: &Message) -> Result<(), Reaso
 
 // Check for making sure command originated from one of the known support threads in the database
 async fn is_in_support_thread(ctx: Context<'_>) -> Result<bool, Error> {
-    let pool = &ctx.data().pool;
+    let pool = &*ctx.data().pool;
 
     // Get the thread ids from the database
     let support_thread_ids =
@@ -355,6 +368,6 @@ fn support_ticket_embed<'a>(
             format!("Solved: {}", thread.incident_solved,),
             false,
         )
-        .field("Timestamp:", format_datetime(&thread.incident_time), false)
+        .field("Timestamp:", thread.incident_time.readable(), false)
         .field("Thread:", format!("<#{}>", thread.thread_id), false)
 }

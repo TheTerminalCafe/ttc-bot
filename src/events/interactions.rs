@@ -1,6 +1,6 @@
 
 use poise::serenity_prelude::{Context, Interaction, InteractionType};
-use crate::types::Data;
+use crate::types::data::Data;
 
 // Macro to quickly check if a user has a certain role
 macro_rules! check_user_role {
@@ -109,7 +109,7 @@ mod interactions {
     use crate::{
         command_error,
         commands::support::SupportThread,
-        utils::helper_functions::get_message_reply, types::{Error, Data},
+        utils::helper_functions::get_message_reply, types::data::Data, Error,
     };
 
     // Interaction for the verification button
@@ -129,7 +129,7 @@ mod interactions {
 
         // Make sure accounts that enter are older than 7 days
         if Utc::now().timestamp() - intr.member.clone().unwrap().user.created_at().unix_timestamp() < chrono::Duration::days(7).num_seconds() {
-            let color = data.general_error().await;
+            let color = data.colors.general_error().await;
             intr.edit_original_interaction_response(
                 ctx, 
                 |i| {
@@ -143,20 +143,20 @@ mod interactions {
             return Ok(());
         }
 
-        let color = data.verify_color().await;
+        let color = data.colors.verify_color().await;
         // Check if the user already has the verified role
         if !intr
             .member
             .clone()
             .unwrap()
             .roles
-            .contains(&RoleId(data.verified_role().await? as u64))
+            .contains(&RoleId(data.config.verified_role().await? as u64))
         {
             match intr
                 .member
                 .clone()
                 .unwrap()
-                .add_role(ctx, &RoleId(data.verified_role().await? as u64))
+                .add_role(ctx, &RoleId(data.config.verified_role().await? as u64))
                 .await
             {
                 Ok(_) => {
@@ -174,14 +174,14 @@ mod interactions {
                         Ok(_) => {
                             tokio::time::sleep(Duration::from_secs(2)).await;
                             
-                            let welcome_message = data.welcome_message().await?;
+                            let welcome_message = data.config.welcome_message().await?;
                             let welcome_message = welcome_message
                                 .choose(&mut rand::thread_rng())
                                 .unwrap();
                             let welcome_message =
                                 welcome_message.replace("%user%", &intr.user.mention().to_string());
 
-                            ChannelId(data.welcome_channel().await? as u64)
+                            ChannelId(data.config.welcome_channel().await? as u64)
                                 .send_message(ctx, |m| m.content(welcome_message))
                                 .await?;
                         }
@@ -195,7 +195,7 @@ mod interactions {
                 }
             }
         } else {
-            let color = data.general_error().await;
+            let color = data.colors.general_error().await;
             // If the user has already verified tell them about it
             intr.edit_original_interaction_response(ctx, |i| {
                     i.embed(|e: &mut CreateEmbed| {
@@ -260,7 +260,7 @@ mod interactions {
                     member.remove_roles(ctx, &roles_to_remove).await?;
                 }
 
-                let color = data.selfrole_post_edit_msg().await;
+                let color = data.colors.selfrole_post_edit_msg().await;
                 // Notify the user that their selection of self roles has been
                 intr.edit_original_interaction_response(ctx, |i| {
                     i.embed(|e| {
@@ -292,7 +292,7 @@ mod interactions {
 
         {
             let mut users_currently_questioned = data.users_currently_questioned.write().await;
-            let color = data.ticket_has_already_ticket().await;
+            let color = data.colors.ticket_has_already_ticket().await;
             if users_currently_questioned.contains(&intr.user.id) {
                 match intr.edit_original_interaction_response(ctx, |i| {
                     i.embed(|e| {
@@ -310,7 +310,7 @@ mod interactions {
             }
         }
 
-        let support_channel = ChannelId(data.support_channel().await? as u64);
+        let support_channel = ChannelId(data.config.support_channel().await? as u64);
 
         let mut thread_msg = support_channel
             .send_message(ctx, |m| m.embed(|e| e.title("Pending info...")))
@@ -322,7 +322,7 @@ mod interactions {
             .create_public_thread(ctx, thread_msg.id, |ct| ct.name("Pending title..."))
             .await?;
 
-        let color = data.ticket_thread_created().await;
+        let color = data.colors.ticket_thread_created().await;
         intr.edit_original_interaction_response(ctx, |i| {
             i.embed(|e| {
                 e.title("Ticket created")
@@ -384,7 +384,7 @@ mod interactions {
         // Insert the gathered information into the database and return the newly created database
         // entry for it's primary key to be added to the support thread title
 
-        let pool = &data.pool;
+        let pool = &*data.pool;
 
         let db_thread = match sqlx::query_as!(
             SupportThread,
@@ -417,7 +417,7 @@ mod interactions {
             None => intr.user.name.clone(),
         };
         
-        let color = data.ticket_summary().await;
+        let color = data.colors.ticket_summary().await;
         thread_msg.edit(ctx, |m| m.content("").embed(|e|
             e.title(new_thread_name)
                 .description(description)

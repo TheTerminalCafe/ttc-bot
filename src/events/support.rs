@@ -1,12 +1,12 @@
 use poise::serenity_prelude::{Color, Context, GuildChannel};
 
-use crate::{commands::support::SupportThread, types::Data, utils::helper_functions::embed_msg, unwrap_or_return};
+use crate::{commands::support::SupportThread, types::data::Data, utils::helper_functions::embed_msg, unwrap_or_return};
 
 pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
     // Make sure the updated part is the archived value
 
     if thread.thread_metadata.unwrap().archived {
-        let pool = &data.pool;
+        let pool = &*data.pool;
 
         // Get the current thread info from the database
         let mut db_thread = match sqlx::query_as!(

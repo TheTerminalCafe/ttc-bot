@@ -33,37 +33,6 @@ macro_rules! command_error {
 }
 
 #[macro_export]
-macro_rules! config_function {
-    ($sql:expr, $name:ident, Vec<$_type:ty>) => {
-        pub async fn $name(&self) -> Result<Vec<$_type>, ::sqlx::Error> {
-            Ok(::sqlx::query!($sql)
-                .fetch_all(&self.pool)
-                .await?
-                .into_iter()
-                .map(|record| record.$name)
-                .collect::<Vec<$_type>>())
-        }
-    };
-
-    ($sql:expr, $name:ident, $name_2:ident, Vec<$_type:ty>) => {
-        pub async fn $name(&self) -> Result<Vec<$_type>, ::sqlx::Error> {
-            Ok(::sqlx::query!($sql)
-                .fetch_all(&self.pool)
-                .await?
-                .into_iter()
-                .map(|record| (record.$name, record.$name_2))
-                .collect::<Vec<$_type>>())
-        }
-    };
-
-    ($sql:expr, $name:ident, $_type:ty) => {
-        pub async fn $name(&self) -> Result<$_type, ::sqlx::Error> {
-            Ok(::sqlx::query!($sql).fetch_one(&self.pool).await?.$name)
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! unwrap_or_return {
     ($_data:expr, $_str:expr) => {
         match $_data {
@@ -76,42 +45,7 @@ macro_rules! unwrap_or_return {
     };
 }
 
-#[macro_export]
-macro_rules! embed_color {
-    ($_name:ident, $_default_color:expr) => {
-        pub async fn $_name(&self) -> ::poise::serenity_prelude::Color {
-            let data = match sqlx::query!(
-                r#"SELECT color FROM ttc_embed_colors WHERE embed_type = $1"#,
-                stringify!($_name)
-            )
-            .fetch_one(&self.pool)
-            .await
-            {
-                Ok(c) => Ok(c.color),
-                Err(why) => Err(why),
-            };
-            match data {
-                Ok(data) => {
-                    if data.len() >= 3 {
-                        return Color::from_rgb(data[0], data[1], data[2]);
-                    } else {
-                        ::log::warn!("Not enough color bytes in Database");
-                        return $_default_color;
-                    }
-                }
-                Err(why) => {
-                    ::log::warn!(
-                        "Error getting color \"{}\" for reply: {}",
-                        stringify!($_name),
-                        why
-                    );
-                    $_default_color
-                }
-            }
-        }
-    };
-}
-
+/*
 #[macro_export]
 macro_rules! ttc_reply_generate {
     ($_fname:ident, $_defcolor:expr) => {
@@ -145,3 +79,4 @@ macro_rules! ttc_reply_generate {
         }
     };
 }
+*/

@@ -1,9 +1,8 @@
-use chrono::{DateTime, Utc};
 use poise::serenity_prelude::{
     ChannelId, Color, Context, CreateEmbed, CreateMessage, Message, User, Webhook,
 };
 
-use crate::types::{Data, Error};
+use crate::{types::data::Data, Error};
 use std::{sync::Arc, time::Duration};
 
 // ----------------
@@ -146,8 +145,8 @@ where
 // May be useful later, but is not right now
 #[allow(dead_code)]
 pub async fn alert_mods(ctx: &Context, embed: CreateEmbed, data: &Data) -> Result<(), Error> {
-    let mod_role = data.moderator_role().await?;
-    for channel in &data.conveyance_channel().await? {
+    let mod_role = data.config.moderator_role().await?;
+    for channel in &data.config.conveyance_channel().await? {
         ChannelId(*channel as u64)
             .send_message(ctx, |m| {
                 m.content(format!("<@&{}>", mod_role))
@@ -157,42 +156,6 @@ pub async fn alert_mods(ctx: &Context, embed: CreateEmbed, data: &Data) -> Resul
     }
 
     Ok(())
-}
-
-pub fn format_duration(dur: &chrono::Duration) -> String {
-    let mut result = String::new();
-    let mut raw = dur.num_seconds();
-    let seconds = raw % 60;
-    raw /= 60;
-    let minutes = raw % 60;
-    raw /= 60;
-    let hours = raw % 24;
-    raw /= 24;
-    let days = raw;
-    match days {
-        0 => {}
-        1 => result = format!("{} {} Day ", result, days),
-        _ => result = format!("{} {} Days ", result, days),
-    }
-    match hours {
-        0 => {}
-        1 => result = format!("{} {} Hour ", result, hours),
-        _ => result = format!("{} {} Hours ", result, hours),
-    }
-    match minutes {
-        0 => {}
-        1 => result = format!("{} {} Minute ", result, minutes),
-        _ => result = format!("{} {} Minutes ", result, minutes),
-    }
-    match seconds {
-        0 => {}
-        1 => result = format!("{} {} Second", result, seconds),
-        _ => result = format!("{} {} Seconds", result, seconds),
-    }
-    if result.len() == 0 {
-        result = format!("0 Seconds");
-    }
-    result.trim_end().to_owned()
 }
 
 pub async fn get_webhook(
@@ -212,7 +175,7 @@ pub async fn get_webhook(
             webhooks.insert(channel_id.clone(), webhook.clone());
             // Update the webhook URLs in the DB
             sqlx::query!(r#"DELETE FROM ttc_webhooks"#)
-                .execute(&data.pool)
+                .execute(&*data.pool)
                 .await?;
             for (channel_id, webhook) in webhooks.iter() {
                 sqlx::query!(
@@ -226,22 +189,13 @@ pub async fn get_webhook(
                         }
                     }
                 )
-                .execute(&data.pool)
+                .execute(&*data.pool)
                 .await?;
             }
             log::info!("Created missing webhook for channel {}", channel_id);
             webhook
         }
     })
-}
-
-pub fn format_datetime(timestamp: &DateTime<Utc>) -> String {
-    format!(
-        "{} ({})",
-        timestamp.format("%d.%m.%Y at %H:%M:%S"),
-        timestamp.timezone()
-    )
-    .to_owned()
 }
 
 pub fn check_duration(duration: chrono::Duration, max_days: i64) -> Result<(), Error> {
@@ -254,7 +208,7 @@ pub fn check_duration(duration: chrono::Duration, max_days: i64) -> Result<(), E
     Ok(())
 }
 
-pub mod reply {
+/*pub mod reply {
     use crate::{ttc_reply_generate, Data, Error};
     use poise::serenity_prelude::Color;
     use poise::Context;
@@ -330,4 +284,4 @@ pub mod reply {
 
     // When a Bee is trying to translate something
     ttc_reply_generate!(support_info, Color::FOOYOO, false);
-}
+}*/

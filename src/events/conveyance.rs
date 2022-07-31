@@ -1,4 +1,4 @@
-use crate::{types::Data, unwrap_or_return, utils::helper_functions::format_datetime};
+use crate::{traits::readable::Readable, types::data::Data, unwrap_or_return};
 use chrono::{DateTime, Utc};
 use poise::serenity_prelude::*;
 
@@ -25,7 +25,7 @@ struct CachedMessage {
 // Store 500 most recent messages seen by this bot in a cache for informing when it had been
 // deleted
 pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
-    let pool = &data.pool;
+    let pool = &*data.pool;
 
     let mut id = unwrap_or_return!(
         sqlx::query_as!(
@@ -78,14 +78,14 @@ pub async fn message_delete(
 ) {
     // Make sure the channel isn't blacklisted from conveyance
     if unwrap_or_return!(
-        data.conveyance_blacklist_channel().await,
+        data.config.conveyance_blacklist_channel().await,
         "Error getting conveyance blacklisted channels"
     )
     .contains(&(channel_id.0 as i64))
     {
         return;
     }
-    let pool = &data.pool;
+    let pool = &*data.pool;
 
     // Get the cached message from the database
     let msg = match sqlx::query_as!(
@@ -134,11 +134,11 @@ pub async fn message_delete(
     attachments.truncate(1024);
 
     let conv_channels = unwrap_or_return!(
-        data.conveyance_channel().await,
+        data.config.conveyance_channel().await,
         "Error getting conveyance channels"
     );
 
-    let color = data.conveyance_msg_delete().await;
+    let color = data.colors.conveyance_msg_delete().await;
     for channel in &conv_channels {
         unwrap_or_return!(
             ChannelId(*channel as u64)
@@ -150,7 +150,10 @@ pub async fn message_delete(
                             .field("UserId", user.id, true)
                             .field(
                                 "Message sent at",
-                                format_datetime(&msg.message_time.unwrap()),
+                                match msg.message_time {
+                                    Some(time) => time.readable(),
+                                    None => "N/A".to_string(),
+                                },
                                 false,
                             )
                             .field("Channel", format!("<#{}>", msg.channel_id.unwrap()), true)
@@ -185,7 +188,7 @@ pub async fn message_update(
 ) {
     // Make sure the channel isn't blacklisted from conveyance
     if unwrap_or_return!(
-        data.conveyance_blacklist_channel().await,
+        data.config.conveyance_blacklist_channel().await,
         "Error getting conveyance blacklisted channels"
     )
     .contains(&(event.channel_id.0 as i64))
@@ -193,13 +196,13 @@ pub async fn message_update(
         return;
     }
 
-    let pool = &data.pool;
+    let pool = &*data.pool;
 
     // Create the embed outside the closures to allow for async calls
     let mut message_embed = CreateEmbed::default();
     message_embed.title("Message edited");
     message_embed.timestamp(Utc::now());
-    let color = data.conveyance_msg_update().await;
+    let color = data.colors.conveyance_msg_update().await;
     message_embed.color(color);
 
     // Get the user info if it is available from the event
@@ -313,7 +316,7 @@ pub async fn message_update(
     );
 
     let conv_channels = unwrap_or_return!(
-        data.conveyance_channel().await,
+        data.config.conveyance_channel().await,
         "Error getting conveyance channels"
     );
 
@@ -329,10 +332,10 @@ pub async fn message_update(
 
 pub async fn guild_member_addition(ctx: &Context, new_member: &Member, data: &Data) {
     let conv_channels = unwrap_or_return!(
-        data.conveyance_channel().await,
+        data.config.conveyance_channel().await,
         "Error getting conveyance channels"
     );
-    let color = data.conveyance_member_join().await;
+    let color = data.colors.conveyance_member_join().await;
     for channel in &conv_channels {
         unwrap_or_return!(
             ChannelId(*channel as u64)
@@ -344,7 +347,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member, data: &Da
                             .field("UserID", new_member.user.id, true)
                             .field(
                                 "Account created",
-                                format_datetime(&new_member.user.created_at()),
+                                &new_member.user.created_at().readable(),
                                 false,
                             )
                     })
@@ -363,17 +366,17 @@ pub async fn guild_member_removal(
 ) {
     let joined_at = match member {
         Some(member) => match member.joined_at {
-            Some(joined_at) => format_datetime(&joined_at),
+            Some(joined_at) => joined_at.readable(),
             None => "Join date not available".to_string(),
         },
         None => "Join date not available".to_string(),
     };
 
     let conv_channels = unwrap_or_return!(
-        data.conveyance_channel().await,
+        data.config.conveyance_channel().await,
         "Error getting conveyance channels"
     );
-    let color = data.conveyance_member_leave().await;
+    let color = data.colors.conveyance_member_leave().await;
     for channel in &conv_channels {
         unwrap_or_return!(
             ChannelId(*channel as u64)
@@ -393,11 +396,11 @@ pub async fn guild_member_removal(
 }
 pub async fn guild_ban_addition(ctx: &Context, banned_user: &User, data: &Data) {
     let conv_channels = unwrap_or_return!(
-        data.conveyance_channel().await,
+        data.config.conveyance_channel().await,
         "Error getting conveyance channels"
     );
 
-    let color = data.conveyance_ban_addition().await;
+    let color = data.colors.conveyance_ban_addition().await;
     for channel in &conv_channels {
         unwrap_or_return!(
             ChannelId(*channel as u64)
@@ -417,10 +420,10 @@ pub async fn guild_ban_addition(ctx: &Context, banned_user: &User, data: &Data) 
 
 pub async fn guild_ban_removal(ctx: &Context, unbanned_user: &User, data: &Data) {
     let conv_channels = unwrap_or_return!(
-        data.conveyance_channel().await,
+        data.config.conveyance_channel().await,
         "Error getting conveyance channels"
     );
-    let color = data.conveyance_unban().await;
+    let color = data.colors.conveyance_unban().await;
     for channel in &conv_channels {
         unwrap_or_return!(
             ChannelId(*channel as u64)
@@ -519,10 +522,10 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
     }
 
     let conv_channels = unwrap_or_return!(
-        data.conveyance_channel().await,
+        data.config.conveyance_channel().await,
         "Error getting conveyance channels"
     );
-    let color = data.conveyance_member_update().await;
+    let color = data.colors.conveyance_member_update().await;
     for channel in &conv_channels {
         unwrap_or_return!(
             ChannelId(*channel as u64)
