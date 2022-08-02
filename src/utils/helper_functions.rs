@@ -198,7 +198,7 @@ pub async fn get_webhook(
     })
 }
 
-pub fn check_duration(duration: chrono::Duration, max_days: i64) -> Result<(), Error> {
+/*pub fn check_duration(duration: chrono::Duration, max_days: i64) -> Result<(), Error> {
     if duration.num_days() > max_days {
         return Err(Error::from(format!(
             "Your specified number of days is over the maximum of {} days",
@@ -206,7 +206,7 @@ pub fn check_duration(duration: chrono::Duration, max_days: i64) -> Result<(), E
         )));
     }
     Ok(())
-}
+}*/
 
 /*pub mod reply {
     use crate::{ttc_reply_generate, Data, Error};

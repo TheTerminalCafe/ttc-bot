@@ -1,9 +1,6 @@
 use crate::{
     traits::{context_ext::ContextExt, readable::Readable},
-    utils::{
-        bee_utils::{BeeifiedUser, BeezoneChannel},
-        helper_functions::check_duration,
-    },
+    utils::bee_utils::{BeeifiedUser, BeezoneChannel},
     Context, Error,
 };
 use chrono::{Duration, Utc};
@@ -237,12 +234,19 @@ pub async fn timeout(
     }
 
     let duration = Duration::from_std(humantime::parse_duration(&duration_str)?)?;
-    check_duration(duration, 28)?;
-    member
-        .disable_communication_until_datetime(
-            ctx.discord(),
-            Timestamp::parse(&(Utc::now() + duration).to_rfc3339())?,
+    // 28 days in seconds to make sure most values above 28 days are discarded
+    if duration.num_seconds() > 21419200 {
+        ctx.send_simple(
+            true,
+            "Duration too long",
+            Some("Maximum time for time outs is 28 days."),
+            ctx.data().colors.input_error().await,
         )
+        .await?;
+        return Ok(());
+    }
+    member
+        .disable_communication_until_datetime(ctx.discord(), (Utc::now() + duration).into())
         .await?;
 
     ctx.send_simple(
