@@ -248,7 +248,8 @@ CREATE TABLE ttc_embed_colors (
   id serial4 NOT NULL,
   embed_type varchar NOT NULL,
   color BYTEA NOT NULL,
-  CONSTRAINT ttc_embed_colors_pk PRIMARY KEY (id)
+  CONSTRAINT ttc_embed_colors_pk PRIMARY KEY (id),
+	CONSTRAINT ttc_embed_type UNIQUE (embed_type)
 );
 
 -- public.ttc_config constraint definition

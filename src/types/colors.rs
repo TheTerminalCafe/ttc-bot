@@ -8,7 +8,7 @@ macro_rules! embed_color {
         pub async fn $name(&self) -> ::poise::serenity_prelude::Color {
             let data = match sqlx::query!(
                 r#"SELECT color FROM ttc_embed_colors WHERE embed_type = $1"#,
-                stringify!($_name)
+                stringify!($name)
             )
             .fetch_one(&*self.pool)
             .await
@@ -32,7 +32,13 @@ macro_rules! embed_color {
                 }
                 Err(why) => {
                     match why {
-                        ::sqlx::Error::RowNotFound => (),
+                        ::sqlx::Error::RowNotFound => {
+                            ::log::warn!(
+                                "No color set in Database for \"{}\": {}",
+                                stringify!($name),
+                                why
+                            );
+                        }
                         _ => ::log::error!(
                             "Error getting color \"{}\" for reply: {}",
                             stringify!($name),
