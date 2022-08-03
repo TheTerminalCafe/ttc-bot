@@ -2,7 +2,6 @@ use poise::serenity_prelude::Color;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-#[macro_export]
 macro_rules! embed_color {
     ($name:ident, $default_color:expr) => {
         pub async fn $name(&self) -> ::poise::serenity_prelude::Color {
