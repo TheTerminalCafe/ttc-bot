@@ -183,15 +183,6 @@ async fn main() {
                 .long("core-config")
                 .help("Configuration file"),
         )
-        /*
-        .arg(
-            Arg::with_name("write-db")
-                .takes_value(false)
-                .required(false)
-                .short("w")
-                .long("write")
-                .help("Write the config to the database"),
-        )*/
         .arg(
             Arg::with_name("bad-words")
                 .takes_value(true)
@@ -224,30 +215,6 @@ async fn main() {
     let token = config["token"].as_str().unwrap();
     let application_id = config["application_id"].as_u64().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
-    /*
-    let support_channel_id = config["support_channel"].as_u64().unwrap();
-    let verified_role_id = config["verified_role"].as_u64().unwrap();
-    let moderator_role_id = config["moderator_role"].as_u64().unwrap();
-    let conveyance_channel_ids = config["conveyance_channels"]
-        .as_sequence()
-        .unwrap()
-        .iter()
-        .map(|val| val.as_i64().unwrap())
-        .collect::<Vec<i64>>();
-    let conveyance_blacklisted_channel_ids = config["conveyance_blacklisted_channels"]
-        .as_sequence()
-        .unwrap()
-        .iter()
-        .map(|val| val.as_i64().unwrap())
-        .collect::<Vec<i64>>();
-    let welcome_channel_id = config["welcome_channel"].as_u64().unwrap();
-    let welcome_messages = config["welcome_messages"]
-        .as_sequence()
-        .unwrap()
-        .iter()
-        .map(|val| val.as_str().unwrap().to_string())
-        .collect::<Vec<String>>();
-    */
     let mut owners = HashSet::new();
 
     for owner in config["owners"].as_sequence().unwrap() {
@@ -284,29 +251,6 @@ async fn main() {
             );
         }
     }
-
-    /*
-    // Write the config to the database if correct argument is present
-    if matches.is_present("write-db") {
-        let config = Config {
-            support_channel: support_channel_id as i64,
-            verified_role: verified_role_id as i64,
-            moderator_role: moderator_role_id as i64,
-            conveyance_channels: conveyance_channel_ids,
-            conveyance_blacklisted_channels: conveyance_blacklisted_channel_ids,
-            welcome_channel: welcome_channel_id as i64,
-            welcome_messages,
-        };
-
-        match config.save_in_db(&pool).await {
-            Ok(_) => (),
-            Err(why) => {
-                log::error!("Failed to write config into the database: {}", why);
-                return;
-            }
-        }
-    }
-    */
 
     // Create the framework of the bot
     let framework = poise::Framework::build()

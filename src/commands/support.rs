@@ -225,80 +225,6 @@ async fn search_id(ctx: Context<'_>, id: u32) -> Result<(), Error> {
     Ok(())
 }
 
-/*#[command]
-#[description("List tickets based on subcommand")]
-#[usage("<active>")]
-#[sub_commands(active)]
-#[checks(is_in_support_channel)]
-async fn list(ctx: &Context, msg: &Message) -> CommandResult {
-    embed_msg(
-        ctx,
-        &msg.channel_id,
-        Some("Missing subcommand"),
-        Some("Use list with one of the subcommands. (active)"),
-        Some(Color::RED),
-        None,
-    )
-    .await?;
-
-    Ok(())
-}*/
-
-/*#[command]
-#[description("List all active tickets")]
-#[checks(is_in_support_channel)]
-async fn active(ctx: &Context, msg: &Message) -> CommandResult {
-    let data = ctx.data.read().await;
-    let pool = data.get::<PgPoolType>().unwrap();
-
-    let threads = sqlx::query_as!(
-        SupportThread,
-        r#"SELECT * FROM ttc_support_tickets WHERE incident_solved = 'f'"#
-    )
-    .fetch_all(pool)
-    .await?;
-
-    if threads.len() == 0 {
-        embed_msg(
-            ctx,
-            &msg.channel_id,
-            Some("Nothing found"),
-            Some("No active issues found"),
-            Some(Color::BLUE),
-            None,
-        )
-        .await?;
-    } else {
-        for thread in threads {
-            support_ticket_msg(ctx, &msg.channel_id, &thread).await?;
-        }
-    }
-
-    Ok(())
-}*/
-
-// ----------------------------
-// Checks (for channel ids etc)
-// ----------------------------
-
-// Check for making sure command originated from the set support channel
-/*#[check]
-#[display_in_help(false)]
-async fn is_in_support_channel(ctx: &Context, msg: &Message) -> Result<(), Reason> {
-    let config = get_config!(ctx, {
-        return Err(Reason::Log("Database error.".to_string()));
-    });
-
-    if config.support_channel as u64 == msg.channel_id.0 {
-        return Ok(());
-    }
-
-    Err(Reason::Log(format!(
-        "{} called outside support channel",
-        msg.content
-    )))
-}*/
-
 // Check for making sure command originated from one of the known support threads in the database
 async fn is_in_support_thread(ctx: Context<'_>) -> Result<bool, Error> {
     let pool = &*ctx.data().pool;
@@ -318,43 +244,9 @@ async fn is_in_support_thread(ctx: Context<'_>) -> Result<bool, Error> {
     Ok(support_thread_ids.contains(&channel_id))
 }
 
-/*#[check]
-#[display_in_help(false)]
-async fn is_in_either(
-    ctx: &Context,
-    msg: &Message,
-    args: &mut Args,
-    options: &CommandOptions,
-) -> Result<(), Reason> {
-    if is_in_support_channel(ctx, msg, args, options).await.is_ok()
-        || is_in_support_thread(ctx, msg, args, options).await.is_ok()
-    {
-        return Ok(());
-    }
-
-    Err(Reason::Log(format!(
-        "{} called outside wither a support thread or the support channel",
-        msg.content
-    )))
-}*/
-
-/*#[check]
-#[display_in_help(false)]
-async fn is_currently_questioned(ctx: &Context, msg: &Message) -> Result<(), Reason> {
-    let data = ctx.data.read().await;
-    let users_currently_questioned = data.get::<UsersCurrentlyQuestionedType>().unwrap();
-
-    if users_currently_questioned.contains(&msg.author.id) {
-        return Err(Reason::Log("User tried to open a new support ticket while creation of another one was still ongoing".to_string()));
-    }
-    Ok(())
-}*/
-
 // ------------------------------------
 // Support group related event handling
 // ------------------------------------
-/*
-*/
 
 fn support_ticket_embed<'a>(
     thread: &SupportThread,
