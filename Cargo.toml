@@ -28,7 +28,7 @@ signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
 signal-hook = "0.3"
 futures = "0.3"
 humantime = "2.1.0"
-reqwest = "0.11"
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"] }
 poise = "0.2.1"
 lazy_static = "1.4.0"
 strsim = "0.10.0"

@@ -1,13 +1,10 @@
 use crate::{
     command_error,
-    types::{Context, Error},
-    utils::helper_functions::format_datetime,
+    traits::{context_ext::ContextExt, readable::Readable},
+    Context, Error,
 };
 use chrono::{DateTime, Utc};
-use poise::{
-    serenity_prelude::{Color, CreateEmbed},
-    CreateReply,
-};
+use poise::{serenity_prelude::CreateEmbed, CreateReply};
 
 // ----------------------------
 // Support thread related types
@@ -57,7 +54,7 @@ impl PartialEq for ThreadId {
 )]
 pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
     // Get a reference to the database
-    let pool = &ctx.data().pool;
+    let pool = &*ctx.data().pool;
 
     // Get the row with the current channel id from the database
     let thread = match sqlx::query_as!(
@@ -76,13 +73,12 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
 
     // Make sure thread is not yet solved
     if thread.incident_solved {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("Error")
-                    .description("This ticket is already solved.")
-                    .color(Color::RED)
-            })
-        })
+        ctx.send_simple(
+            true,
+            "Error",
+            Some("This ticket is already solved."),
+            ctx.data().colors.input_error().await,
+        )
         .await?;
     }
 
@@ -100,13 +96,12 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
         }
     }
 
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title("Great!")
-                .description("Now that this ticket has been solved, this thread will be archived.")
-                .color(Color::FOOYOO)
-        })
-    })
+    ctx.send_simple(
+        false,
+        "Great!",
+        Some("Now that this ticket has been solved, this thread will be archived."),
+        ctx.data().colors.support_info().await,
+    )
     .await?;
 
     let mut new_thread_name = format!(
@@ -166,7 +161,7 @@ pub async fn search(
 }
 
 async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
-    let pool = &ctx.data().pool;
+    let pool = &*ctx.data().pool;
 
     // Loop through the arguments and with each iteration search for them from the database, if
     // found send a message with the information about the ticket
@@ -179,19 +174,18 @@ async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
     .await?;
 
     let mut msg = if threads.len() != 0 {
+        let color = ctx.data().colors.support_info().await;
         let mut msg = CreateReply::default();
-        msg.embed(|e| {
-            e.title("List of support tickets found:")
-                .color(Color::FOOYOO)
-        });
+        msg.embed(|e| e.title("List of support tickets found:").color(color));
 
         for thread in &threads {
             msg.embed(|e| support_ticket_embed(thread, e));
         }
         msg
     } else {
+        let color = ctx.data().colors.general_error().await;
         let mut msg = CreateReply::default();
-        msg.embed(|e| e.title("No support tickets found.").color(Color::RED));
+        msg.embed(|e| e.title("No support tickets found.").color(color));
         msg
     };
 
@@ -201,7 +195,7 @@ async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
 }
 
 async fn search_id(ctx: Context<'_>, id: u32) -> Result<(), Error> {
-    let pool = &ctx.data().pool;
+    let pool = &*ctx.data().pool;
 
     // Get the support ticket from the database
     let thread = match sqlx::query_as!(
@@ -214,10 +208,12 @@ async fn search_id(ctx: Context<'_>, id: u32) -> Result<(), Error> {
     {
         Ok(thread) => thread,
         Err(_) => {
-            ctx.send(|m| {
-                m.ephemeral(true)
-                    .embed(|e| e.title("No such ticket found").color(Color::RED))
-            })
+            ctx.send_simple(
+                true,
+                "No such ticket found",
+                None,
+                ctx.data().colors.input_error().await,
+            )
             .await?;
             return Ok(());
         }
@@ -229,83 +225,9 @@ async fn search_id(ctx: Context<'_>, id: u32) -> Result<(), Error> {
     Ok(())
 }
 
-/*#[command]
-#[description("List tickets based on subcommand")]
-#[usage("<active>")]
-#[sub_commands(active)]
-#[checks(is_in_support_channel)]
-async fn list(ctx: &Context, msg: &Message) -> CommandResult {
-    embed_msg(
-        ctx,
-        &msg.channel_id,
-        Some("Missing subcommand"),
-        Some("Use list with one of the subcommands. (active)"),
-        Some(Color::RED),
-        None,
-    )
-    .await?;
-
-    Ok(())
-}*/
-
-/*#[command]
-#[description("List all active tickets")]
-#[checks(is_in_support_channel)]
-async fn active(ctx: &Context, msg: &Message) -> CommandResult {
-    let data = ctx.data.read().await;
-    let pool = data.get::<PgPoolType>().unwrap();
-
-    let threads = sqlx::query_as!(
-        SupportThread,
-        r#"SELECT * FROM ttc_support_tickets WHERE incident_solved = 'f'"#
-    )
-    .fetch_all(pool)
-    .await?;
-
-    if threads.len() == 0 {
-        embed_msg(
-            ctx,
-            &msg.channel_id,
-            Some("Nothing found"),
-            Some("No active issues found"),
-            Some(Color::BLUE),
-            None,
-        )
-        .await?;
-    } else {
-        for thread in threads {
-            support_ticket_msg(ctx, &msg.channel_id, &thread).await?;
-        }
-    }
-
-    Ok(())
-}*/
-
-// ----------------------------
-// Checks (for channel ids etc)
-// ----------------------------
-
-// Check for making sure command originated from the set support channel
-/*#[check]
-#[display_in_help(false)]
-async fn is_in_support_channel(ctx: &Context, msg: &Message) -> Result<(), Reason> {
-    let config = get_config!(ctx, {
-        return Err(Reason::Log("Database error.".to_string()));
-    });
-
-    if config.support_channel as u64 == msg.channel_id.0 {
-        return Ok(());
-    }
-
-    Err(Reason::Log(format!(
-        "{} called outside support channel",
-        msg.content
-    )))
-}*/
-
 // Check for making sure command originated from one of the known support threads in the database
 async fn is_in_support_thread(ctx: Context<'_>) -> Result<bool, Error> {
-    let pool = &ctx.data().pool;
+    let pool = &*ctx.data().pool;
 
     // Get the thread ids from the database
     let support_thread_ids =
@@ -322,43 +244,9 @@ async fn is_in_support_thread(ctx: Context<'_>) -> Result<bool, Error> {
     Ok(support_thread_ids.contains(&channel_id))
 }
 
-/*#[check]
-#[display_in_help(false)]
-async fn is_in_either(
-    ctx: &Context,
-    msg: &Message,
-    args: &mut Args,
-    options: &CommandOptions,
-) -> Result<(), Reason> {
-    if is_in_support_channel(ctx, msg, args, options).await.is_ok()
-        || is_in_support_thread(ctx, msg, args, options).await.is_ok()
-    {
-        return Ok(());
-    }
-
-    Err(Reason::Log(format!(
-        "{} called outside wither a support thread or the support channel",
-        msg.content
-    )))
-}*/
-
-/*#[check]
-#[display_in_help(false)]
-async fn is_currently_questioned(ctx: &Context, msg: &Message) -> Result<(), Reason> {
-    let data = ctx.data.read().await;
-    let users_currently_questioned = data.get::<UsersCurrentlyQuestionedType>().unwrap();
-
-    if users_currently_questioned.contains(&msg.author.id) {
-        return Err(Reason::Log("User tried to open a new support ticket while creation of another one was still ongoing".to_string()));
-    }
-    Ok(())
-}*/
-
 // ------------------------------------
 // Support group related event handling
 // ------------------------------------
-/*
-*/
 
 fn support_ticket_embed<'a>(
     thread: &SupportThread,
@@ -372,6 +260,6 @@ fn support_ticket_embed<'a>(
             format!("Solved: {}", thread.incident_solved,),
             false,
         )
-        .field("Timestamp:", format_datetime(&thread.incident_time), false)
+        .field("Timestamp:", thread.incident_time.readable(), false)
         .field("Thread:", format!("<#{}>", thread.thread_id), false)
 }

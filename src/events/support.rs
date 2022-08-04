@@ -1,12 +1,12 @@
 use poise::serenity_prelude::{Color, Context, GuildChannel};
 
-use crate::{commands::support::SupportThread, types::Data, utils::helper_functions::embed_msg};
+use crate::{commands::support::SupportThread, types::data::Data, utils::helper_functions::embed_msg, unwrap_or_return};
 
 pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
     // Make sure the updated part is the archived value
 
     if thread.thread_metadata.unwrap().archived {
-        let pool = &data.pool;
+        let pool = &*data.pool;
 
         // Get the current thread info from the database
         let mut db_thread = match sqlx::query_as!(
@@ -23,13 +23,7 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
 
         // Make sure the thread isn't marked as solved
         if !db_thread.incident_solved {
-            match thread.edit_thread(&ctx, |t| t.archived(false)).await {
-                Ok(_) => (),
-                Err(why) => {
-                    log::error!("Thread unarchival failed: {}", why);
-                    return;
-                }
-            }
+            unwrap_or_return!(thread.edit_thread(&ctx, |t| t.archived(false)).await, "Thread unarchival failed");
 
             // If the unarchival limit has been reached archive the thread for good
             if db_thread.unarchivals >= 3 {
@@ -48,30 +42,17 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
                 }
 
                 // Mark the thread as solved on the database
-                match sqlx::query!(
+                unwrap_or_return!(sqlx::query!(
                     r#"UPDATE ttc_support_tickets SET incident_solved = 't' WHERE incident_id = $1"#,
                     db_thread.incident_id
                 )
                 .execute(pool)
-                .await
-                {
-                    Ok(_) => (),
-                    Err(why) => {
-                        log::error!("Error writing to database: {}", why);
-                        return;
-                    }
-                }
+                .await, "Error writing to database");
 
-                match thread
+                unwrap_or_return!(thread
                     .edit_thread(&ctx, |t| t.archived(true).locked(true))
-                    .await
-                {
-                    Ok(_) => (),
-                    Err(why) => {
-                        log::error!("Thread archival failed: {}", why);
-                        return;
-                    }
-                }
+                    .await, "Thread archival failed");
+
                 return;
             }
 

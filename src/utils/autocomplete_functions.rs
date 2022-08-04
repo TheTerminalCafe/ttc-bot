@@ -1,6 +1,6 @@
 use futures::{Stream, StreamExt};
 
-use crate::types::Context;
+use crate::Context;
 
 pub async fn language_autocomplete(_: Context<'_>, partial: String) -> impl Stream<Item = String> {
     futures::stream::iter(crate::commands::localisation::LANGUAGE_CODES)

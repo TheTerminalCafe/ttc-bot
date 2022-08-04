@@ -28,7 +28,15 @@ mod events {
     pub mod listener;
     pub mod support;
 }
-mod types;
+mod types {
+    pub mod colors;
+    pub mod config;
+    pub mod data;
+}
+mod traits {
+    pub mod context_ext;
+    pub mod readable;
+}
 
 // ----------------------
 // Imports from libraries
@@ -36,7 +44,7 @@ mod types;
 
 use clap::{App, Arg};
 use futures::stream::StreamExt;
-use poise::serenity_prelude::{Activity, ChannelId, Color, GatewayIntents, RwLock};
+use poise::serenity_prelude::{Activity, ChannelId, GatewayIntents, RwLock};
 use regex::Regex;
 use serde_yaml::Value;
 use signal_hook::consts::TERM_SIGNALS;
@@ -46,9 +54,11 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::time::Instant;
 use std::{collections::HashSet, fs::File, sync::Arc};
-use types::{Context, Data, Error};
+use types::{colors::Colors, config::Config, data::Data};
 
-use crate::types::Config;
+// Context and error types to be used in the crate
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
+pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // This is our custom error handler
@@ -149,9 +159,10 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
         }
     };
 
+    let color = ctx.data().colors.general_error().await;
     match ctx
         .send(|m| {
-            m.embed(|e| e.title(title).description(description).color(Color::RED))
+            m.embed(|e| e.title(title).description(description).color(color))
                 .ephemeral(true)
         })
         .await
@@ -171,14 +182,6 @@ async fn main() {
                 .short("c")
                 .long("core-config")
                 .help("Configuration file"),
-        )
-        .arg(
-            Arg::with_name("write-db")
-                .takes_value(false)
-                .required(false)
-                .short("w")
-                .long("write")
-                .help("Write the config to the database"),
         )
         .arg(
             Arg::with_name("bad-words")
@@ -212,28 +215,6 @@ async fn main() {
     let token = config["token"].as_str().unwrap();
     let application_id = config["application_id"].as_u64().unwrap();
     let sqlx_config = config["sqlx_config"].as_str().unwrap();
-    let support_channel_id = config["support_channel"].as_u64().unwrap();
-    let verified_role_id = config["verified_role"].as_u64().unwrap();
-    let moderator_role_id = config["moderator_role"].as_u64().unwrap();
-    let conveyance_channel_ids = config["conveyance_channels"]
-        .as_sequence()
-        .unwrap()
-        .iter()
-        .map(|val| val.as_i64().unwrap())
-        .collect::<Vec<i64>>();
-    let conveyance_blacklisted_channel_ids = config["conveyance_blacklisted_channels"]
-        .as_sequence()
-        .unwrap()
-        .iter()
-        .map(|val| val.as_i64().unwrap())
-        .collect::<Vec<i64>>();
-    let welcome_channel_id = config["welcome_channel"].as_u64().unwrap();
-    let welcome_messages = config["welcome_messages"]
-        .as_sequence()
-        .unwrap()
-        .iter()
-        .map(|val| val.as_str().unwrap().to_string())
-        .collect::<Vec<String>>();
     let mut owners = HashSet::new();
 
     for owner in config["owners"].as_sequence().unwrap() {
@@ -253,50 +234,21 @@ async fn main() {
         file.read_to_string(&mut raw_string).unwrap();
 
         if !matches.is_present("append-bad-words") {
-            match sqlx::query!(r#"DELETE FROM ttc_bad_words"#)
-                .execute(&pool)
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => {
-                    log::error!("Failed to clear bad word database: {}", why);
-                    return;
-                }
-            }
+            unwrap_or_return!(
+                sqlx::query!(r#"DELETE FROM ttc_bad_words"#)
+                    .execute(&pool)
+                    .await,
+                "Failed to clear bad word database"
+            );
         }
         for line in raw_string.lines() {
             let line = line.trim();
-            match sqlx::query!(r#"INSERT INTO ttc_bad_words (word) VALUES($1)"#, line)
-                .execute(&pool)
-                .await
-            {
-                Ok(_) => (),
-                Err(why) => {
-                    log::error!("Failed to write bad words into the database: {}", why);
-                    return;
-                }
-            }
-        }
-    }
-
-    // Write the config to the database if correct argument is present
-    if matches.is_present("write-db") {
-        let config = Config {
-            support_channel: support_channel_id as i64,
-            verified_role: verified_role_id as i64,
-            moderator_role: moderator_role_id as i64,
-            conveyance_channels: conveyance_channel_ids,
-            conveyance_blacklisted_channels: conveyance_blacklisted_channel_ids,
-            welcome_channel: welcome_channel_id as i64,
-            welcome_messages,
-        };
-
-        match config.save_in_db(&pool).await {
-            Ok(_) => (),
-            Err(why) => {
-                log::error!("Failed to write config into the database: {}", why);
-                return;
-            }
+            unwrap_or_return!(
+                sqlx::query!(r#"INSERT INTO ttc_bad_words (word) VALUES($1)"#, line)
+                    .execute(&pool)
+                    .await,
+                "Failed to write bad words into the database"
+            );
         }
     }
 
@@ -328,6 +280,10 @@ async fn main() {
                     );
                 }
 
+                let pool = Arc::new(pool);
+                let config = Config::new(Arc::clone(&pool));
+                let colors = Colors::new(Arc::clone(&pool));
+
                 Ok(Data {
                     users_currently_questioned: RwLock::new(Vec::new()),
                     harold_message: RwLock::new(None),
@@ -337,6 +293,8 @@ async fn main() {
                     pool: pool,
                     thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
                     startup_time: Instant::now(),
+                    config: config,
+                    colors: colors,
                 })
             })
         })
@@ -348,7 +306,6 @@ async fn main() {
                 commands::admin::create_verification(),
                 commands::admin::create_selfroles(),
                 commands::admin::create_support_ticket_button(),
-                commands::admin::create_webhooks(),
                 commands::admin::rebuild_emoji_cache(),
                 // General commands
                 commands::general::ping(),

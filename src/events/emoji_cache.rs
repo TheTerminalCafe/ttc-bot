@@ -1,4 +1,4 @@
-use crate::{types::Data, utils::emoji_cache::EmojiCache};
+use crate::{types::data::Data, unwrap_or_return, utils::emoji_cache::EmojiCache};
 use poise::serenity_prelude::{
     ChannelId, Context, GuildId, Message, MessageId, MessageUpdateEvent,
 };
@@ -20,7 +20,7 @@ pub async fn message_delete(
         r#"SELECT * FROM ttc_emoji_cache_channels WHERE channel_id = $1"#,
         channel_id.0 as i64
     )
-    .fetch_one(&data.pool)
+    .fetch_one(&*data.pool)
     .await
     {
         Ok(cache) => cache,
@@ -36,7 +36,7 @@ pub async fn message_delete(
         r#"SELECT * FROM ttc_message_cache WHERE message_id = $1"#,
         deleted_message_id.0 as i64
     )
-    .fetch_one(&data.pool)
+    .fetch_one(&*data.pool)
     .await
     {
         Ok(msg) => msg,
@@ -53,14 +53,11 @@ pub async fn message_delete(
     };
     // If the deleted message was sent before the latest cache message
     if msg.message_time.unwrap().timestamp() < cache.timestamp_unix {
-        let mut emoji_cache = EmojiCache::new(&data.pool);
-        let emojis = match guild_id.unwrap().emojis(ctx).await {
-            Ok(emojis) => emojis,
-            Err(why) => {
-                log::error!("can't get emojis from guild: {}", why);
-                return;
-            }
-        };
+        let mut emoji_cache = EmojiCache::new(&*data.pool);
+        let emojis = unwrap_or_return!(
+            guild_id.unwrap().emojis(ctx).await,
+            "can't get emojis from guild"
+        );
         for emoji in emojis {
             if msg
                 .content
@@ -68,28 +65,20 @@ pub async fn message_delete(
                 .unwrap()
                 .contains(&format!("<:{}:", emoji.name))
             {
-                match emoji_cache
-                    .decrease_emoji_count(msg.user_id.unwrap() as u64, emoji.name, 1)
-                    .await
-                {
-                    Ok(_) => (),
-                    Err(why) => {
-                        log::error!("error decreasing the emoji count: {}", why);
-                        return;
-                    }
-                }
+                unwrap_or_return!(
+                    emoji_cache
+                        .decrease_emoji_count(msg.user_id.unwrap() as u64, emoji.name, 1)
+                        .await,
+                    "error decreasing the emoji count"
+                );
             }
         }
-        match emoji_cache
-            .decrease_message_count(msg.user_id.unwrap() as u64, 1)
-            .await
-        {
-            Ok(_) => (),
-            Err(why) => {
-                log::error!("error decreasing the message count: {}", why);
-                return;
-            }
-        }
+        unwrap_or_return!(
+            emoji_cache
+                .decrease_message_count(msg.user_id.unwrap() as u64, 1)
+                .await,
+            "error decreasing the message count"
+        );
     }
 }
 
@@ -104,26 +93,22 @@ pub async fn message_update(
         return;
     }
     // Get the emoji list of the guild
-    let emoji_list = match match event.guild_id {
-        Some(guild_id) => guild_id,
-        None => return,
-    }
-    .emojis(ctx)
-    .await
-    {
-        Ok(emojis) => emojis,
-        Err(why) => {
-            log::error!("Failed to get guild emojis: {}", why);
-            return;
+    let emoji_list = unwrap_or_return!(
+        match event.guild_id {
+            Some(guild_id) => guild_id,
+            None => return,
         }
-    };
+        .emojis(ctx)
+        .await,
+        "Failed to get guild emojis"
+    );
 
     // Get the cached channel
     let cache = match sqlx::query!(
         r#"SELECT * FROM ttc_emoji_cache_channels WHERE channel_id = $1"#,
         event.channel_id.0 as i64
     )
-    .fetch_one(&data.pool)
+    .fetch_one(&*data.pool)
     .await
     {
         Ok(cache) => cache,
@@ -140,7 +125,7 @@ pub async fn message_update(
         r#"SELECT * FROM ttc_message_cache WHERE message_id = $1"#,
         event.id.0 as i64
     )
-    .fetch_one(&data.pool)
+    .fetch_one(&*data.pool)
     .await
     {
         Ok(msg) => msg,
@@ -158,45 +143,34 @@ pub async fn message_update(
 
     let new = match new {
         Some(new) => new.clone(),
-        None => match event.channel_id.message(ctx, event.id).await {
-            Ok(new) => new,
-            Err(why) => {
-                log::error!("Failed to fetch message: {}", why);
-                return;
-            }
-        },
+        None => unwrap_or_return!(
+            event.channel_id.message(ctx, event.id).await,
+            "Failed to fetch message"
+        ),
     };
 
     if new.id.created_at().timestamp() < cache.timestamp_unix {
         // Store possible modifications to the users emojis
-        let mut emoji_cache = EmojiCache::new(&data.pool);
+        let mut emoji_cache = EmojiCache::new(&*data.pool);
         for emoji in &emoji_list {
             let emoji_pattern = format!("<:{}:", emoji.name);
             let new_contains = new.content.contains(&emoji_pattern);
             let old_contains = msg.content.as_ref().unwrap().contains(&emoji_pattern);
 
             if new_contains && !old_contains {
-                match emoji_cache
-                    .increase_emoji_count(new.author.id.0, emoji.name.clone(), 1)
-                    .await
-                {
-                    Ok(_) => (),
-                    Err(why) => {
-                        log::error!("Failed to increase emoji counts in DB: {}", why);
-                        return;
-                    }
-                }
+                unwrap_or_return!(
+                    emoji_cache
+                        .increase_emoji_count(new.author.id.0, emoji.name.clone(), 1)
+                        .await,
+                    "Failed to increase emoji counts in DB"
+                );
             } else if !new_contains && old_contains {
-                match emoji_cache
-                    .decrease_emoji_count(new.author.id.0, emoji.name.clone(), 1)
-                    .await
-                {
-                    Ok(_) => (),
-                    Err(why) => {
-                        log::error!("Failed to decrease emoji counts in DB: {}", why);
-                        return;
-                    }
-                }
+                unwrap_or_return!(
+                    emoji_cache
+                        .decrease_emoji_count(new.author.id.0, emoji.name.clone(), 1)
+                        .await,
+                    "Failed to decrease emoji counts in DB"
+                );
             }
         }
     }
