@@ -91,6 +91,19 @@ CREATE TABLE ttc_easter_egg_gifs (
 	CONSTRAINT ttc_easter_egg_gifs_pkey PRIMARY KEY (id)
 );
 
+-- public.ttc_easter_egg_botinfo definition
+
+-- Drop table
+
+-- DROP TABLE ttc_easter_egg_botinfo;
+
+CREATE TABLE ttc_easter_egg_botinfo (
+	id serial4 NOT NULL,
+	field_name varchar(256) NOT NULL,
+	field_value varchar(1024) NOT NULL,
+	CONSTRAINT ttc_easter_egg_botinfo_pk PRIMARY KEY (id),
+	CONSTRAINT ttc_field_name UNIQUE (field_name)
+);
 
 -- public.ttc_emoji_cache definition
 

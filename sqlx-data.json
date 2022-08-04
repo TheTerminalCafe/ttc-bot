@@ -748,6 +748,30 @@
     },
     "query": "SELECT current_message_id AS current_id FROM ttc_conveyance_state"
   },
+  "c2806ac3fe9e29ab6fb7b9c1aa5da0e65d37cf9696cf52cfbbd346c989fe7ba2": {
+    "describe": {
+      "columns": [
+        {
+          "name": "field_name",
+          "ordinal": 0,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "field_value",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT field_name, field_value FROM ttc_easter_egg_botinfo"
+  },
   "c41ea0c20aa3fbbc9eafe8b950c2432c26ccf94585e6191765da36c522f9cf14": {
     "describe": {
       "columns": [

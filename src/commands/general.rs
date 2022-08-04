@@ -97,6 +97,16 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
         None => ("N/A".to_string(), "N/A".to_string(), "N/A".to_string()),
     };
 
+    let mut easter_egg_fields = Vec::new();
+    if ctx.framework().bot_id.0 == user.id.0 {
+        let data = sqlx::query!(r#"SELECT field_name, field_value FROM ttc_easter_egg_botinfo"#)
+            .fetch_all(&*ctx.data().pool)
+            .await?;
+        for row in data {
+            easter_egg_fields.push((row.field_name, row.field_value, false));
+        }
+    }
+
     ctx.send(|m| {
         m.embed(|e| {
             e.author(|a| a.name(user.tag()).icon_url(user.face()))
@@ -106,6 +116,7 @@ pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> R
                 .field("Joined At", joined_at, false)
                 .field("Roles", roles, false)
                 .field("Icon URL", user.face(), false)
+                .fields(easter_egg_fields)
                 .color(color)
         })
         .ephemeral(true)
