@@ -1,6 +1,9 @@
 use poise::serenity_prelude::{Color, Context, GuildChannel};
 
-use crate::{commands::support::SupportThread, types::data::Data, utils::helper_functions::embed_msg, unwrap_or_return};
+use crate::{
+    commands::support::SupportThread, types::data::Data, unwrap_or_return,
+    utils::helper_functions::embed_msg,
+};
 
 pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
     // Make sure the updated part is the archived value
@@ -23,7 +26,10 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
 
         // Make sure the thread isn't marked as solved
         if !db_thread.incident_solved {
-            unwrap_or_return!(thread.edit_thread(&ctx, |t| t.archived(false)).await, "Thread unarchival failed");
+            unwrap_or_return!(
+                thread.edit_thread(&ctx, |t| t.archived(false)).await,
+                "Thread unarchival failed"
+            );
 
             // If the unarchival limit has been reached archive the thread for good
             if db_thread.unarchivals >= 3 {
@@ -49,9 +55,12 @@ pub async fn thread_update(ctx: &Context, thread: &GuildChannel, data: &Data) {
                 .execute(pool)
                 .await, "Error writing to database");
 
-                unwrap_or_return!(thread
-                    .edit_thread(&ctx, |t| t.archived(true).locked(true))
-                    .await, "Thread archival failed");
+                unwrap_or_return!(
+                    thread
+                        .edit_thread(&ctx, |t| t.archived(true).locked(true))
+                        .await,
+                    "Thread archival failed"
+                );
 
                 return;
             }
