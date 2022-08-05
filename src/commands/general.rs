@@ -263,13 +263,12 @@ pub async fn leaderboard(
     #[description = "Whether to update the counts. NOTE: This could take a while"] refresh: bool,
 ) -> Result<(), Error> {
     if EmojiCache::is_running() {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("The leaderboard is already being updated")
-                    .description("Please try running the command later again")
-            })
-            .ephemeral(true)
-        })
+        ctx.send_simple(
+            true,
+            "The leaderboard is already being updated",
+            Some("Please try running the command later again"),
+            ctx.data().colors.emoji_cache_inaccessible().await,
+        )
         .await?;
         return Ok(());
     }

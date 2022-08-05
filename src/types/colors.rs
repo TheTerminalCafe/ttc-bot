@@ -102,5 +102,6 @@ impl Colors {
     embed_color!(general_error, Color::RED);
     embed_color!(bump_message, Color::PURPLE);
     embed_color!(emoji_info, Color::FOOYOO);
+    embed_color!(emoji_cache_inaccessible, Color::RED);
     embed_color!(bee_translate_block, Color::KERBAL);
 }
