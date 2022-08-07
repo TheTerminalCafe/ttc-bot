@@ -80,6 +80,7 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
             ctx.data().colors.input_error().await,
         )
         .await?;
+        return Ok(());
     }
 
     // Update the state to be solved

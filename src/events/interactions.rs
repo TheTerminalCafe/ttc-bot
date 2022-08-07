@@ -106,7 +106,19 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                     match interactions::ticket_modal(ctx, &intr, data).await {
                         Ok(_) => (),
                         Err(why) => {
-                            log::error!("Failed to complete support ticket creation: {}", why);
+                            let color = data.colors.input_error().await;
+                            match intr.edit_original_interaction_response(ctx, |m| 
+                                m.embed(|e| 
+                                    e.title("An error occurred")
+                                        .description(format!("{}", why))
+                                        .color(color)
+                                    )
+                                )
+                                .await {
+                                Ok(_) => (),
+                                Err(why) => log::error!("Failed to send error message: {}", why),
+                            }
+                            log::warn!("Failed to complete support ticket creation: {}", why);
                             return;
                         }
                     }
@@ -378,10 +390,23 @@ mod interactions {
                         title = data
                             .thread_name_regex
                             .replace_all(&input.value, "")
-                            .to_string()
+                            .to_string();
+                        if title.trim().is_empty() {
+                            return Err(Error::from("The title can't be empty.".to_string()));
+                        }
                     }
-                    "ttc-bot-ticket-modal-description" => description = input.value.clone(),
-                    "ttc-bot-ticket-modal-systeminfo" => system_info = input.value.clone(),
+                    "ttc-bot-ticket-modal-description" => {
+                        description = input.value.clone();
+                        if description.trim().is_empty() {
+                            return Err(Error::from("The description can't be empty.".to_string()));
+                        }
+                    }
+                    "ttc-bot-ticket-modal-systeminfo" => {
+                        system_info = input.value.clone();
+                        if system_info.trim().is_empty() {
+                            return Err(Error::from("The system info can't be empty.".to_string()));
+                        }
+                    }
                     _ => log::warn!(
                         "Invalid custom id for support ticket modal component: {}",
                         input.custom_id
@@ -450,6 +475,11 @@ mod interactions {
             })
         })
         .await?;
+
+        thread
+            .id
+            .send_message(ctx, |m| m.content(format!("<@{}>", intr.user.id.0)))
+            .await?;
 
         Ok(())
     }
