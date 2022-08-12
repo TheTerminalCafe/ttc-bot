@@ -9,7 +9,6 @@ use crate::{
 };
 
 pub struct Data {
-    pub users_currently_questioned: RwLock<Vec<UserId>>,
     pub harold_message: RwLock<Option<Message>>,
     pub beeified_users: RwLock<HashMap<UserId, BeeifiedUser>>,
     pub beezone_channels: RwLock<HashMap<ChannelId, BeezoneChannel>>,

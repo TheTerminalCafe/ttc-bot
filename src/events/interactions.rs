@@ -62,12 +62,6 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                                         "Error completing ticket button interaction: {}",
                                         why
                                     );
-                                    {
-                                        let mut users_currently_questioned =
-                                            data.users_currently_questioned.write().await;
-                                        users_currently_questioned
-                                            .retain(|uid| uid != &intr.user.id);
-                                    }
                                     match intr
                                         .edit_original_interaction_response(ctx, |i| {
                                             i.embed(|e| {
@@ -107,14 +101,16 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                         Ok(_) => (),
                         Err(why) => {
                             let color = data.colors.input_error().await;
-                            match intr.edit_original_interaction_response(ctx, |m| 
-                                m.embed(|e| 
-                                    e.title("An error occurred")
-                                        .description(format!("{}", why))
-                                        .color(color)
-                                    )
-                                )
-                                .await {
+                            match intr
+                                .edit_original_interaction_response(ctx, |m| {
+                                    m.embed(|e| {
+                                        e.title("An error occurred")
+                                            .description(format!("{}", why))
+                                            .color(color)
+                                    })
+                                })
+                                .await
+                            {
                                 Ok(_) => (),
                                 Err(why) => log::error!("Failed to send error message: {}", why),
                             }

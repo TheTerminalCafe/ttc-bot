@@ -285,7 +285,6 @@ async fn main() {
                 let colors = Colors::new(Arc::clone(&pool));
 
                 Ok(Data {
-                    users_currently_questioned: RwLock::new(Vec::new()),
                     harold_message: RwLock::new(None),
                     beeified_users: RwLock::new(HashMap::new()),
                     beezone_channels: RwLock::new(HashMap::new()),
