@@ -158,6 +158,32 @@
     },
     "query": "INSERT INTO ttc_emoji_cache (user_id, emoji_name, emoji_count) VALUES ($1, $2, $3)"
   },
+  "1dc62bad11339bffb676ffd4e639dea0cfd94b86756a334903916739c93fe6ad": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "extension",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT id, extension FROM ttc_emoji_download WHERE name = $1"
+  },
   "207ec70e47bdd9274434173708d605ab0df4af6a6c9ce751cc0493f3f681f153": {
     "describe": {
       "columns": [],
@@ -583,6 +609,26 @@
     },
     "query": "select distinct\n        the.id as harold_emoji_id,\n        the.\"name\" as harold_emoji\n        from ttc_config tc\n        inner join ttc_harold_emoji the on tc.harold_emoji_id = the.id order by the.id asc"
   },
+  "986900915d2205bc961eedcf8ff717c28761b8418ad5daeb20ebbf0fc132dce5": {
+    "describe": {
+      "columns": [
+        {
+          "name": "count",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT COUNT(name) from ttc_emoji_download WHERE name = $1"
+  },
   "9ed87c7827a758e9ef9d6ce6bdb36886c5611d8ac4db0e7e5b016a94ebadd0a4": {
     "describe": {
       "columns": [],
@@ -672,6 +718,27 @@
       }
     },
     "query": "\n            INSERT INTO ttc_emoji_cache VALUES(0, $1, $2) \n            ON CONFLICT (user_id, emoji_name) DO UPDATE SET emoji_count = ttc_emoji_cache.emoji_count + $2\n            "
+  },
+  "adc51e73c63c3dd1b739811ce5a6eb8423a5a91d19c390f19490065c77989dc5": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Varchar",
+          "Varchar"
+        ]
+      }
+    },
+    "query": "INSERT INTO ttc_emoji_download (name, extension) VALUES ($1, $2) RETURNING id"
   },
   "bb7972cadce53049f4695443e0698c3e6f89cfe7b446054243717f9364b3d258": {
     "describe": {

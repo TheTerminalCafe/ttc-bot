@@ -145,6 +145,19 @@ CREATE TABLE ttc_emoji_cache_messages (
 	CONSTRAINT ttc_emoji_cache_messages_pkey PRIMARY KEY (user_id)
 );
 
+-- public.ttc_emoji_download definition
+
+-- Drop table
+
+-- DROP TABLE ttc_emoji_download;
+
+CREATE TABLE ttc_emoji_download (
+	id serial4 NOT NULL,
+	name varchar(32) NOT NULL,
+	extension varchar(4) NOT NULL,
+	CONSTRAINT ttc_emoji_download_name_key UNIQUE (name),
+	CONSTRAINT ttc_emoji_download_pkey PRIMARY KEY (id)
+);
 
 -- public.ttc_message_cache definition
 

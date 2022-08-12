@@ -1,6 +1,6 @@
 use crate::{
     traits::context_ext::ContextExt, traits::readable::Readable, types::data::Data,
-    utils::emoji_cache::EmojiCache, utils::userinfo::userinfo_fn, Context, Error,
+    utils::emoji_cache::EmojiCache, utils::userinfo, utils::userinfo::userinfo_fn, Context, Error,
 };
 use futures::StreamExt;
 use poise::{
@@ -57,7 +57,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 pub async fn userinfo_ctxmenu(ctx: Context<'_>, user: User) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
-    let reply = userinfo_fn(ctx, user).await?;
+    let reply = userinfo_fn(ctx, user, None).await?;
     if reply.is_none() {
         return Ok(());
     }
@@ -73,14 +73,21 @@ pub async fn userinfo_ctxmenu(ctx: Context<'_>, user: User) -> Result<(), Error>
 /// User info for a user
 ///
 /// Can be used to get the user info of the specified user. A context menu command is also available
-/// ``userinfo [user]``
+/// ``userinfo [user] [emoji_stats]``
 #[poise::command(prefix_command, slash_command, category = "General")]
 pub async fn userinfo(
     ctx: Context<'_>,
     #[description = "User"] user: Option<User>,
+    #[description = "Emoji stats"] emoji_stats: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let reply = userinfo_fn(ctx, user.unwrap_or(ctx.author().clone())).await?;
+    let mut img_path = None;
+    let path;
+    if emoji_stats.unwrap_or(false) {
+        path = userinfo::get_image_output_path()?;
+        img_path = Some(path.as_str());
+    }
+    let reply = userinfo_fn(ctx, user.unwrap_or(ctx.author().clone()), img_path).await?;
     if reply.is_none() {
         return Ok(());
     }
@@ -90,6 +97,14 @@ pub async fn userinfo(
         m
     })
     .await?;
+
+    // Lock needs to be released *after* the message was sent
+    // acquisition is done in userinfo_fn()
+    // Theoretically the file could be deleted at this point but it isn't necessary since
+    // magick_rust just overwrites it
+    if img_path.is_some() {
+        userinfo::IS_RUNNING.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
     Ok(())
 }
 

@@ -207,6 +207,7 @@ async fn main() {
     dotenv::dotenv().ok();
 
     env_logger::init();
+    magick_rust::magick_wand_genesis();
 
     // Load the config file
     let config_file = File::open(matches.value_of("core-config").unwrap()).unwrap();
