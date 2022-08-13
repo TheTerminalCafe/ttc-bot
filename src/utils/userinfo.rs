@@ -134,10 +134,12 @@ pub async fn userinfo_fn<'a>(
         for emoji in emojis.clone() {
             emojis_hmap.insert(emoji.name.clone(), emoji);
         }
-        let emoji_data = EmojiCache::new(&*ctx.data().pool)
+        let mut emoji_data = EmojiCache::new(&*ctx.data().pool)
             .get_data()
             .await?
             .user_emojis_vec();
+        emoji_data.sort_by_key(|k| k.2);
+        emoji_data.reverse();
         match download_emojis(emojis, &*ctx.data().pool).await {
             Ok(_) => (),
             Err(why) => {
