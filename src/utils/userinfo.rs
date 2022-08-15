@@ -384,3 +384,38 @@ fn resize(x: usize, y: usize) -> (usize, usize) {
         (smaller as usize, bigger as usize)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn regex() {
+        lazy_static! {
+            static ref RE: Regex = Regex::new(PATTERN_EXTENSION).unwrap();
+        };
+        let test_data = vec![
+            ("https://cdn.discordapp.com/emojis/1234.webp", "webp"),
+            (
+                "https://cdn.discordapp.com/emojis/1234.webp?size=96&quality=lossless",
+                "webp",
+            ),
+            ("https://cdn.discordapp.com/emojis/1234.png", "png"),
+            (
+                "https://cdn.discordapp.com/emojis/1234.png?quality=lossless",
+                "png",
+            ),
+            ("https://cdn.discordapp.com/emojis/1234.123.png", "png"),
+            (
+                "https://cdn.discordapp.com/emojis/1234.123.png?size=96&quality=lossless",
+                "png",
+            ),
+        ];
+        for test in test_data {
+            assert_eq!(
+                RE.captures(test.0).unwrap().get(1).unwrap().as_str(),
+                test.1
+            );
+        }
+    }
+}
