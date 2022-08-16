@@ -57,7 +57,7 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 pub async fn userinfo_ctxmenu(ctx: Context<'_>, user: User) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
-    let reply = userinfo_fn(ctx, user, None).await?;
+    let reply = userinfo_fn(ctx, user, None, false).await?;
     if reply.is_none() {
         return Ok(());
     }
@@ -79,6 +79,7 @@ pub async fn userinfo(
     ctx: Context<'_>,
     #[description = "User"] user: Option<User>,
     #[description = "Emoji stats"] emoji_stats: Option<bool>,
+    #[description = "Update Emoji stats before"] update_emojis: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
     let mut img_path = None;
@@ -87,7 +88,13 @@ pub async fn userinfo(
         path = userinfo::get_image_output_path()?;
         img_path = Some(path.as_str());
     }
-    let reply = userinfo_fn(ctx, user.unwrap_or(ctx.author().clone()), img_path).await?;
+    let reply = userinfo_fn(
+        ctx,
+        user.unwrap_or(ctx.author().clone()),
+        img_path,
+        update_emojis.unwrap_or(false),
+    )
+    .await?;
     if reply.is_none() {
         return Ok(());
     }

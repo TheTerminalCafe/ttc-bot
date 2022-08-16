@@ -36,10 +36,22 @@ pub async fn userinfo_fn<'a>(
     ctx: Context<'_>,
     user: User,
     emoji_stats: Option<&'a str>,
+    update_emojis: bool,
 ) -> Result<Option<CreateReply<'a>>, Error> {
     let mut reply = CreateReply::default();
     let mut embed = CreateEmbed::default();
     let color = ctx.data().colors.user_server_info().await;
+
+    if update_emojis && !emoji_stats.is_some() {
+        ctx.send_simple(
+            true,
+            "Why would you want to update the Emojis without displaying the result?",
+            Some("Try again with ``emoji_stats`` set to true"),
+            ctx.data().colors.input_error().await,
+        )
+        .await?;
+        return Ok(None);
+    }
 
     if emoji_stats.is_some() && EmojiCache::is_running() {
         ctx.send_simple(
@@ -61,6 +73,19 @@ pub async fn userinfo_fn<'a>(
         )
         .await?;
         return Ok(None);
+    }
+
+    let mut emoji_data = EmojiCache::new(&*ctx.data().pool);
+    if update_emojis {
+        ctx.send_simple(
+            true,
+            "This will take some time",
+            Some("You will be pinged when the command finished"),
+            ctx.data().colors.emoji_info().await,
+        )
+        .await?;
+        reply.content = Some(format!("<@{}>", ctx.author().id.0).to_string());
+        emoji_data.update_emoji_cache_poise(&ctx, false).await?;
     }
 
     let (nickname, joined_at, roles) = match ctx.guild() {
@@ -134,10 +159,7 @@ pub async fn userinfo_fn<'a>(
         for emoji in emojis.clone() {
             emojis_hmap.insert(emoji.name.clone(), emoji);
         }
-        let mut emoji_data = EmojiCache::new(&*ctx.data().pool)
-            .get_data()
-            .await?
-            .user_emojis_vec();
+        let mut emoji_data = emoji_data.get_data().await?.user_emojis_vec();
         emoji_data.sort_by_key(|k| k.2);
         emoji_data.reverse();
         match download_emojis(emojis, &*ctx.data().pool).await {
