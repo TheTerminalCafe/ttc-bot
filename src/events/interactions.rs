@@ -1,6 +1,5 @@
-
-use poise::serenity_prelude::{Context, Interaction, InteractionType};
 use crate::types::data::Data;
+use poise::serenity_prelude::{Context, Interaction, InteractionType};
 
 // Macro to quickly check if a user has a certain role
 macro_rules! check_user_role {
@@ -44,45 +43,83 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                             }
                         }
                         // Self role menu interaction
-                        "ttc-bot-self-role-menu" => match interactions::self_role_menu(ctx, intr, data)
-                            .await
-                        {
-                            Ok(_) => (),
-                            Err(why) => {
-                                log::error!("Error completing self role menu interaction: {}", why);
-                            }
-                        },
-                        "ttc-bot-ticket-button" => match interactions::ticket_button(ctx, &intr, data)
-                            .await
-                        {
-                            Ok(_) => (),
-                            Err(why) => {
-                                log::error!("Error completing ticket button interaction: {}", why);
-                                {
-                                    let mut users_currently_questioned = data.users_currently_questioned.write().await;
-                                    users_currently_questioned.retain(|uid| uid != &intr.user.id);
+                        "ttc-bot-self-role-menu" => {
+                            match interactions::self_role_menu(ctx, intr, data).await {
+                                Ok(_) => (),
+                                Err(why) => {
+                                    log::error!(
+                                        "Error completing self role menu interaction: {}",
+                                        why
+                                    );
                                 }
-                                match intr.edit_original_interaction_response(
-                                    ctx,
-                                    |i| 
-                                        i.embed(|e| 
-                                            e.title("Something went wrong.")
-                                                .description(why)
-                                        )
-                                    ).await {
-                                    Ok(_) => (),
-                                    Err(why) => {
-                                        log::error!("Error editing interaction response: {}", why);
+                            }
+                        }
+                        "ttc-bot-ticket-button" => {
+                            match interactions::ticket_button(ctx, &intr).await {
+                                Ok(_) => (),
+                                Err(why) => {
+                                    log::error!(
+                                        "Error completing ticket button interaction: {}",
+                                        why
+                                    );
+                                    match intr
+                                        .edit_original_interaction_response(ctx, |i| {
+                                            i.embed(|e| {
+                                                e.title("Something went wrong.").description(why)
+                                            })
+                                        })
+                                        .await
+                                    {
+                                        Ok(_) => (),
+                                        Err(why) => {
+                                            log::error!(
+                                                "Error editing interaction response: {}",
+                                                why
+                                            );
+                                        }
                                     }
                                 }
                             }
-                        },
+                        }
                         _ => (),
                     }
                 }
                 None => {
                     log::warn!("Interaction created outside a server");
                 }
+            }
+        }
+        InteractionType::ModalSubmit => {
+            let intr = match intr.clone().modal_submit() {
+                Some(intr) => intr,
+                None => return,
+            };
+
+            match &intr.data.custom_id[..] {
+                "ttc-bot-ticket-modal" => {
+                    match interactions::ticket_modal(ctx, &intr, data).await {
+                        Ok(_) => (),
+                        Err(why) => {
+                            let color = data.colors.input_error().await;
+                            match intr
+                                .edit_original_interaction_response(ctx, |m| {
+                                    m.embed(|e| {
+                                        e.title("An error occurred")
+                                            .description(format!("{}", why))
+                                            .color(color)
+                                    })
+                                })
+                                .await
+                            {
+                                Ok(_) => (),
+                                Err(why) => log::error!("Failed to send error message: {}", why),
+                            }
+                            log::warn!("Failed to complete support ticket creation: {}", why);
+                            return;
+                        }
+                    }
+                }
+                _ => (),
             }
         }
         _ => (),
@@ -92,25 +129,15 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
 // Module for the separate interaction functions, to keep the main interaction functions clean
 mod interactions {
     use chrono::Utc;
-    use rand::prelude::SliceRandom;
     use poise::serenity_prelude::{
-        CreateEmbed,
-        Context,
-        ChannelId, 
-        RoleId,
-        ActionRowComponent, 
-        MessageComponentInteraction,
-        InteractionApplicationCommandCallbackDataFlags, 
-        InteractionResponseType,
-        Mentionable,
+        ActionRowComponent, ChannelId, Context, CreateEmbed, InputTextStyle,
+        InteractionApplicationCommandCallbackDataFlags, InteractionResponseType, Mentionable,
+        MessageComponentInteraction, ModalSubmitInteraction, RoleId,
     };
+    use rand::prelude::SliceRandom;
     use std::time::Duration;
 
-    use crate::{
-        command_error,
-        commands::support::SupportThread,
-        utils::helper_functions::get_message_reply, types::data::Data, Error,
-    };
+    use crate::{command_error, commands::support::SupportThread, types::data::Data, Error};
 
     // Interaction for the verification button
     pub async fn verification_button(
@@ -128,18 +155,25 @@ mod interactions {
         .await?;
 
         // Make sure accounts that enter are older than 7 days
-        if Utc::now().timestamp() - intr.member.clone().unwrap().user.created_at().unix_timestamp() < chrono::Duration::days(7).num_seconds() {
+        if Utc::now().timestamp()
+            - intr
+                .member
+                .clone()
+                .unwrap()
+                .user
+                .created_at()
+                .unix_timestamp()
+            < chrono::Duration::days(7).num_seconds()
+        {
             let color = data.colors.general_error().await;
-            intr.edit_original_interaction_response(
-                ctx, 
-                |i| {
-                    i.embed(|e| 
-                        e.title("An error occurred")
+            intr.edit_original_interaction_response(ctx, |i| {
+                i.embed(|e| {
+                    e.title("An error occurred")
                         .description("Something went wrong.")
-                        .color(color))
-                    }
-                )
-                .await?;
+                        .color(color)
+                })
+            })
+            .await?;
             return Ok(());
         }
 
@@ -173,11 +207,10 @@ mod interactions {
                     {
                         Ok(_) => {
                             tokio::time::sleep(Duration::from_secs(2)).await;
-                            
+
                             let welcome_message = data.config.welcome_message().await?;
-                            let welcome_message = welcome_message
-                                .choose(&mut rand::thread_rng())
-                                .unwrap();
+                            let welcome_message =
+                                welcome_message.choose(&mut rand::thread_rng()).unwrap();
                             let welcome_message =
                                 welcome_message.replace("%user%", &intr.user.mention().to_string());
 
@@ -198,21 +231,23 @@ mod interactions {
             let color = data.colors.general_error().await;
             // If the user has already verified tell them about it
             intr.edit_original_interaction_response(ctx, |i| {
-                    i.embed(|e: &mut CreateEmbed| {
-                        e.title("Verification failed")
-                            .description(
-                                "You are already verified! You can't over-verify yourself.",
-                            )
-                            .color(color)
-                    })
+                i.embed(|e: &mut CreateEmbed| {
+                    e.title("Verification failed")
+                        .description("You are already verified! You can't over-verify yourself.")
+                        .color(color)
                 })
+            })
             .await?;
         }
         Ok(())
     }
-    
+
     // Interaction for the self role menu
-    pub async fn self_role_menu(ctx: &Context, intr: MessageComponentInteraction, data: &Data) -> Result<(), Error>  {
+    pub async fn self_role_menu(
+        ctx: &Context,
+        intr: MessageComponentInteraction,
+        data: &Data,
+    ) -> Result<(), Error> {
         // Select the first component from the first action row which *should*
         // be the selection menu, still check just in case.
         match &intr.message.components[0].components[0] {
@@ -280,7 +315,56 @@ mod interactions {
         Ok(())
     }
 
-    pub async fn ticket_button(ctx: &Context, intr: &MessageComponentInteraction, data: &Data) -> Result<(), Error> {
+    pub async fn ticket_button(
+        ctx: &Context,
+        intr: &MessageComponentInteraction,
+    ) -> Result<(), Error> {
+        intr.create_interaction_response(ctx, |i| {
+            i.kind(InteractionResponseType::Modal)
+                .interaction_response_data(|d| {
+                    d.custom_id("ttc-bot-ticket-modal")
+                        .title("Support ticket")
+                        .components(|c| {
+                            c.create_action_row(|a| {
+                                a.create_input_text(|t| {
+                                    t.label("Title for the support ticket")
+                                        .max_length(100)
+                                        .custom_id("ttc-bot-ticket-modal-title")
+                                        .placeholder("Computer does not turn on")
+                                        .required(true)
+                                        .style(InputTextStyle::Short)
+                                })
+                            }).create_action_row(|a| {
+                                a.create_input_text(|t| {
+                                    t.label("A longer description of the issue")
+                                        .max_length(1024)
+                                        .required(true)
+                                        .custom_id("ttc-bot-ticket-modal-description")
+                                        .placeholder("My computer suddenly does not boot up anymore, could be due to it being submerged in water.")
+                                        .style(InputTextStyle::Paragraph)
+                                })
+                            }).create_action_row(|a| {
+                                a.create_input_text(|t| {
+                                    t.label("System information")
+                                        .max_length(1024)
+                                        .custom_id("ttc-bot-ticket-modal-systeminfo")
+                                        .required(true)
+                                        .placeholder("OS: Cursed abomination\nCPU: Raisin 6 9000XT\nGPU: Radon G86\nDE: Elf 42")
+                                        .style(InputTextStyle::Paragraph)
+                                })
+                            })
+                        })
+                    })
+                }).await?;
+
+        Ok(())
+    }
+
+    pub async fn ticket_modal(
+        ctx: &Context,
+        intr: &ModalSubmitInteraction,
+        data: &Data,
+    ) -> Result<(), Error> {
         // Defer the reply initially to avoid getting the interaction invalidated
         intr.create_interaction_response(ctx, |i| {
             i.kind(InteractionResponseType::DeferredChannelMessageWithSource)
@@ -290,96 +374,67 @@ mod interactions {
         })
         .await?;
 
-        {
-            let mut users_currently_questioned = data.users_currently_questioned.write().await;
-            let color = data.colors.ticket_has_already_ticket().await;
-            if users_currently_questioned.contains(&intr.user.id) {
-                match intr.edit_original_interaction_response(ctx, |i| {
-                    i.embed(|e| {
-                        e.color(color)
-                            .title("You are already opening a ticket!")
-                            .description("Please finish that before opening a new one.")
-                    })
-                }).await {
-                    Ok(_) => (),
-                    Err(_) => (),
-                }
-                return Ok(())
-            } else {
-                users_currently_questioned.push(intr.user.id);
+        let mut title = String::new();
+        let mut description = String::new();
+        let mut system_info = String::new();
+
+        // Extract the data from the components of the modal
+        for row in intr.data.components.iter() {
+            match &row.components[0] {
+                ActionRowComponent::InputText(input) => match input.custom_id.as_str() {
+                    "ttc-bot-ticket-modal-title" => {
+                        title = data
+                            .thread_name_regex
+                            .replace_all(&input.value, "")
+                            .to_string();
+                        if title.trim().is_empty() {
+                            return Err(Error::from("The title can't be empty.".to_string()));
+                        }
+                    }
+                    "ttc-bot-ticket-modal-description" => {
+                        description = input.value.clone();
+                        if description.trim().is_empty() {
+                            return Err(Error::from("The description can't be empty.".to_string()));
+                        }
+                    }
+                    "ttc-bot-ticket-modal-systeminfo" => {
+                        system_info = input.value.clone();
+                        if system_info.trim().is_empty() {
+                            return Err(Error::from("The system info can't be empty.".to_string()));
+                        }
+                    }
+                    _ => log::warn!(
+                        "Invalid custom id for support ticket modal component: {}",
+                        input.custom_id
+                    ),
+                },
+                _ => log::warn!("Invalid component on support ticket modal."),
             }
         }
 
         let support_channel = ChannelId(data.config.support_channel().await? as u64);
+        let color = data.colors.ticket_summary().await;
 
-        let mut thread_msg = support_channel
-            .send_message(ctx, |m| m.embed(|e| e.title("Pending info...")))
-            .await?;
+        let user_name = match &intr.member {
+            Some(member) => member.nick.clone().unwrap_or(intr.user.name.clone()),
+            None => intr.user.name.clone(),
+        };
 
-        // Here the data variable doesn't live long and a read lock is much better for smooth
-        // operation, so it can be locked "globally" like this
-        let thread = support_channel
-            .create_public_thread(ctx, thread_msg.id, |ct| ct.name("Pending title..."))
-            .await?;
-
-        let color = data.colors.ticket_thread_created().await;
-        intr.edit_original_interaction_response(ctx, |i| {
-            i.embed(|e| {
-                e.title("Ticket created")
-                    .description(format!("A ticket has been created for you in <#{}>", thread.id))
-                    .color(color)
+        let thread_msg = support_channel
+            .send_message(ctx, |m| {
+                m.embed(|e| {
+                    e.title(&title)
+                        .field("Description", description, false)
+                        .field("System info", system_info, false)
+                        .author(|a| a.name(user_name).icon_url(intr.user.face()))
+                        .color(color)
+                })
             })
-        }).await?;
+            .await?;
 
-        let thread_name = match get_message_reply(
-            ctx, 
-            &thread.id,
-            &intr.user, 
-            |m| 
-                m.content(format!("{}", intr.user.mention()))
-                    .embed(|e| 
-                        e.title("Provide a title for the issue").description("By sending it as a message in this thread, max length ~100 characters, time limit 5 minutes")), 
-            Duration::from_secs(300), data).await {
-            Ok(response) => response,
-            Err(why) => {
-                thread.delete(ctx).await?;
-                thread_msg.delete(ctx).await?;
-                return command_error!("Failed to get message reply: {}", why);
-            }
-        };
-
-        let description = match get_message_reply(
-            ctx, 
-            &thread.id,
-            &intr.user,
-            |m| 
-                m.embed(|e| 
-                    e.title("Provide a description for the issue")
-                        .description(
-                            "By sending it as a message in this thread, max length 4096 characters, time limit 10 minutes\n\n
-                            Include information like:\n\n
-                            - Short description of the issue\n
-                            - System information (OS, CPU, GPU, etc.)\n
-                            - Anything else that may be relevant for the issue.")), 
-            Duration::from_secs(600), data
-        ).await {
-            Ok(description) => description,
-            Err(why) => {
-                thread.delete(ctx).await?;
-                thread_msg.delete(ctx).await?;
-                return command_error!("Failed to get message reply: {}", why);
-            }
-        };
-
-        let mut thread_name_safe = data.thread_name_regex
-            .replace_all(&thread_name, "")
-            .to_string();
-        thread_name_safe.truncate(100);
-
-        {
-            let mut users_currently_questioned = data.users_currently_questioned.write().await;
-            users_currently_questioned.retain(|uid| uid != &intr.user.id);
-        }
+        let thread = support_channel
+            .create_public_thread(ctx, thread_msg.id, |ct| ct.name(&title))
+            .await?;
 
         // Insert the gathered information into the database and return the newly created database
         // entry for it's primary key to be added to the support thread title
@@ -392,7 +447,7 @@ mod interactions {
             thread.id.0 as i64,
             intr.user.id.0 as i64,
             Utc::now(),
-            thread_name_safe,
+            title,
             false,
             0,
         )
@@ -404,27 +459,23 @@ mod interactions {
             }
         };
 
-        let mut new_thread_name = format!("[{}] {}", db_thread.incident_id, thread_name_safe);
-        new_thread_name.truncate(100);
+        let mut new_title = format!("[{}] {}", db_thread.incident_id, title);
+        new_title.truncate(100);
+
+        thread.id.edit_thread(ctx, |t| t.name(&new_title)).await?;
+
+        intr.edit_original_interaction_response(ctx, |i| {
+            i.embed(|e| {
+                e.title("Support ticket created")
+                    .description(format!("Support ticket created in <#{}>", thread.id.0))
+            })
+        })
+        .await?;
 
         thread
             .id
-            .edit_thread(ctx, |t| t.name(&new_thread_name))
+            .send_message(ctx, |m| m.content(format!("<@{}>", intr.user.id.0)))
             .await?;
-
-        let user_name = match &intr.member {
-            Some(member) => member.nick.clone().unwrap_or(intr.user.name.clone()),
-            None => intr.user.name.clone(),
-        };
-        
-        let color = data.colors.ticket_summary().await;
-        thread_msg.edit(ctx, |m| m.content("").embed(|e|
-            e.title(new_thread_name)
-                .description(description)
-                .author(|a| a.name(user_name).icon_url(intr.user.face()))
-                .color(color)
-        )).await?;
-
 
         Ok(())
     }

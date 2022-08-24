@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use poise::serenity_prelude::{Context, Mentionable, Message, MessageType, Timestamp};
 
-use crate::{unwrap_or_return, types::data::Data};
+use crate::{types::data::Data, unwrap_or_return};
 
 pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
     match msg.kind {
@@ -40,7 +40,7 @@ pub async fn message(ctx: &Context, msg: &Message, data: &Data) {
                                         .await, "Error sending message");
                         }
                     }
-                    None => ()
+                    None => (),
                 }
             }
         }
