@@ -1,5 +1,6 @@
 use crate::{
-    traits::readable::Readable, types::data::Data, utils::emoji_cache::EmojiCache, Context, Error,
+    traits::context_ext::ContextExt, traits::readable::Readable, types::data::Data,
+    utils::emoji_cache::EmojiCache, utils::userinfo, utils::userinfo::userinfo_fn, Context, Error,
 };
 use futures::StreamExt;
 use poise::{
@@ -51,78 +52,66 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
 
     Ok(())
 }
+
+#[poise::command(context_menu_command = "User info", category = "General", hide_in_help)]
+pub async fn userinfo_ctxmenu(ctx: Context<'_>, user: User) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
+
+    let reply = userinfo_fn(ctx, user, None, false).await?;
+    if reply.is_none() {
+        return Ok(());
+    }
+    let reply = reply.unwrap();
+    ctx.send(|m| {
+        m.clone_from(&reply);
+        m
+    })
+    .await?;
+    Ok(())
+}
+
 /// User info for a user
 ///
 /// Can be used to get the user info of the specified user. A context menu command is also available
-/// ``userinfo [user]``
-#[poise::command(
-    prefix_command,
-    slash_command,
-    context_menu_command = "User info",
-    category = "General"
-)]
-pub async fn userinfo(ctx: Context<'_>, #[description = "User"] user: User) -> Result<(), Error> {
+/// ``userinfo [user] [emoji_stats]``
+#[poise::command(prefix_command, slash_command, category = "General")]
+pub async fn userinfo(
+    ctx: Context<'_>,
+    #[description = "User"] user: Option<User>,
+    #[description = "Emoji stats"] emoji_stats: Option<bool>,
+    #[description = "Update Emoji stats before"] update_emojis: Option<bool>,
+) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
-    let color = ctx.data().colors.user_server_info().await;
-
-    let (nickname, joined_at, roles) = match ctx.guild() {
-        Some(guild) => {
-            match guild.member(ctx.discord(), user.id).await {
-                Ok(member) => {
-                    let nick = member.nick.clone().unwrap_or("None".to_string());
-                    let joined_at = match member.joined_at {
-                        Some(joined_at) => joined_at.readable(),
-                        None => "N/A".to_string(),
-                    };
-                    let mut roles = match member.roles(ctx.discord()) {
-                        Some(roles) => roles
-                            .iter()
-                            .map(|role| format!("<@&{}>, ", role.id))
-                            .collect::<String>(),
-                        None => "None".to_string(),
-                    };
-                    // Remove trailing comma and space
-                    roles.pop();
-                    roles.pop();
-
-                    // Make sure it isn't empty
-                    if roles == "" {
-                        roles = "None".to_string()
-                    }
-                    (nick, joined_at, roles)
-                }
-                Err(_) => ("N/A".to_string(), "N/A".to_string(), "N/A".to_string()),
-            }
-        }
-        None => ("N/A".to_string(), "N/A".to_string(), "N/A".to_string()),
-    };
-
-    let mut easter_egg_fields = Vec::new();
-    if ctx.framework().bot_id.0 == user.id.0 {
-        let data = sqlx::query!(r#"SELECT field_name, field_value FROM ttc_easter_egg_botinfo"#)
-            .fetch_all(&*ctx.data().pool)
-            .await?;
-        for row in data {
-            easter_egg_fields.push((row.field_name, row.field_value, false));
-        }
+    let mut img_path = None;
+    let path;
+    if emoji_stats.unwrap_or(false) {
+        path = userinfo::get_image_output_path()?;
+        img_path = Some(path.as_str());
     }
-
+    let reply = userinfo_fn(
+        ctx,
+        user.unwrap_or(ctx.author().clone()),
+        img_path,
+        update_emojis.unwrap_or(false),
+    )
+    .await?;
+    if reply.is_none() {
+        return Ok(());
+    }
+    let reply = reply.unwrap();
     ctx.send(|m| {
-        m.embed(|e| {
-            e.author(|a| a.name(user.tag()).icon_url(user.face()))
-                .field("User ID", user.id.0, true)
-                .field("Nickname", nickname, true)
-                .field("Created At", user.id.created_at().readable(), false)
-                .field("Joined At", joined_at, false)
-                .field("Roles", roles, false)
-                .field("Icon URL", user.face(), false)
-                .fields(easter_egg_fields)
-                .color(color)
-        })
-        .ephemeral(true)
+        m.clone_from(&reply);
+        m
     })
     .await?;
 
+    // Lock needs to be released *after* the message was sent
+    // acquisition is done in userinfo_fn()
+    // Theoretically the file could be deleted at this point but it isn't necessary since
+    // magick_rust just overwrites it
+    if img_path.is_some() {
+        userinfo::IS_RUNNING.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
     Ok(())
 }
 
@@ -263,13 +252,12 @@ pub async fn leaderboard(
     #[description = "Whether to update the counts. NOTE: This could take a while"] refresh: bool,
 ) -> Result<(), Error> {
     if EmojiCache::is_running() {
-        ctx.send(|m| {
-            m.embed(|e| {
-                e.title("The leaderboard is already being updated")
-                    .description("Please try running the command later again")
-            })
-            .ephemeral(true)
-        })
+        ctx.send_simple(
+            true,
+            "The leaderboard is already being updated",
+            Some("Please try running the command later again"),
+            ctx.data().colors.emoji_cache_inaccessible().await,
+        )
         .await?;
         return Ok(());
     }

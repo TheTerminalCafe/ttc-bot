@@ -17,6 +17,7 @@ mod utils {
     pub mod emoji_cache;
     pub mod helper_functions;
     pub mod macros;
+    pub mod userinfo;
 }
 mod events {
     pub mod bee;
@@ -206,6 +207,7 @@ async fn main() {
     dotenv::dotenv().ok();
 
     env_logger::init();
+    magick_rust::magick_wand_genesis();
 
     // Load the config file
     let config_file = File::open(matches.value_of("core-config").unwrap()).unwrap();
@@ -309,6 +311,7 @@ async fn main() {
                 // General commands
                 commands::general::ping(),
                 commands::general::userinfo(),
+                commands::general::userinfo_ctxmenu(),
                 commands::general::serverinfo(),
                 commands::general::leaderboard(),
                 commands::general::help(),
