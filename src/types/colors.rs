@@ -66,6 +66,7 @@ impl Colors {
     embed_color!(user_server_info, Color::BLITZ_BLUE);
     embed_color!(translate, Color::FOOYOO);
     embed_color!(support_info, Color::FOOYOO);
+    embed_color!(version, Color::FOOYOO);
 
     // Moderation + Admin
     embed_color!(admin_success, Color::FOOYOO);

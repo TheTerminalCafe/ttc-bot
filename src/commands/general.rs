@@ -627,3 +627,24 @@ pub async fn help(
     }
     Ok(())
 }
+
+/// Version command
+///
+/// Command that shows the current git commit of the bot
+/// ``version``
+#[poise::command(prefix_command, slash_command, category = "General")]
+pub async fn version(ctx: Context<'_>) -> Result<(), Error> {
+    let commit = env!("CURRENT_COMMIT");
+    ctx.send_simple(
+        true,
+        format!("This bot runs on commit {}", commit),
+        Some(format!(
+            "You can find the current source code at https://github.com/TheTerminalCafe/ttc-bot/tree/{}",
+            commit
+        )),
+        ctx.data().colors.version().await,
+    )
+    .await?;
+
+    Ok(())
+}

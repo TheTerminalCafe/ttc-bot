@@ -310,6 +310,7 @@ async fn main() {
                 commands::admin::rebuild_emoji_cache(),
                 // General commands
                 commands::general::ping(),
+                commands::general::version(),
                 commands::general::userinfo(),
                 commands::general::userinfo_ctxmenu(),
                 commands::general::serverinfo(),
