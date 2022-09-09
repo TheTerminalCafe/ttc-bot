@@ -1,6 +1,9 @@
 use crate::{
     traits::{context_ext::ContextExt, readable::Readable},
-    utils::bee_utils::{BeeifiedUser, BeezoneChannel},
+    utils::{
+        bee_utils::{BeeifiedUser, BeezoneChannel},
+        helper_functions::is_user_timed_out,
+    },
     Context, Error,
 };
 use chrono::{Duration, Utc};
