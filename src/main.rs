@@ -322,6 +322,7 @@ async fn main() {
                 // Moderation commands
                 commands::moderation::purge(),
                 commands::moderation::timeout(),
+                commands::moderation::unmute(),
                 commands::moderation::kick(),
                 commands::moderation::ban(),
                 commands::moderation::pardon(),

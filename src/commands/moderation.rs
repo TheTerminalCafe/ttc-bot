@@ -267,6 +267,48 @@ pub async fn timeout(
     Ok(())
 }
 
+/// Unmute a member
+///
+/// Command to unmute a member
+/// ``unmute [member]``
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn unmute(
+    ctx: Context<'_>,
+    #[description = "The member to unmute"] mut member: Member,
+) -> Result<(), Error> {
+    // member == author check not needed since you can't type when timed_out
+    if !is_user_timed_out(&member) {
+        ctx.send_simple(
+            true,
+            "User isn't muted",
+            Some(&format!(
+                "The User {} isn't currently muted",
+                member.user.tag()
+            )),
+            ctx.data().colors.input_error().await,
+        )
+        .await?;
+        return Ok(());
+    }
+    member.enable_communication(ctx.discord()).await?;
+
+    ctx.send_simple(
+        false,
+        "User unmuted",
+        Some(&format!("User {} got unmuted", member.user.tag(),)),
+        ctx.data().colors.mod_success().await,
+    )
+    .await?;
+
+    Ok(())
+}
+
 /// Purge messages
 ///
 /// Delete a certain amount of messages (max 100)
