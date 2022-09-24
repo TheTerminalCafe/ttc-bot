@@ -203,10 +203,10 @@ pub async fn kick(
     Ok(())
 }
 
-/// Timeout a member
+/// Mute a member
 ///
-/// Command to timeout a member
-/// ``timeout [member] [duration]``
+/// Command to mute a member
+/// ``mute [member] [duration]``
 ///
 /// ``duration`` is a human-readable string like \
 /// ``1h``
@@ -217,10 +217,10 @@ pub async fn kick(
     required_permissions = "MODERATE_MEMBERS",
     guild_only
 )]
-pub async fn timeout(
+pub async fn mute(
     ctx: Context<'_>,
-    #[description = "The member to timeout"] mut member: Member,
-    #[description = "Time to timeout user"]
+    #[description = "The member to mute"] mut member: Member,
+    #[description = "Time to mute user"]
     #[rename = "duration"]
     duration_str: String,
 ) -> Result<(), Error> {
