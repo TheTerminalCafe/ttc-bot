@@ -175,8 +175,23 @@ pub async fn translate_to_en(
     ctx: Context<'_>,
     #[description = "Message to translate"] msg: Message,
 ) -> Result<(), Error> {
-    // Get the language code and the text to translate
+    {
+        let beeified_users = ctx.data().beeified_users.read().await;
+        let beezone_channels = ctx.data().beezone_channels.read().await;
 
+        if beeified_users.contains_key(&ctx.author().id)
+            || beezone_channels.contains_key(&ctx.channel_id())
+        {
+            ctx.send_simple(
+                false,
+                "You are a bee!",
+                Some("Bees can't translate, bees can only... bee."),
+                ctx.data().colors.bee_translate_block().await,
+            )
+            .await?;
+            return Ok(());
+        }
+    }
     ctx.defer().await?;
 
     let (source_lang, translated_text) = translate_text("en".to_string(), &msg.content).await?;
