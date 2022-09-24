@@ -1,4 +1,6 @@
-use poise::serenity_prelude::{ChannelId, Color, Context, CreateEmbed, Message, Webhook};
+use poise::serenity_prelude::{
+    ChannelId, Color, Context, CreateEmbed, Member, Message, Timestamp, Webhook,
+};
 
 use crate::{types::data::Data, Error};
 use std::time::Duration;
@@ -104,4 +106,17 @@ pub async fn get_webhook(
             webhook
         }
     })
+}
+
+pub fn is_user_timed_out(member: &Member) -> bool {
+    return match member.communication_disabled_until {
+        Some(comm_disabled) => {
+            if comm_disabled.unix_timestamp() < Timestamp::now().unix_timestamp() {
+                false
+            } else {
+                true
+            }
+        }
+        None => false,
+    };
 }

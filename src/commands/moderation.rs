@@ -1,6 +1,9 @@
 use crate::{
     traits::{context_ext::ContextExt, readable::Readable},
-    utils::bee_utils::{BeeifiedUser, BeezoneChannel},
+    utils::{
+        bee_utils::{BeeifiedUser, BeezoneChannel},
+        helper_functions::is_user_timed_out,
+    },
     Context, Error,
 };
 use chrono::{Duration, Utc};
@@ -200,10 +203,10 @@ pub async fn kick(
     Ok(())
 }
 
-/// Timeout a member
+/// Mute a member
 ///
-/// Command to timeout a member
-/// ``timeout [member] [duration]``
+/// Command to mute a member
+/// ``mute [member] [duration]``
 ///
 /// ``duration`` is a human-readable string like \
 /// ``1h``
@@ -214,10 +217,10 @@ pub async fn kick(
     required_permissions = "MODERATE_MEMBERS",
     guild_only
 )]
-pub async fn timeout(
+pub async fn mute(
     ctx: Context<'_>,
-    #[description = "The member to timeout"] mut member: Member,
-    #[description = "Time to timeout user"]
+    #[description = "The member to mute"] mut member: Member,
+    #[description = "Time to mute user"]
     #[rename = "duration"]
     duration_str: String,
 ) -> Result<(), Error> {
@@ -258,6 +261,48 @@ pub async fn timeout(
             duration.readable()
         )),
         ctx.data().colors.mod_punish().await,
+    )
+    .await?;
+
+    Ok(())
+}
+
+/// Unmute a member
+///
+/// Command to unmute a member
+/// ``unmute [member]``
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Moderation",
+    required_permissions = "MODERATE_MEMBERS",
+    guild_only
+)]
+pub async fn unmute(
+    ctx: Context<'_>,
+    #[description = "The member to unmute"] mut member: Member,
+) -> Result<(), Error> {
+    // member == author check not needed since you can't type when timed_out
+    if !is_user_timed_out(&member) {
+        ctx.send_simple(
+            true,
+            "User isn't muted",
+            Some(&format!(
+                "The User {} isn't currently muted",
+                member.user.tag()
+            )),
+            ctx.data().colors.input_error().await,
+        )
+        .await?;
+        return Ok(());
+    }
+    member.enable_communication(ctx.discord()).await?;
+
+    ctx.send_simple(
+        false,
+        "User unmuted",
+        Some(&format!("User {} got unmuted", member.user.tag(),)),
+        ctx.data().colors.mod_success().await,
     )
     .await?;
 

@@ -321,7 +321,8 @@ async fn main() {
                 commands::localisation::translate_to_en(),
                 // Moderation commands
                 commands::moderation::purge(),
-                commands::moderation::timeout(),
+                commands::moderation::mute(),
+                commands::moderation::unmute(),
                 commands::moderation::kick(),
                 commands::moderation::ban(),
                 commands::moderation::pardon(),

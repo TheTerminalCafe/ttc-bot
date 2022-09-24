@@ -1,4 +1,7 @@
-use crate::{traits::readable::Readable, types::data::Data, unwrap_or_return};
+use crate::{
+    traits::readable::Readable, types::data::Data, unwrap_or_return,
+    utils::helper_functions::is_user_timed_out,
+};
 use chrono::{DateTime, Utc};
 use poise::serenity_prelude::*;
 
@@ -448,17 +451,7 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
                 Some(nick) => nick,
                 None => "None".to_string(),
             };
-            let old_timeouted = match old.communication_disabled_until {
-                Some(comm_disabled) => {
-                    if comm_disabled.unix_timestamp() < Timestamp::now().unix_timestamp() {
-                        false
-                    } else {
-                        true
-                    }
-                }
-                None => false,
-            };
-
+            let old_timeouted = is_user_timed_out(&old);
             (old_nickname, old.roles.clone(), Some(old_timeouted))
         }
         None => ("N/A".to_string(), Vec::new(), None),
@@ -469,17 +462,7 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
         None => "None".to_string(),
     };
     let new_roles = new.roles.clone();
-    let new_timeouted = match new.communication_disabled_until {
-        Some(comm_disabled) => {
-            if comm_disabled.unix_timestamp() < Timestamp::now().unix_timestamp() {
-                false
-            } else {
-                true
-            }
-        }
-        None => false,
-    };
-
+    let new_timeouted = is_user_timed_out(&new);
     // Make sure it is only the values displayed that have changed
     if !(old_nickname != new_nickname
         || old_roles != new_roles
