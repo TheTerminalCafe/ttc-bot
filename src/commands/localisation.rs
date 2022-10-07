@@ -115,6 +115,15 @@ pub const LANGUAGE_CODES: [(&str, &str); 105] = [
     ("bee", "Beemovie"),
 ];
 
+pub fn langcode_to_lang(code: &str) -> &str {
+    for l in LANGUAGE_CODES {
+        if l.0 == code {
+            return l.1;
+        }
+    }
+    return code;
+}
+
 /// Translation command
 ///
 /// Translates the provided text into the specified language.
@@ -157,7 +166,11 @@ pub async fn translate(
     // Send the translated message
     ctx.send_embed(false, |e| {
         e.title("Translated Message")
-            .description(format!("{} -> {}", source_lang, lang))
+            .description(format!(
+                "{} -> {}",
+                langcode_to_lang(source_lang.as_str()),
+                lang
+            ))
             .field("Original Message", &text_to_translate, false)
             .field("Translated Message", &translated_text, false)
             .color(color)
@@ -200,7 +213,10 @@ pub async fn translate_to_en(
     // Send the translated message
     ctx.send_embed(false, |e| {
         e.title("Translated Message")
-            .description(format!("{} -> English", source_lang))
+            .description(format!(
+                "{} -> English",
+                langcode_to_lang(source_lang.as_str())
+            ))
             .field("Original Message", &msg.content, false)
             .field("Translated Message", &translated_text, false)
             .color(color)
