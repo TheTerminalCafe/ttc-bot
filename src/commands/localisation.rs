@@ -227,20 +227,21 @@ pub async fn translate_to_en(
 }
 
 // Function to translate the text
+/// returns (source_lang, translated_text)
 async fn translate_text(
-    mut lang: String,
+    mut target_lang: String,
     text_to_translate: &str,
 ) -> Result<(String, String), Error> {
     let mut language_found = false;
 
     // Check if the language code is valid
     for lang_code in LANGUAGE_CODES {
-        if lang_code.0 == lang {
+        if lang_code.0 == target_lang {
             language_found = true;
             break;
-        } else if lang_code.1.to_lowercase() == lang.to_lowercase() {
+        } else if lang_code.1.to_lowercase() == target_lang.to_lowercase() {
             language_found = true;
-            lang = lang_code.0.to_string();
+            target_lang = lang_code.0.to_string();
             break;
         }
     }
@@ -252,14 +253,14 @@ async fn translate_text(
         );
     }
 
-    if lang == "bee" {
-        return Ok((lang, bee_utils::beelate(text_to_translate)));
+    if target_lang == "bee" {
+        return Ok((target_lang, bee_utils::beelate(text_to_translate)));
     }
 
     // Turn the provided info into a URI
     let uri = format!(
         "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={}&dt=t&q={}",
-        lang, text_to_translate,
+        target_lang, text_to_translate,
     );
 
     // Make the request
