@@ -254,7 +254,7 @@ async fn translate_text(
     }
 
     if target_lang == "bee" {
-        return Ok((target_lang, bee_utils::beelate(text_to_translate)));
+        return Ok((String::from("Human"), bee_utils::beelate(text_to_translate)));
     }
 
     // Turn the provided info into a URI
