@@ -115,6 +115,15 @@ pub const LANGUAGE_CODES: [(&str, &str); 105] = [
     ("bee", "Beemovie"),
 ];
 
+pub fn langcode_to_lang(code: &str) -> &str {
+    for l in LANGUAGE_CODES {
+        if l.0 == code {
+            return l.1;
+        }
+    }
+    return code;
+}
+
 /// Translation command
 ///
 /// Translates the provided text into the specified language.
@@ -157,7 +166,11 @@ pub async fn translate(
     // Send the translated message
     ctx.send_embed(false, |e| {
         e.title("Translated Message")
-            .description(format!("{} -> {}", source_lang, lang))
+            .description(format!(
+                "{} -> {}",
+                langcode_to_lang(source_lang.as_str()),
+                lang
+            ))
             .field("Original Message", &text_to_translate, false)
             .field("Translated Message", &translated_text, false)
             .color(color)
@@ -200,7 +213,10 @@ pub async fn translate_to_en(
     // Send the translated message
     ctx.send_embed(false, |e| {
         e.title("Translated Message")
-            .description(format!("{} -> English", source_lang))
+            .description(format!(
+                "{} -> English",
+                langcode_to_lang(source_lang.as_str())
+            ))
             .field("Original Message", &msg.content, false)
             .field("Translated Message", &translated_text, false)
             .color(color)
@@ -211,20 +227,21 @@ pub async fn translate_to_en(
 }
 
 // Function to translate the text
+/// returns (source_lang, translated_text)
 async fn translate_text(
-    mut lang: String,
+    mut target_lang: String,
     text_to_translate: &str,
 ) -> Result<(String, String), Error> {
     let mut language_found = false;
 
     // Check if the language code is valid
     for lang_code in LANGUAGE_CODES {
-        if lang_code.0 == lang {
+        if lang_code.0 == target_lang {
             language_found = true;
             break;
-        } else if lang_code.1.to_lowercase() == lang.to_lowercase() {
+        } else if lang_code.1.to_lowercase() == target_lang.to_lowercase() {
             language_found = true;
-            lang = lang_code.0.to_string();
+            target_lang = lang_code.0.to_string();
             break;
         }
     }
@@ -236,14 +253,14 @@ async fn translate_text(
         );
     }
 
-    if lang == "bee" {
-        return Ok((lang, bee_utils::beelate(text_to_translate)));
+    if target_lang == "bee" {
+        return Ok((String::from("Human"), bee_utils::beelate(text_to_translate)));
     }
 
     // Turn the provided info into a URI
     let uri = format!(
         "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={}&dt=t&q={}",
-        lang, text_to_translate,
+        target_lang, text_to_translate,
     );
 
     // Make the request
