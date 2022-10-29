@@ -157,6 +157,17 @@ pub async fn translate(
         }
     }
 
+    if text_to_translate.len() == 0 {
+        ctx.send_simple(
+            true,
+            "There is no text",
+            Some("You can't translate nothing into another language"),
+            ctx.data().colors.input_error().await,
+        )
+        .await?;
+        return Ok(());
+    }
+
     ctx.defer().await?;
 
     let (source_lang, translated_text) = translate_text(lang.clone(), &text_to_translate).await?;
@@ -205,6 +216,18 @@ pub async fn translate_to_en(
             return Ok(());
         }
     }
+
+    if msg.content.len() == 0 {
+        ctx.send_simple(
+            true,
+            "There is no text",
+            Some("You can't translate nothing into another language"),
+            ctx.data().colors.input_error().await,
+        )
+        .await?;
+        return Ok(());
+    }
+
     ctx.defer().await?;
 
     let (source_lang, translated_text) = translate_text("en".to_string(), &msg.content).await?;
