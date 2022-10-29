@@ -172,6 +172,10 @@ pub async fn translate(
 
     let (source_lang, translated_text) = translate_text(lang.clone(), &text_to_translate).await?;
 
+    if !check_translated_length(&ctx, translated_text.len()).await? {
+        return Ok(());
+    }
+
     let color = ctx.data().colors.translate().await;
 
     // Send the translated message
@@ -231,6 +235,10 @@ pub async fn translate_to_en(
     ctx.defer().await?;
 
     let (source_lang, translated_text) = translate_text("en".to_string(), &msg.content).await?;
+
+    if !check_translated_length(&ctx, translated_text.len()).await? {
+        return Ok(());
+    }
 
     let color = ctx.data().colors.translate().await;
     // Send the translated message
@@ -333,4 +341,21 @@ async fn translate_text(
     };
 
     Ok((source_lang.to_string(), translated_text))
+}
+
+/// Returns true if a message length is <= 1024 (Discord embed field char limit).
+/// When it's > 1024 chars it will send a embed telling the user to split the text (= input) and return false.
+/// It returns these values in a Result since the sending of the embed could fail
+async fn check_translated_length(ctx: &Context<'_>, textlength: usize) -> Result<bool, Error> {
+    if textlength > 1024 {
+        ctx.send_simple(
+            true,
+            "You entered a text that is too long",
+            Some("Please try splitting the original text up into more parts and try again"),
+            ctx.data().colors.input_error().await,
+        )
+        .await?;
+        return Ok(false);
+    }
+    return Ok(true);
 }
