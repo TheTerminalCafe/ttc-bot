@@ -3,3 +3,4 @@ core-config.yaml
 target/
 .idea/
 .vscode/
+image-cache/

@@ -37,6 +37,59 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Build ImageMagick
+      run: |
+        wget https://imagemagick.org/archive/ImageMagick.tar.gz
+        tar -xf ImageMagick.tar.gz
+        pushd ImageMagick-7*
+        # disable most stuff to improve build time
+        ./configure --enable-static=no\
+          --with-utilities=no\
+          --with-modules=no\
+          --enable-hdri=yes\
+          --with-jemalloc=no\
+          --with-tcmalloc=no\
+          --with-umem=no\
+          --with-bzlib=no\
+          --with-autotrace=no\
+          --with-djvu=no\
+          --with-dps=no\
+          --with-fftw=no\
+          --with-flif=no\
+          --with-fpx=no\
+          --with-fontconfig=no\
+          --with-freetype=no\
+          --with-gslib=no\
+          --with-gvc=no\
+          --with-heic=no\
+          --with-jbig=no\
+          --with-jpeg=no\
+          --with-jxl=no\
+          --with-lcms=no\
+          --with-lqr=no\
+          --with-ltdl=no\
+          --with-lzma=no\
+          --with-magick-plus-plus=no\
+          --with-openexr=no\
+          --with-openjp2=no\
+          --with-pango=no\
+          --with-perl=no\
+          --with-png=no\
+          --with-raqm=no\
+          --with-raw=no\
+          --with-rsvg=no\
+          --with-tiff=no\
+          --with-webp=no\
+          --with-wmf=no\
+          --with-x=no\
+          --with-xml=no\
+          --with-zip=no\
+          --with-zlib=no\
+          --with-zstd=no
+        make
+        sudo make install
+        sudo ldconfig /usr/local/lib
+        popd
     - name: Install PostgreSQL client
       run: | 
         sudo apt-get update
