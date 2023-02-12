@@ -25,7 +25,7 @@ env_logger = "0.9.0"
 log = { version = "0.4.14", features = ["std"] }
 signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
 signal-hook = "0.3"
-futures = "0.3"
+futures = "0.3.26"
 humantime = "2.1.0"
 reqwest = { version = "0.11.14", default-features = false, features = ["rustls-tls"] }
 poise = "0.2.1"
