@@ -203,9 +203,6 @@ async fn main() {
         )
         .get_matches();
 
-    // Get environment values from .env for ease of use
-    dotenv::dotenv().ok();
-
     env_logger::init();
 
     // Load the config file
