@@ -43,7 +43,7 @@ mod traits {
 // Imports from libraries
 // ----------------------
 
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use futures::stream::StreamExt;
 use poise::serenity_prelude::{Activity, ChannelId, GatewayIntents, RwLock};
 use regex::Regex;
@@ -175,28 +175,28 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 
 #[tokio::main]
 async fn main() {
-    let matches = App::new("TTCBot")
+    let matches = Command::new("TTCBot")
         .arg(
-            Arg::with_name("core-config")
-                .takes_value(true)
+            Arg::new("core-config")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .required(true)
-                .short("c")
+                .short('c')
                 .long("core-config")
                 .help("Configuration file"),
         )
         .arg(
-            Arg::with_name("bad-words")
-                .takes_value(true)
+            Arg::new("bad-words")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .required(false)
-                .short("b")
+                .short('b')
                 .long("bad-words")
                 .help("A bad word list, one per line"),
         )
         .arg(
-            Arg::with_name("append-bad-words")
-                .takes_value(false)
+            Arg::new("append-bad-words")
+                .action(clap::ArgAction::SetTrue)
                 .required(false)
-                .short("a")
+                .short('a')
                 .long("append-bad-words")
                 .requires("bad-words")
                 .help("Appends provided bad words to the database table"),
@@ -209,7 +209,7 @@ async fn main() {
     env_logger::init();
 
     // Load the config file
-    let config_file = File::open(matches.value_of("core-config").unwrap()).unwrap();
+    let config_file = File::open(matches.get_one::<String>("core-config").unwrap()).unwrap();
     let config: Value = serde_yaml::from_reader(config_file).unwrap();
 
     // Load all the values from the config
@@ -229,12 +229,12 @@ async fn main() {
         .await
         .unwrap();
 
-    if matches.is_present("bad-words") {
-        let mut file = File::open(matches.value_of("bad-words").unwrap()).unwrap();
+    if matches.contains_id("bad-words") {
+        let mut file = File::open(matches.get_one::<String>("bad-words").unwrap()).unwrap();
         let mut raw_string = String::new();
         file.read_to_string(&mut raw_string).unwrap();
 
-        if !matches.is_present("append-bad-words") {
+        if !matches.get_flag("append-bad-words") {
             unwrap_or_return!(
                 sqlx::query!(r#"DELETE FROM ttc_bad_words"#)
                     .execute(&pool)
