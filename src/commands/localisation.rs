@@ -184,7 +184,7 @@ pub async fn translate(
             .description(format!(
                 "{} -> {}",
                 langcode_to_lang(source_lang.as_str()),
-                lang
+                langcode_to_lang(&lang)
             ))
             .field("Original Message", &text_to_translate, false)
             .field("Translated Message", &translated_text, false)
