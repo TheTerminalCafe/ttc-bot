@@ -131,7 +131,7 @@ mod interactions {
     use chrono::Utc;
     use poise::serenity_prelude::{
         ActionRowComponent, ChannelId, Context, CreateEmbed, InputTextStyle,
-        InteractionApplicationCommandCallbackDataFlags, InteractionResponseType, Mentionable,
+        InteractionResponseFlags, InteractionResponseType, Mentionable,
         MessageComponentInteraction, ModalSubmitInteraction, RoleId,
     };
     use rand::prelude::SliceRandom;
@@ -148,9 +148,7 @@ mod interactions {
         // Defer the reply to avoid possible issues
         intr.create_interaction_response(ctx, |i| {
             i.kind(InteractionResponseType::DeferredChannelMessageWithSource)
-                .interaction_response_data(|d| {
-                    d.flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL)
-                })
+                .interaction_response_data(|d| d.flags(InteractionResponseFlags::EPHEMERAL))
         })
         .await?;
 
@@ -254,9 +252,7 @@ mod interactions {
             ActionRowComponent::SelectMenu(menu) => {
                 intr.create_interaction_response(ctx, |i| {
                     i.kind(InteractionResponseType::DeferredChannelMessageWithSource)
-                        .interaction_response_data(|d| {
-                            d.flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL)
-                        })
+                        .interaction_response_data(|d| d.flags(InteractionResponseFlags::EPHEMERAL))
                 })
                 .await?;
 
@@ -368,9 +364,7 @@ mod interactions {
         // Defer the reply initially to avoid getting the interaction invalidated
         intr.create_interaction_response(ctx, |i| {
             i.kind(InteractionResponseType::DeferredChannelMessageWithSource)
-                .interaction_response_data(|d| {
-                    d.flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL)
-                })
+                .interaction_response_data(|d| d.flags(InteractionResponseFlags::EPHEMERAL))
         })
         .await?;
 

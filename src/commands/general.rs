@@ -35,14 +35,11 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
         })
         .await?;
 
-    // Fetch the actual message from discord
-    let mut message = message.message().await?;
-
-    let received_response = message.id.created_at();
+    let received_response = message.message().await?.id.created_at();
     let ping = received_response.timestamp_millis() - ctx.created_at().timestamp_millis();
 
     message
-        .edit(ctx.discord(), |e| {
+        .edit(ctx, |e| {
             e.embed(|e| {
                 e.clone_from(&embed);
                 e.field("Ping", format!("{}ms", ping), false)
@@ -122,13 +119,13 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
     let color = ctx.data().colors.user_server_info().await;
     let guild = ctx.guild().unwrap();
-    let guild_id_part = guild.id.to_partial_guild_with_counts(ctx.discord()).await?;
+    let guild_id_part = guild.id.to_partial_guild_with_counts(ctx).await?;
     let online_members = match guild_id_part.approximate_presence_count {
         Some(s) => s.to_string(),
         None => String::from("N/A"),
     };
     let icon = guild.icon_url().unwrap_or(String::from("N/A"));
-    let emojis = guild.emojis(ctx.discord()).await?;
+    let emojis = guild.emojis(ctx).await?;
     let mut fields: Vec<(String, String, bool)> = Vec::new();
 
     fields.push(("Guild name".to_string(), guild.name.clone(), false));
@@ -269,7 +266,7 @@ pub async fn leaderboard(
 
     let harold_emojis = ctx.data().config.harold_emoji().await?;
     let mut user_list = Vec::new();
-    let mut members = ctx.guild_id().unwrap().members_iter(ctx.discord()).boxed();
+    let mut members = ctx.guild_id().unwrap().members_iter(ctx).boxed();
     while let Some(member) = members.next().await {
         user_list.push(member?.user.id.0);
     }
@@ -277,7 +274,7 @@ pub async fn leaderboard(
     let emoji_list = ctx
         .guild_id()
         .unwrap()
-        .emojis(ctx.discord())
+        .emojis(ctx)
         .await?
         .into_iter()
         .map(|e| e.name)
@@ -290,7 +287,8 @@ pub async fn leaderboard(
     let target_user = user.unwrap_or(
         ctx.author_member()
             .await
-            .ok_or(Error::from("Failed to get member"))?,
+            .ok_or(Error::from("Failed to get member"))?
+            .into_owned(),
     );
 
     // Get the harold counts
@@ -492,11 +490,12 @@ pub async fn leaderboard(
         })
         .await?
         .message()
-        .await?;
+        .await?
+        .into_owned();
 
     // Listen for the interactions
     while let Some(interaction) = message
-        .await_component_interactions(ctx.discord())
+        .await_component_interactions(ctx)
         .timeout(Duration::from_secs(300))
         .author_id(ctx.author().id)
         .build()
@@ -523,14 +522,14 @@ pub async fn leaderboard(
         }
         // Edit the message to contain the correct embed
         interaction
-            .create_interaction_response(ctx.discord(), |i| {
+            .create_interaction_response(ctx, |i| {
                 i.kind(poise::serenity_prelude::InteractionResponseType::UpdateMessage)
                     .interaction_response_data(|d| d.set_embed(embed_vec[index].clone()))
             })
             .await?;
     }
     // Remove the buttons when we are no longer listening for events
-    message.edit(ctx.discord(), |e| e.components(|c| c)).await?;
+    message.edit(ctx, |e| e.components(|c| c)).await?;
 
     Ok(())
 }
@@ -555,7 +554,7 @@ pub async fn help(
             let command = command.trim();
             for help_option in ctx.framework().options().commands.iter() {
                 if &help_option.name == &command {
-                    let (desc, color) = match help_option.multiline_help {
+                    let (desc, color) = match help_option.help_text {
                         Some(s) => (s(), color_help),
                         None => (format!("No help available for {}", &command), color_error),
                     };
@@ -599,7 +598,7 @@ pub async fn help(
                     e.title("Help")
                         .fields(sorted_categories.iter().map(|(category, commands)| {
                             let mut commands = (*commands).clone();
-                            commands.sort_by(|a, b| a.name.cmp(b.name));
+                            commands.sort_by(|a, b| a.name.cmp(&b.name));
                             let mut command_string = String::new();
                             for command in commands {
                                 if command.hide_in_help {
@@ -608,7 +607,10 @@ pub async fn help(
                                 command_string.push_str(&format!(
                                     "``{}``: {}\n",
                                     command.name,
-                                    command.inline_help.unwrap_or("No help available")
+                                    command
+                                        .description
+                                        .clone()
+                                        .unwrap_or(String::from("No help available"))
                                 ));
                             }
                             if command_string.len() == 0 {
