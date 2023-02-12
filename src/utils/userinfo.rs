@@ -90,14 +90,14 @@ pub async fn userinfo_fn<'a>(
 
     let (nickname, joined_at, roles) = match ctx.guild() {
         Some(guild) => {
-            match guild.member(ctx.discord(), user.id).await {
+            match guild.member(ctx, user.id).await {
                 Ok(member) => {
                     let nick = member.nick.clone().unwrap_or("None".to_string());
                     let joined_at = match member.joined_at {
                         Some(joined_at) => joined_at.readable(),
                         None => "N/A".to_string(),
                     };
-                    let mut roles = match member.roles(ctx.discord()) {
+                    let mut roles = match member.roles(ctx) {
                         Some(roles) => roles
                             .iter()
                             .map(|role| format!("<@&{}>, ", role.id))
@@ -154,7 +154,7 @@ pub async fn userinfo_fn<'a>(
             return Ok(None);
         }
         // ``ctx.guild()`` is checked above
-        let emojis = ctx.guild().unwrap().emojis(ctx.discord()).await?;
+        let emojis = ctx.guild().unwrap().emojis(ctx).await?;
         let mut emojis_hmap = HashMap::new();
         for emoji in emojis.clone() {
             emojis_hmap.insert(emoji.name.clone(), emoji);

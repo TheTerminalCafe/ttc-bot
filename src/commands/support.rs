@@ -114,9 +114,7 @@ pub async fn solve(ctx: Context<'_>) -> Result<(), Error> {
 
     // Archive the thread after getting the solution
     ctx.channel_id()
-        .edit_thread(ctx.discord(), |t| {
-            t.name(new_thread_name).archived(true).locked(true)
-        })
+        .edit_thread(ctx, |t| t.name(new_thread_name).archived(true).locked(true))
         .await?;
 
     Ok(())

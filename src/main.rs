@@ -66,7 +66,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // They are many errors that can occur, so we only handle the ones we want to customize
     // and forward the rest to the default handler
     let (ctx, title, description) = match error {
-        poise::FrameworkError::Setup { error } => panic!("Failed to start bot: {:?}", error),
+        poise::FrameworkError::Setup { error, .. } => panic!("Failed to start bot: {:?}", error),
         poise::FrameworkError::Command { error, ctx } => {
             log::warn!("Error in command `{}`: {:?}", ctx.command().name, error,);
             (
@@ -252,7 +252,7 @@ async fn main() {
     }
 
     // Create the framework of the bot
-    let framework = poise::Framework::build()
+    let framework = poise::Framework::builder()
         .token(token)
         .client_settings(move |client| client.application_id(application_id))
         .intents(
@@ -260,7 +260,7 @@ async fn main() {
                 | GatewayIntents::GUILD_MEMBERS
                 | GatewayIntents::MESSAGE_CONTENT,
         )
-        .user_data_setup(move |ctx, ready, _| {
+        .setup(move |ctx, ready, _| {
             Box::pin(async move {
                 log::info!("Ready! Logged in as {}", ready.user.tag());
                 ctx.set_activity(Activity::listening("Kirottu's screaming"))
@@ -337,7 +337,7 @@ async fn main() {
                 ..Default::default()
             },
             owners: owners,
-            listener: |ctx, event, framework, data| {
+            event_handler: |ctx, event, framework, data| {
                 Box::pin(events::listener::listener(ctx, event, framework, data))
             },
             on_error: |error| Box::pin(on_error(error)),
@@ -352,7 +352,8 @@ async fn main() {
     let handle = signals.handle();
 
     // Spawn the listening task
-    tokio::spawn(signal_hook_task(signals, framework.shard_manager()));
+    // tokio::spawn(signal_hook_task(signals, framework.shard_manager())); // TODO: Reimplement
+    // this
 
     // Run the bot
     framework.start().await.unwrap();
@@ -369,7 +370,7 @@ async fn signal_hook_task(
 ) {
     while let Some(_) = signals.next().await {
         log::info!("A termination signal received, exiting...");
-        shard_mgr.lock().await.shutdown_all().await;
+        (*shard_mgr).lock().await.shutdown_all().await;
         break;
     }
 }
