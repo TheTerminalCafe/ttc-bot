@@ -1955,7 +1955,6 @@ version = "0.3.0"
 dependencies = [
  "chrono",
  "clap 4.1.4",
- "dotenv",
  "env_logger",
  "futures",
  "humantime",
