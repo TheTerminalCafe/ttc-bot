@@ -16,9 +16,9 @@ sqlx = { version = "0.5.9", features = [
     "macros",
     "offline",
 ] }
-serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.8"
-serde_json = "1.0"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_yaml = "0.9.17"
+serde_json = "1.0.93"
 chrono = "0.4.23"
 rand = "0.8.5"
 env_logger = "0.10.0"
