@@ -9,7 +9,7 @@ edition = "2021"
 clap = "4.1.4"
 tokio = { version = "1.25", features = ["macros", "rt-multi-thread"] }
 regex = "1.7.1"
-sqlx = { version = "0.5.9", features = [
+sqlx = { version = "0.6.2", features = [
     "runtime-tokio-rustls",
     "postgres",
     "chrono",
