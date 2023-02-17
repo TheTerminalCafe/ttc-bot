@@ -353,6 +353,7 @@ pub async fn guild_member_addition(ctx: &Context, new_member: &Member, data: &Da
                                 &new_member.user.created_at().readable(),
                                 false,
                             )
+                            .timestamp(Utc::now())
                     })
                 })
                 .await,
@@ -390,6 +391,7 @@ pub async fn guild_member_removal(
                             .field("User", user.tag(), true)
                             .field("UserID", user.id, true)
                             .field("Joined at", joined_at.clone(), false)
+                            .timestamp(Utc::now())
                     })
                 })
                 .await,
@@ -413,6 +415,7 @@ pub async fn guild_ban_addition(ctx: &Context, banned_user: &User, data: &Data) 
                             .field("User", banned_user.tag(), true)
                             .field("UserID", banned_user.id, true)
                             .color(color)
+                            .timestamp(Utc::now())
                     })
                 })
                 .await,
@@ -436,6 +439,7 @@ pub async fn guild_ban_removal(ctx: &Context, unbanned_user: &User, data: &Data)
                             .field("User", unbanned_user.tag(), true)
                             .field("UserID", unbanned_user.id, true)
                             .color(color)
+                            .timestamp(Utc::now())
                     })
                 })
                 .await,
@@ -523,6 +527,7 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
                             .field("Old roles", &old_roles_string, false)
                             .field("New roles", &new_roles_string, false)
                             .color(color)
+                            .timestamp(Utc::now())
                     })
                 })
                 .await,
