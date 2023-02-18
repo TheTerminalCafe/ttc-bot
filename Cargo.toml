@@ -37,3 +37,4 @@ magick_rust = "0.16.0"
 [profile.release]
 lto = "fat"
 codegen-units = 1
+strip = true
