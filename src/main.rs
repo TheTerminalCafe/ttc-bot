@@ -352,8 +352,7 @@ async fn main() {
     let handle = signals.handle();
 
     // Spawn the listening task
-    // tokio::spawn(signal_hook_task(signals, framework.shard_manager())); // TODO: Reimplement
-    // this
+    tokio::spawn(signal_hook_task(signals, framework.shard_manager().clone()));
 
     // Run the bot
     framework.start().await.unwrap();
@@ -368,9 +367,7 @@ async fn signal_hook_task(
     mut signals: Signals,
     shard_mgr: Arc<poise::serenity_prelude::Mutex<poise::serenity_prelude::ShardManager>>,
 ) {
-    while let Some(_) = signals.next().await {
-        log::info!("A termination signal received, exiting...");
-        (*shard_mgr).lock().await.shutdown_all().await;
-        break;
-    }
+    signals.next().await;
+    log::info!("A termination signal received, exiting...");
+    (*shard_mgr).lock().await.shutdown_all().await;
 }
