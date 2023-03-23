@@ -1,23 +1,32 @@
 use crate::{
-    traits::context_ext::ContextExt, traits::readable::Readable, utils::emoji_cache::EmojiCache,
-    Context, Error,
+	traits::{
+		context_ext::ContextExt,
+		readable::Readable, 
+	},
+	utils::emoji_cache::EmojiCache,
+	Context, 
+	Error,
 };
 use lazy_static::lazy_static;
-use magick_rust::{
-    bindings::{
-        AlphaChannelOption_SetAlphaChannel, CompositeOperator_CopyCompositeOp,
-        FilterType_LanczosFilter, MagickBooleanType_MagickTrue,
-    },
-    DrawingWand, MagickWand, PixelWand,
-};
+use ril::prelude::*;
 use poise::{
-    serenity_prelude::{CreateEmbed, Emoji, User},
-    CreateReply,
+	serenity_prelude::{CreateEmbed, Emoji, User},
+	CreateReply,
 };
 use regex::Regex;
-use sqlx::{Pool, Postgres};
-use std::{collections::HashMap, env::current_dir, fs, iter::Iterator, sync::atomic::AtomicBool};
-use std::{io::Cursor, path::PathBuf};
+use sqlx::{
+	Pool,
+	Postgres
+};
+use std::{
+	collections::HashMap, 
+	env::current_dir,
+	fs,
+	iter::Iterator,
+	sync::atomic::AtomicBool,
+	io::Cursor,
+	path::PathBuf,
+};
 
 // Image specific variables
 const IMAGE_CACHE: &str = "image-cache";
@@ -330,50 +339,40 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
     }
     let height = rows as u32 * (EMOJI_SIZE + EMOJI_SPACING) - EMOJI_SPACING;
     let mut count = 1;
-    let mut mw_main_image = MagickWand::new();
-    let mut dw_main_image = DrawingWand::new();
-    let mut pw_main_image = PixelWand::new();
-    let mut pw_font = PixelWand::new();
-    let mut pw_font_outline = PixelWand::new();
 
-    // Setup wands
-    pw_main_image.set_color("none")?;
-    pw_font.set_color("#ffffff")?;
-    pw_font_outline.set_color("#000000")?;
-    dw_main_image.set_fill_color(&pw_font);
-    dw_main_image.set_stroke_color(&pw_font_outline);
-    mw_main_image.new_image(width as usize, height as usize, &pw_main_image)?;
-    mw_main_image.set_image_alpha_channel(AlphaChannelOption_SetAlphaChannel)?;
-    dw_main_image.set_font("DejaVu Serif")?;
-    dw_main_image.set_font_size(FONT_SIZE);
-    dw_main_image.set_text_antialias(MagickBooleanType_MagickTrue);
-    dw_main_image.set_stroke_antialias(MagickBooleanType_MagickTrue);
-    dw_main_image.set_stroke_width(1.0);
+    // Init main canvas and font
+    let mut cvs = Image::new(width,height,Rgba::transparent());
+    let font = Font::open(
+        "res/mono.ttf",
+        FONT_SIZE as f32
+    ).unwrap();
 
     // Add images + text to the main image
     for image in values {
-        let mw_tmp = MagickWand::new();
-        mw_tmp.read_image(&image.0)?;
-        let new_size = resize(mw_tmp.get_image_width(), mw_tmp.get_image_height());
+        let mut subcvs = Image::open(&image.0).unwrap();
+
+        // imma level with you chief, i have no clue what this does
+        let new_size = resize(subcvs.width() as usize,subcvs.height() as usize);
         let offset = (
             (EMOJI_SIZE - new_size.0 as u32) / 2,
             (EMOJI_SIZE - new_size.1 as u32) / 2,
         );
-        mw_tmp.resize_image(new_size.0, new_size.1, FilterType_LanczosFilter);
-        mw_main_image.compose_images(
-            &mw_tmp,
-            CompositeOperator_CopyCompositeOp,
-            false,
-            (pos.x + offset.0) as isize,
-            (pos.y + offset.1) as isize,
-        )?;
+        subcvs.resize(new_size.0.try_into().unwrap(), new_size.1.try_into().unwrap(), ResizeAlgorithm::Lanczos3);
+
+        // paste the desired image onto the main canvas
+        // and increment the x position for the next object
+        cvs.paste((pos.x + offset.0) as u32,
+                (pos.y + offset.1) as u32,
+                &subcvs);
         pos.x += EMOJI_SIZE + EMOJI_SPACING / 2;
 
-        dw_main_image.draw_annotation(
-            pos.x as f64,
-            (pos.y + EMOJI_SIZE / 2 + (FONT_SIZE / 3.0) as u32) as f64,
-            &image.1.to_string(),
-        )?;
+        // draw text beside the emoji
+        // still got no clue what this does, chief
+        let text = TextSegment::new(&font, &image.1.to_string(), Rgba::white())
+            .with_position(pos.x as u32,
+                        (pos.y + EMOJI_SIZE / 2 + (FONT_SIZE / 3.0) as u32) as u32);
+        cvs.draw(&text);
+
         pos.x += TEXT_SPACE;
         count += 1;
         if count > 3 {
@@ -382,9 +381,8 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
             pos.y += EMOJI_SIZE + EMOJI_SPACING;
         }
     }
-    mw_main_image.draw_image(&dw_main_image)?;
     let output_path = get_image_output_path()?;
-    mw_main_image.write_image(output_path.as_str())?;
+    cvs.save_inferred(output_path.as_str()).unwrap();
     Ok(())
 }
 

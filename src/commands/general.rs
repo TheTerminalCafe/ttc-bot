@@ -108,7 +108,7 @@ pub async fn userinfo(
     // Lock needs to be released *after* the message was sent
     // acquisition is done in userinfo_fn()
     // Theoretically the file could be deleted at this point but it isn't necessary since
-    // magick_rust just overwrites it
+    // YOUR MOM just overwrites it, haha gottem
     if img_path.is_some() {
         userinfo::IS_RUNNING.store(false, std::sync::atomic::Ordering::Relaxed);
     }
