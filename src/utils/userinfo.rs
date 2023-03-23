@@ -343,16 +343,31 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
     // Init main canvas and font
     let mut cvs = Image::new(width,height,Rgba::transparent());
     let font_bytes = include_bytes!("../../res/dejavu_serif.ttf");
-    let font = Font::from_bytes(
+    
+    let font_result = Font::from_bytes(
         font_bytes,
         FONT_SIZE as f32
-    ).unwrap();
+    );
 
-    // Add images + text to the main image
+    let font = match font_result {
+        Ok(ft) => ft,
+        Err(_err) => {
+            log::error!("Couldn't load font");
+            return Err(Error::from("Font could not be loaded for compositing"));
+        }
+    };
+
+    // Add images + text to the main canvas
     for image in values {
-        let mut subcvs = Image::open(&image.0).unwrap();
-
-        // imma level with you chief, i have no clue what this does
+        // Initialize "sub-canvas" for pasting onto the main canvas
+        let subcvs_result = Image::open(&image.0);
+        let mut subcvs = match subcvs_result {
+            Ok(sc) => sc,
+            Err(_err) => {
+                log::error!("Couldn't initialize subcanvas");
+                return Err(Error::from("Subcanvas object could not be allocated"));
+            }
+        };
         let new_size = resize(subcvs.width() as usize,subcvs.height() as usize);
         let offset = (
             (EMOJI_SIZE - new_size.0 as u32) / 2,
@@ -360,15 +375,14 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
         );
         subcvs.resize(new_size.0.try_into().unwrap(), new_size.1.try_into().unwrap(), ResizeAlgorithm::Lanczos3);
 
-        // paste the desired image onto the main canvas
+        // Paste the desired image onto the main canvas
         // and increment the x position for the next object
         cvs.paste((pos.x + offset.0) as u32,
                 (pos.y + offset.1) as u32,
                 &subcvs);
         pos.x += EMOJI_SIZE + EMOJI_SPACING / 2;
 
-        // draw text beside the emoji
-        // still got no clue what this does, chief
+        // Draw text beside the emoji
         let text = TextSegment::new(&font, &image.1.to_string(), Rgba::white())
             .with_position(pos.x as u32,
                         (pos.y + EMOJI_SIZE / 2 + (FONT_SIZE / 3.0) as u32) as u32);
@@ -383,7 +397,14 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
         }
     }
     let output_path = get_image_output_path()?;
-    cvs.save_inferred(output_path.as_str()).unwrap();
+    let save_result = cvs.save_inferred(output_path.as_str());
+    let _save = match save_result {
+        Ok(sr) => sr,
+        Err(_err) => {
+            log::error!("Couldn't save canvas");
+            return Err(Error::from("Couldn't save canvas to filesystem"));
+        }
+    };
     Ok(())
 }
 
