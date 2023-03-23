@@ -352,7 +352,6 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
     let font = match font_result {
         Ok(ft) => ft,
         Err(_err) => {
-            log::error!("Couldn't load font");
             return Err(Error::from("Font could not be loaded for compositing"));
         }
     };
@@ -364,7 +363,6 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
         let mut subcvs = match subcvs_result {
             Ok(sc) => sc,
             Err(_err) => {
-                log::error!("Couldn't initialize subcanvas");
                 return Err(Error::from("Subcanvas object could not be allocated"));
             }
         };
@@ -401,7 +399,6 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
     let _save = match save_result {
         Ok(sr) => sr,
         Err(_err) => {
-            log::error!("Couldn't save canvas");
             return Err(Error::from("Couldn't save canvas to filesystem"));
         }
     };
