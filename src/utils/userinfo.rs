@@ -342,7 +342,7 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
 
     // Init main canvas and font
     let mut cvs = Image::new(width,height,Rgba::transparent());
-    let font_bytes = include_bytes!("inc/dejavu_serif.ttf");
+    let font_bytes = include_bytes!("../../res/dejavu_serif.ttf");
     let font = Font::from_bytes(
         font_bytes,
         FONT_SIZE as f32
