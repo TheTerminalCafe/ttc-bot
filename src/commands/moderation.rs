@@ -44,10 +44,10 @@ pub async fn ban(
     // Ban the person depending on if a reason was supplied
     match reason {
         Some(reason) => {
-            member.ban_with_reason(ctx.discord(), dmd, reason).await?;
+            member.ban_with_reason(ctx, dmd, reason).await?;
         }
         None => {
-            member.ban(ctx.discord(), dmd).await?;
+            member.ban(ctx, dmd).await?;
         }
     }
 
@@ -94,14 +94,11 @@ pub async fn idban(
         Some(reason) => {
             ctx.guild_id()
                 .unwrap()
-                .ban_with_reason(ctx.discord(), user_id, dmd, reason)
+                .ban_with_reason(ctx, user_id, dmd, reason)
                 .await?;
         }
         None => {
-            ctx.guild_id()
-                .unwrap()
-                .ban(ctx.discord(), user_id, dmd)
-                .await?;
+            ctx.guild_id().unwrap().ban(ctx, user_id, dmd).await?;
         }
     }
 
@@ -144,9 +141,9 @@ pub async fn pardon(
         return Ok(());
     }
 
-    ctx.guild_id().unwrap().unban(&ctx.discord(), user).await?;
+    ctx.guild_id().unwrap().unban(&ctx, user).await?;
 
-    let tag = user.to_user(ctx.discord()).await?.tag();
+    let tag = user.to_user(ctx).await?.tag();
     ctx.send_simple(
         false,
         "User forgiven",
@@ -173,7 +170,7 @@ pub async fn kick(
     #[description = "User to kick"] member: Member,
     #[description = "Reason"] reason: Option<String>,
 ) -> Result<(), Error> {
-    let author: Member = ctx.author_member().await.unwrap();
+    let author = ctx.author_member().await.unwrap();
     if author.user == member.user {
         ctx.send_simple(
             true,
@@ -186,8 +183,8 @@ pub async fn kick(
     }
 
     match reason {
-        Some(r) => member.kick_with_reason(ctx.discord(), &r).await?,
-        None => member.kick(ctx.discord()).await?,
+        Some(r) => member.kick_with_reason(ctx, &r).await?,
+        None => member.kick(ctx).await?,
     }
 
     ctx.send_simple(
@@ -224,7 +221,7 @@ pub async fn mute(
     #[rename = "duration"]
     duration_str: String,
 ) -> Result<(), Error> {
-    let author: Member = ctx.author_member().await.unwrap();
+    let author = ctx.author_member().await.unwrap();
     if author.user == member.user {
         ctx.send_simple(
             true,
@@ -249,7 +246,7 @@ pub async fn mute(
         return Ok(());
     }
     member
-        .disable_communication_until_datetime(ctx.discord(), (Utc::now() + duration).into())
+        .disable_communication_until_datetime(ctx, (Utc::now() + duration).into())
         .await?;
 
     ctx.send_simple(
@@ -296,7 +293,7 @@ pub async fn unmute(
         .await?;
         return Ok(());
     }
-    member.enable_communication(ctx.discord()).await?;
+    member.enable_communication(ctx).await?;
 
     ctx.send_simple(
         false,
@@ -347,12 +344,10 @@ pub async fn purge(
     }
     let messages = ctx
         .channel_id()
-        .messages(ctx.discord(), |b| b.before(ctx.id()).limit(amount))
+        .messages(ctx, |b| b.before(ctx.id()).limit(amount))
         .await?;
 
-    ctx.channel_id()
-        .delete_messages(ctx.discord(), messages)
-        .await?;
+    ctx.channel_id().delete_messages(ctx, messages).await?;
 
     ctx.send_simple(
         true,

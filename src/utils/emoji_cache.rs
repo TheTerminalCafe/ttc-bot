@@ -257,7 +257,7 @@ impl<'a> EmojiCache<'a> {
                 ))
             }
         };
-        self.update_emoji_cache(ctx.discord(), guild, full_rebuild)
+        self.update_emoji_cache(ctx.serenity_context(), guild, full_rebuild)
             .await
     }
 

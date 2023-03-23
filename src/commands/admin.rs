@@ -70,7 +70,7 @@ pub async fn create_verification(
 ) -> Result<(), Error> {
     let color = ctx.data().colors.verification_message().await;
     channel
-        .send_message(ctx.discord(), |m| {
+        .send_message(ctx, |m| {
             m.embed(|e| e.color(color).title("Be sure to follow the rules!"))
                 .components(|c| {
                     c.create_action_row(|a| {
@@ -131,8 +131,8 @@ pub async fn create_selfroles(
     menu.min_values(0);
     menu.max_values(raw_selfroles.len() as u64);
 
-    let role_hmap = guild_id.roles(ctx.discord()).await?;
-    let emojis = guild_id.emojis(ctx.discord()).await?;
+    let role_hmap = guild_id.roles(ctx).await?;
+    let emojis = guild_id.emojis(ctx).await?;
 
     let mut option_data: Vec<(Role, Option<&Emoji>)> = Vec::new();
     let mut emoji_hmap = HashMap::new();
@@ -170,7 +170,7 @@ pub async fn create_selfroles(
     // Create the menu in the specified channel
     let color = ctx.data().colors.selfrole_selection().await;
     channel
-        .send_message(ctx.discord(), |m| {
+        .send_message(ctx, |m| {
             m.components(|c| c.create_action_row(|a| a.add_select_menu(menu)))
                 .embed(|e| e.title("Manage your self roles here").color(color))
         })
@@ -209,7 +209,7 @@ pub async fn create_support_ticket_button(
     let support_channel = ctx.data().config.support_channel().await?;
     let color = ctx.data().colors.admin_success().await;
     channel
-        .send_message(ctx.discord(), |m| {
+        .send_message(ctx, |m| {
             m.embed(|e| {
                 e.color(color).title("Support tickets").description(format!(
                     "{}\n\nAll support tickets are created in <#{}>",

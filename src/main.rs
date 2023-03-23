@@ -43,7 +43,7 @@ mod traits {
 // Imports from libraries
 // ----------------------
 
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use futures::stream::StreamExt;
 use poise::serenity_prelude::{Activity, ChannelId, GatewayIntents, RwLock};
 use regex::Regex;
@@ -66,7 +66,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // They are many errors that can occur, so we only handle the ones we want to customize
     // and forward the rest to the default handler
     let (ctx, title, description) = match error {
-        poise::FrameworkError::Setup { error } => panic!("Failed to start bot: {:?}", error),
+        poise::FrameworkError::Setup { error, .. } => panic!("Failed to start bot: {:?}", error),
         poise::FrameworkError::Command { error, ctx } => {
             log::warn!("Error in command `{}`: {:?}", ctx.command().name, error,);
             (
@@ -175,42 +175,39 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 
 #[tokio::main]
 async fn main() {
-    let matches = App::new("TTCBot")
+    let matches = Command::new("TTCBot")
         .arg(
-            Arg::with_name("core-config")
-                .takes_value(true)
+            Arg::new("core-config")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .required(true)
-                .short("c")
+                .short('c')
                 .long("core-config")
                 .help("Configuration file"),
         )
         .arg(
-            Arg::with_name("bad-words")
-                .takes_value(true)
+            Arg::new("bad-words")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .required(false)
-                .short("b")
+                .short('b')
                 .long("bad-words")
                 .help("A bad word list, one per line"),
         )
         .arg(
-            Arg::with_name("append-bad-words")
-                .takes_value(false)
+            Arg::new("append-bad-words")
+                .action(clap::ArgAction::SetTrue)
                 .required(false)
-                .short("a")
+                .short('a')
                 .long("append-bad-words")
                 .requires("bad-words")
                 .help("Appends provided bad words to the database table"),
         )
         .get_matches();
 
-    // Get environment values from .env for ease of use
-    dotenv::dotenv().ok();
-
     env_logger::init();
     magick_rust::magick_wand_genesis();
 
     // Load the config file
-    let config_file = File::open(matches.value_of("core-config").unwrap()).unwrap();
+    let config_file = File::open(matches.get_one::<String>("core-config").unwrap()).unwrap();
     let config: Value = serde_yaml::from_reader(config_file).unwrap();
 
     // Load all the values from the config
@@ -230,12 +227,12 @@ async fn main() {
         .await
         .unwrap();
 
-    if matches.is_present("bad-words") {
-        let mut file = File::open(matches.value_of("bad-words").unwrap()).unwrap();
+    if matches.contains_id("bad-words") {
+        let mut file = File::open(matches.get_one::<String>("bad-words").unwrap()).unwrap();
         let mut raw_string = String::new();
         file.read_to_string(&mut raw_string).unwrap();
 
-        if !matches.is_present("append-bad-words") {
+        if !matches.get_flag("append-bad-words") {
             unwrap_or_return!(
                 sqlx::query!(r#"DELETE FROM ttc_bad_words"#)
                     .execute(&pool)
@@ -255,7 +252,7 @@ async fn main() {
     }
 
     // Create the framework of the bot
-    let framework = poise::Framework::build()
+    let framework = poise::Framework::builder()
         .token(token)
         .client_settings(move |client| client.application_id(application_id))
         .intents(
@@ -263,7 +260,7 @@ async fn main() {
                 | GatewayIntents::GUILD_MEMBERS
                 | GatewayIntents::MESSAGE_CONTENT,
         )
-        .user_data_setup(move |ctx, ready, _| {
+        .setup(move |ctx, ready, _| {
             Box::pin(async move {
                 log::info!("Ready! Logged in as {}", ready.user.tag());
                 ctx.set_activity(Activity::listening("Kirottu's screaming"))
@@ -340,7 +337,7 @@ async fn main() {
                 ..Default::default()
             },
             owners: owners,
-            listener: |ctx, event, framework, data| {
+            event_handler: |ctx, event, framework, data| {
                 Box::pin(events::listener::listener(ctx, event, framework, data))
             },
             on_error: |error| Box::pin(on_error(error)),
@@ -355,7 +352,7 @@ async fn main() {
     let handle = signals.handle();
 
     // Spawn the listening task
-    tokio::spawn(signal_hook_task(signals, framework.shard_manager()));
+    tokio::spawn(signal_hook_task(signals, framework.shard_manager().clone()));
 
     // Run the bot
     framework.start().await.unwrap();
@@ -370,9 +367,7 @@ async fn signal_hook_task(
     mut signals: Signals,
     shard_mgr: Arc<poise::serenity_prelude::Mutex<poise::serenity_prelude::ShardManager>>,
 ) {
-    while let Some(_) = signals.next().await {
-        log::info!("A termination signal received, exiting...");
-        shard_mgr.lock().await.shutdown_all().await;
-        break;
-    }
+    signals.next().await;
+    log::info!("A termination signal received, exiting...");
+    (*shard_mgr).lock().await.shutdown_all().await;
 }
