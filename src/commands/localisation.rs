@@ -270,7 +270,7 @@ async fn translate_text(
     // Replacing # with %23, but only if we aren't a bee
     // since bee uses local translation
     if target_lang != "bee" {
-        text_target = url_escape::encode_fragment(&text_target).into();
+        text_target = urlencoding::encode(&text_target).into();
     }
 
     // Check if the language code is valid

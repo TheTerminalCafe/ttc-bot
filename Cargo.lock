@@ -2105,7 +2105,7 @@ dependencies = [
  "sqlx",
  "strsim",
  "tokio",
- "url-escape",
+ "urlencoding",
 ]
 
 [[package]]
@@ -2220,13 +2220,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "url-escape"
-version = "0.1.1"
+name = "urlencoding"
+version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44e0ce4d1246d075ca5abec4b41d33e87a6054d08e2366b63205665e950db218"
-dependencies = [
- "percent-encoding",
-]
+checksum = "e8db7427f936968176eaa7cdf81b7f98b980b18495ec28f1b5791ac3bfe3eea9"
 
 [[package]]
 name = "utf-8"
