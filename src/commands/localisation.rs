@@ -264,14 +264,7 @@ async fn translate_text(
     text_to_translate: &str,
 ) -> Result<(String, String), Error> {
     let mut language_found = false;
-    let mut text_target: String = text_to_translate.into();
-
-    // Fix for issue #60
-    // Replacing # with %23, but only if we aren't a bee
-    // since bee uses local translation
-    if target_lang != "bee" {
-        text_target = urlencoding::encode(&text_target).into();
-    }
+    let text_target: String = text_to_translate.into();
 
     // Check if the language code is valid
     for lang_code in LANGUAGE_CODES {
@@ -299,7 +292,7 @@ async fn translate_text(
     // Turn the provided info into a URI
     let uri = format!(
         "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={}&dt=t&q={}",
-        target_lang, &text_target,
+        target_lang, urlencoding::encode(&text_target).into_owned(),
     );
 
     // Make the request
