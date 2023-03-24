@@ -1,31 +1,19 @@
 use crate::{
-	traits::{
-		context_ext::ContextExt,
-		readable::Readable, 
-	},
-	utils::emoji_cache::EmojiCache,
-	Context, 
-	Error,
+    traits::{context_ext::ContextExt, readable::Readable},
+    utils::emoji_cache::EmojiCache,
+    Context, Error,
 };
 use lazy_static::lazy_static;
-use ril::prelude::*;
 use poise::{
-	serenity_prelude::{CreateEmbed, Emoji, User},
-	CreateReply,
+    serenity_prelude::{CreateEmbed, Emoji, User},
+    CreateReply,
 };
 use regex::Regex;
-use sqlx::{
-	Pool,
-	Postgres
-};
+use ril::prelude::*;
+use sqlx::{Pool, Postgres};
 use std::{
-	collections::HashMap, 
-	env::current_dir,
-	fs,
-	iter::Iterator,
-	sync::atomic::AtomicBool,
-	io::Cursor,
-	path::PathBuf,
+    collections::HashMap, env::current_dir, fs, io::Cursor, iter::Iterator, path::PathBuf,
+    sync::atomic::AtomicBool,
 };
 
 // Image specific variables
@@ -341,13 +329,10 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
     let mut count = 1;
 
     // Init main canvas and font
-    let mut cvs = Image::new(width,height,Rgba::transparent());
-    let font_bytes = include_bytes!("../../res/dejavu_serif.ttf");
-    
-    let font_result = Font::from_bytes(
-        font_bytes,
-        FONT_SIZE as f32
-    );
+    let mut cvs = Image::new(width, height, Rgba::transparent());
+    let font_bytes = include_bytes!("../../res/DejaVuSans.ttf");
+
+    let font_result = Font::from_bytes(font_bytes, FONT_SIZE as f32);
 
     let font = match font_result {
         Ok(ft) => ft,
@@ -362,28 +347,29 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
         let subcvs_result = Image::open(&image.0);
         let mut subcvs = match subcvs_result {
             Ok(sc) => sc,
-            Err(_err) => {
-                return Err(Error::from("Subcanvas object could not be allocated"));
+            Err(why) => {
+                return Err(format!("Subcanvas object could not be allocated: {}", why).into());
             }
         };
-        let new_size = resize(subcvs.width() as usize,subcvs.height() as usize);
+        let new_size = resize(subcvs.width() as usize, subcvs.height() as usize);
         let offset = (
             (EMOJI_SIZE - new_size.0 as u32) / 2,
             (EMOJI_SIZE - new_size.1 as u32) / 2,
         );
-        subcvs.resize(new_size.0.try_into().unwrap(), new_size.1.try_into().unwrap(), ResizeAlgorithm::Lanczos3);
+        subcvs.resize(
+            new_size.0.try_into().unwrap(),
+            new_size.1.try_into().unwrap(),
+            ResizeAlgorithm::Lanczos3,
+        );
 
         // Paste the desired image onto the main canvas
         // and increment the x position for the next object
-        cvs.paste((pos.x + offset.0) as u32,
-                (pos.y + offset.1) as u32,
-                &subcvs);
+        cvs.paste(pos.x + offset.0, pos.y + offset.1, &subcvs);
         pos.x += EMOJI_SIZE + EMOJI_SPACING / 2;
 
         // Draw text beside the emoji
         let text = TextSegment::new(&font, &image.1.to_string(), Rgba::white())
-            .with_position(pos.x as u32,
-                        (pos.y + EMOJI_SIZE / 2 + (FONT_SIZE / 3.0) as u32) as u32);
+            .with_position(pos.x, pos.y + EMOJI_SIZE / 2 - (FONT_SIZE / 2.0) as u32);
         cvs.draw(&text);
 
         pos.x += TEXT_SPACE;
@@ -396,13 +382,12 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
     }
     let output_path = get_image_output_path()?;
     let save_result = cvs.save_inferred(output_path.as_str());
-    let _save = match save_result {
-        Ok(sr) => sr,
-        Err(_err) => {
-            return Err(Error::from("Couldn't save canvas to filesystem"));
+    match save_result {
+        Ok(_) => Ok(()),
+        Err(why) => {
+            return Err(format!("Couldn't save canvas to filesystem: {}", why).into());
         }
-    };
-    Ok(())
+    }
 }
 
 /// Scale the images while keeping the dimensions
@@ -413,7 +398,7 @@ fn resize(x: usize, y: usize) -> (usize, usize) {
         bigger = y as f64;
         smaller = x as f64;
     }
-    let divider: f64 = bigger as f64 / EMOJI_SIZE as f64;
+    let divider: f64 = bigger / EMOJI_SIZE as f64;
     bigger /= divider;
     smaller /= divider;
 
