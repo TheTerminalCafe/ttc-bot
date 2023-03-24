@@ -204,7 +204,6 @@ async fn main() {
         .get_matches();
 
     env_logger::init();
-    magick_rust::magick_wand_genesis();
 
     // Load the config file
     let config_file = File::open(matches.get_one::<String>("core-config").unwrap()).unwrap();

@@ -1,23 +1,20 @@
 use crate::{
-    traits::context_ext::ContextExt, traits::readable::Readable, utils::emoji_cache::EmojiCache,
+    traits::{context_ext::ContextExt, readable::Readable},
+    utils::emoji_cache::EmojiCache,
     Context, Error,
 };
 use lazy_static::lazy_static;
-use magick_rust::{
-    bindings::{
-        AlphaChannelOption_SetAlphaChannel, CompositeOperator_CopyCompositeOp,
-        FilterType_LanczosFilter, MagickBooleanType_MagickTrue,
-    },
-    DrawingWand, MagickWand, PixelWand,
-};
 use poise::{
     serenity_prelude::{CreateEmbed, Emoji, User},
     CreateReply,
 };
 use regex::Regex;
+use ril::prelude::*;
 use sqlx::{Pool, Postgres};
-use std::{collections::HashMap, env::current_dir, fs, iter::Iterator, sync::atomic::AtomicBool};
-use std::{io::Cursor, path::PathBuf};
+use std::{
+    collections::HashMap, env::current_dir, fs, io::Cursor, iter::Iterator, path::PathBuf,
+    sync::atomic::AtomicBool,
+};
 
 // Image specific variables
 const IMAGE_CACHE: &str = "image-cache";
@@ -330,50 +327,51 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
     }
     let height = rows as u32 * (EMOJI_SIZE + EMOJI_SPACING) - EMOJI_SPACING;
     let mut count = 1;
-    let mut mw_main_image = MagickWand::new();
-    let mut dw_main_image = DrawingWand::new();
-    let mut pw_main_image = PixelWand::new();
-    let mut pw_font = PixelWand::new();
-    let mut pw_font_outline = PixelWand::new();
 
-    // Setup wands
-    pw_main_image.set_color("none")?;
-    pw_font.set_color("#ffffff")?;
-    pw_font_outline.set_color("#000000")?;
-    dw_main_image.set_fill_color(&pw_font);
-    dw_main_image.set_stroke_color(&pw_font_outline);
-    mw_main_image.new_image(width as usize, height as usize, &pw_main_image)?;
-    mw_main_image.set_image_alpha_channel(AlphaChannelOption_SetAlphaChannel)?;
-    dw_main_image.set_font("DejaVu Serif")?;
-    dw_main_image.set_font_size(FONT_SIZE);
-    dw_main_image.set_text_antialias(MagickBooleanType_MagickTrue);
-    dw_main_image.set_stroke_antialias(MagickBooleanType_MagickTrue);
-    dw_main_image.set_stroke_width(1.0);
+    // Init main canvas and font
+    let mut cvs = Image::new(width, height, Rgba::transparent());
+    let font_bytes = include_bytes!("../../res/DejaVuSans.ttf");
 
-    // Add images + text to the main image
+    let font_result = Font::from_bytes(font_bytes, FONT_SIZE as f32);
+
+    let font = match font_result {
+        Ok(ft) => ft,
+        Err(_err) => {
+            return Err(Error::from("Font could not be loaded for compositing"));
+        }
+    };
+
+    // Add images + text to the main canvas
     for image in values {
-        let mw_tmp = MagickWand::new();
-        mw_tmp.read_image(&image.0)?;
-        let new_size = resize(mw_tmp.get_image_width(), mw_tmp.get_image_height());
+        // Initialize "sub-canvas" for pasting onto the main canvas
+        let subcvs_result = Image::open(&image.0);
+        let mut subcvs = match subcvs_result {
+            Ok(sc) => sc,
+            Err(why) => {
+                return Err(format!("Subcanvas object could not be allocated: {}", why).into());
+            }
+        };
+        let new_size = resize(subcvs.width() as usize, subcvs.height() as usize);
         let offset = (
             (EMOJI_SIZE - new_size.0 as u32) / 2,
             (EMOJI_SIZE - new_size.1 as u32) / 2,
         );
-        mw_tmp.resize_image(new_size.0, new_size.1, FilterType_LanczosFilter);
-        mw_main_image.compose_images(
-            &mw_tmp,
-            CompositeOperator_CopyCompositeOp,
-            false,
-            (pos.x + offset.0) as isize,
-            (pos.y + offset.1) as isize,
-        )?;
+        subcvs.resize(
+            new_size.0.try_into().unwrap(),
+            new_size.1.try_into().unwrap(),
+            ResizeAlgorithm::Lanczos3,
+        );
+
+        // Paste the desired image onto the main canvas
+        // and increment the x position for the next object
+        cvs.paste(pos.x + offset.0, pos.y + offset.1, &subcvs);
         pos.x += EMOJI_SIZE + EMOJI_SPACING / 2;
 
-        dw_main_image.draw_annotation(
-            pos.x as f64,
-            (pos.y + EMOJI_SIZE / 2 + (FONT_SIZE / 3.0) as u32) as f64,
-            &image.1.to_string(),
-        )?;
+        // Draw text beside the emoji
+        let text = TextSegment::new(&font, &image.1.to_string(), Rgba::white())
+            .with_position(pos.x, pos.y + EMOJI_SIZE / 2 - (FONT_SIZE / 2.0) as u32);
+        cvs.draw(&text);
+
         pos.x += TEXT_SPACE;
         count += 1;
         if count > 3 {
@@ -382,10 +380,14 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
             pos.y += EMOJI_SIZE + EMOJI_SPACING;
         }
     }
-    mw_main_image.draw_image(&dw_main_image)?;
     let output_path = get_image_output_path()?;
-    mw_main_image.write_image(output_path.as_str())?;
-    Ok(())
+    let save_result = cvs.save_inferred(output_path.as_str());
+    match save_result {
+        Ok(_) => Ok(()),
+        Err(why) => {
+            return Err(format!("Couldn't save canvas to filesystem: {}", why).into());
+        }
+    }
 }
 
 /// Scale the images while keeping the dimensions
@@ -396,7 +398,7 @@ fn resize(x: usize, y: usize) -> (usize, usize) {
         bigger = y as f64;
         smaller = x as f64;
     }
-    let divider: f64 = bigger as f64 / EMOJI_SIZE as f64;
+    let divider: f64 = bigger / EMOJI_SIZE as f64;
     bigger /= divider;
     smaller /= divider;
 
