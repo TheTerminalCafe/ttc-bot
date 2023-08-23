@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM ttc_emoji_cache_channels WHERE channel_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "channel_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "message_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "timestamp_unix",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4201b12986c3336077476cddae6b775a0eac64359462813d6ae51f4e1f9904d2"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM ttc_webhooks",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "ee4f9ebceba0566181c0c181214e3d65d8aee99dafe660d8fefcebb0c288442d"
+}

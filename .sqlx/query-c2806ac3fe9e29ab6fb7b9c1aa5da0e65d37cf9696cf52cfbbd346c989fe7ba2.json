@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT field_name, field_value FROM ttc_easter_egg_botinfo",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "field_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "field_value",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "c2806ac3fe9e29ab6fb7b9c1aa5da0e65d37cf9696cf52cfbbd346c989fe7ba2"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "TRUNCATE TABLE ttc_emoji_cache",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "77b19e8652354f3352217a6c9cb267dc4d7b5d84242c43898419597ea9f1a766"
+}

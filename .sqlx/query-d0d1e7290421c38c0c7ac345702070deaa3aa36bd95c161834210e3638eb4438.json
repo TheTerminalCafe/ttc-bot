@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO ttc_emoji_cache VALUES($1, $2, $3) \n            ON CONFLICT (user_id, emoji_name) DO UPDATE SET emoji_count = ttc_emoji_cache.emoji_count + $3\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d0d1e7290421c38c0c7ac345702070deaa3aa36bd95c161834210e3638eb4438"
+}

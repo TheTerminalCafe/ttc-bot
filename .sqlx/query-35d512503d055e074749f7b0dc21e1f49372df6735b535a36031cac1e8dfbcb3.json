@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE ttc_message_cache SET content = $1 WHERE message_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "35d512503d055e074749f7b0dc21e1f49372df6735b535a36031cac1e8dfbcb3"
+}

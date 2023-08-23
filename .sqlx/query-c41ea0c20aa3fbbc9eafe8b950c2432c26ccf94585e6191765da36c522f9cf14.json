@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select role_id as selfroles, emoji_name\n        from ttc_selfroles",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "selfroles",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "emoji_name",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "c41ea0c20aa3fbbc9eafe8b950c2432c26ccf94585e6191765da36c522f9cf14"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO ttc_emoji_cache_messages (user_id, num_messages) VALUES ($1, $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "35c4bdacaf16c4df83c19454e9c9034ad570fb24cda59ff2c2e2fcf251bfe407"
+}

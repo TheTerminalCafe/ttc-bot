@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO ttc_bad_words (word) VALUES($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d52f80972b154d89e8bef96c8b9226646ede2c93f6fb79a6807098c5d5c1446c"
+}

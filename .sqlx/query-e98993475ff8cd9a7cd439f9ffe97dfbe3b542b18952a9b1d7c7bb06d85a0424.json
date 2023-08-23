@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select distinct\n        tcbc.id as conveyance_blacklist_id,\n        tcbc.channel_id as conveyance_blacklist_channel\n        from ttc_config tc\n        inner join ttc_conveyance_blacklist_channel tcbc on tc.conveyance_blacklist_id  = tcbc.id order by tcbc.id asc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "conveyance_blacklist_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "conveyance_blacklist_channel",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e98993475ff8cd9a7cd439f9ffe97dfbe3b542b18952a9b1d7c7bb06d85a0424"
+}

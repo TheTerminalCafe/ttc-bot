@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM ttc_bad_words",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "691086f41c9e5561bf5a7c8d344094895d80a59399fad25ae1d81159180f1a19"
+}

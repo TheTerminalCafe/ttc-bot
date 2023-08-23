@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM ttc_message_cache WHERE message_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "message_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "channel_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "user_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "message_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "content",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "attachments",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "0d0bb60094ee998353cccee44be8a067a5f662d069eb4c466a2aecbb29a36cbc"
+}

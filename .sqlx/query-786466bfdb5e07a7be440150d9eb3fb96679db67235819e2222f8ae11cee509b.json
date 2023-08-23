@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE ttc_conveyance_state SET current_message_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "786466bfdb5e07a7be440150d9eb3fb96679db67235819e2222f8ae11cee509b"
+}
