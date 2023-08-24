@@ -18,7 +18,7 @@ sqlx = { version = "0.7.1", features = [
 serde = { version = "1.0.152", features = ["derive"] }
 serde_yaml = "0.9.17"
 serde_json = "1.0.93"
-chrono = "0.4.23"
+chrono = { version = "0.4.23", default-features = false, features = ["clock", "std"] }
 rand = "0.8.5"
 env_logger = "0.10.0"
 log = { version = "0.4.17", features = ["std"] }
