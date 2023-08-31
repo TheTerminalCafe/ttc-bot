@@ -53,7 +53,7 @@ impl CacheData {
         Ok(())
     }
 
-    pub fn filter(&mut self, uids: &Vec<u64>, emojis: &Vec<String>) {
+    pub fn filter(&mut self, uids: &[u64], emojis: &[String]) {
         self.user_messages
             .retain(|k, _| uids.contains(k) || *k == 0);
         self.user_emojis
@@ -65,7 +65,7 @@ impl CacheData {
         for (k, v) in &self.user_emojis {
             res.push((k.0, k.1.clone(), *v));
         }
-        return res;
+        res
     }
 
     pub fn user_message_vec(&self) -> Vec<(u64, u64)> {
@@ -73,7 +73,7 @@ impl CacheData {
         for (k, v) in &self.user_messages {
             res.push((*k, *v));
         }
-        return res;
+        res
     }
 
     pub fn user_emojis_hash_emoji_user(&self) -> HashMap<String, HashMap<u64, u64>> {
@@ -83,7 +83,7 @@ impl CacheData {
                 .or_insert(HashMap::new())
                 .insert(k.0, *v);
         }
-        return res;
+        res
     }
 
     pub fn user_messages(&self) -> HashMap<u64, u64> {
@@ -109,7 +109,7 @@ impl<'a> EmojiCache<'a> {
         if IS_RUNNING.load(std::sync::atomic::Ordering::Relaxed) {
             return Err(Error::from("The emoji cache is currently being updated"));
         }
-        if let None = self.cached_data {
+        if self.cached_data.is_none() {
             self.get_database_data().await?;
         }
         // Due to the get_database_data it can't be None
@@ -286,7 +286,7 @@ impl<'a> EmojiCache<'a> {
             for row in channel_progress_raw {
                 channel_progress.insert(
                     row.channel_id as u64,
-                    (row.message_id as u64, row.timestamp_unix as i64),
+                    (row.message_id as u64, row.timestamp_unix),
                 );
             }
             self.inner_update_emoji_cache(ctx, guild, data, channel_progress)
@@ -317,10 +317,7 @@ impl<'a> EmojiCache<'a> {
         for (channel_id, _) in guild.channels(ctx).await? {
             let ctx = ctx.clone();
             let emoji_names = emoji_names.clone();
-            let last_message_in_cache = channel_progress
-                .get(&channel_id.0)
-                .unwrap_or(&(0, 0))
-                .clone();
+            let last_message_in_cache = *channel_progress.get(&channel_id.0).unwrap_or(&(0, 0));
             let handle = tokio::spawn(async move {
                 let mut messages = channel_id.messages_iter(ctx).boxed();
                 let mut user_emoji_entries: HashMap<(u64, String), u64> = HashMap::new();

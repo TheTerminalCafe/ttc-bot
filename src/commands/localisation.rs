@@ -121,7 +121,7 @@ pub fn langcode_to_lang(code: &str) -> &str {
             return l.1;
         }
     }
-    return code;
+    code
 }
 
 /// Translation command
@@ -157,7 +157,7 @@ pub async fn translate(
         }
     }
 
-    if text_to_translate.len() == 0 {
+    if text_to_translate.is_empty() {
         ctx.send_simple(
             true,
             "There is no text",
@@ -221,7 +221,7 @@ pub async fn translate_to_en(
         }
     }
 
-    if msg.content.len() == 0 {
+    if msg.content.is_empty() {
         ctx.send_simple(
             true,
             "There is no text",
@@ -358,5 +358,5 @@ async fn check_translated_length(ctx: &Context<'_>, textlength: usize) -> Result
         .await?;
         return Ok(false);
     }
-    return Ok(true);
+    Ok(true)
 }

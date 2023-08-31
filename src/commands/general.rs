@@ -296,15 +296,12 @@ pub async fn leaderboard(
     let mut user_harolds = 0;
     let mut harold_leaderboard = HashMap::new();
     for harold in harold_emojis {
-        match data.user_emojis_hash_emoji_user().get(&harold.to_string()) {
-            Some(harolds) => {
-                user_harolds += *harolds.get(&target_user.user.id.0).unwrap_or(&0);
-                global_harolds += *harolds.get(&0).unwrap_or(&0);
-                for (user, count) in harolds {
-                    *harold_leaderboard.entry(*user).or_insert(0) += count;
-                }
+        if let Some(harolds) = data.user_emojis_hash_emoji_user().get(&harold.to_string()) {
+            user_harolds += *harolds.get(&target_user.user.id.0).unwrap_or(&0);
+            global_harolds += *harolds.get(&0).unwrap_or(&0);
+            for (user, count) in harolds {
+                *harold_leaderboard.entry(*user).or_insert(0) += count;
             }
-            None => (),
         }
     }
 
@@ -360,9 +357,10 @@ pub async fn leaderboard(
         .title("Harold message count")
         .description("Leaderboard of users with the highest amounts of harolds in their messages.")
         .color(color)
-        .fields((0..10).filter_map(|i| match harold_leaderboard.get(i) {
-            Some(harold) => Some((i + 1, format!("<@{}> - {}", harold.0, harold.1,), false)),
-            None => None,
+        .fields((0..10).filter_map(|i| {
+            harold_leaderboard
+                .get(i)
+                .map(|harold| (i + 1, format!("<@{}> - {}", harold.0, harold.1,), false))
         }));
     let color = ctx
         .data()
@@ -373,9 +371,10 @@ pub async fn leaderboard(
         .title("Message count")
         .description("Leaderboard of users with the highest amounts of messages.")
         .color(color)
-        .fields((0..10).filter_map(|i| match message_leaderboard.get(i) {
-            Some(messages) => Some((i + 1, format!("<@{}> - {}", messages.0, messages.1,), false)),
-            None => None,
+        .fields((0..10).filter_map(|i| {
+            message_leaderboard
+                .get(i)
+                .map(|messages| (i + 1, format!("<@{}> - {}", messages.0, messages.1,), false))
         }));
     let color = ctx
         .data()
@@ -386,10 +385,7 @@ pub async fn leaderboard(
         .title("Harold percentage")
         .description("Leaderboard of users with the highest percentages of harold messages. NOTE: Only users with more than 500 messages in total are accounted for to avoid inaccurate results.")
         .color(color)
-        .fields((0..10).filter_map(|i| match percentage_leaderboard.get(i) {
-            Some(percentages) => Some((i + 1, format!("<@{}> - {}%", percentages.0, (percentages.1 * 100.0) as i32,), false)),
-            None => None,
-        }));
+        .fields((0..10).filter_map(|i| percentage_leaderboard.get(i).map(|percentages| (i + 1, format!("<@{}> - {}%", percentages.0, (percentages.1 * 100.0) as i32,), false))));
 
     let color = ctx.data().colors.leaderboard_global().await;
     global_stats
@@ -553,13 +549,13 @@ pub async fn help(
             // Remove whitespaces that could come from automatic whitespaces on e.g. mobile devices
             let command = command.trim();
             for help_option in ctx.framework().options().commands.iter() {
-                if &help_option.name == &command {
+                if help_option.name == command {
                     let (desc, color) = match help_option.help_text {
                         Some(s) => (s(), color_help),
                         None => (format!("No help available for {}", &command), color_error),
                     };
                     ctx.send(|m| {
-                        m.embed(|e| e.title(&command).description(desc).color(color))
+                        m.embed(|e| e.title(command).description(desc).color(color))
                             .ephemeral(true)
                     })
                     .await?;
@@ -613,7 +609,7 @@ pub async fn help(
                                         .unwrap_or(String::from("No help available"))
                                 ));
                             }
-                            if command_string.len() == 0 {
+                            if command_string.is_empty() {
                                 command_string = "No commands available".to_string();
                             }
                             (category, command_string, false)

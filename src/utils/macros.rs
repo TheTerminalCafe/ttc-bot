@@ -1,10 +1,10 @@
 #[macro_export]
 macro_rules! command_error {
     ( $arg:expr ) => {
-        Err(crate::Error::from($arg))
+        Err($crate::Error::from($arg))
     };
     ( $fmt:expr, $( $arg:tt )* ) => {
-        Err(crate::Error::from(format!($fmt, $($arg)*)))
+        Err($crate::Error::from(format!($fmt, $($arg)*)))
     };
 }
 

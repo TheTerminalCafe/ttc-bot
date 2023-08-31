@@ -53,7 +53,7 @@ pub async fn message_delete(
     };
     // If the deleted message was sent before the latest cache message
     if msg.message_time.unwrap().timestamp() < cache.timestamp_unix {
-        let mut emoji_cache = EmojiCache::new(&*data.pool);
+        let mut emoji_cache = EmojiCache::new(&data.pool);
         let emojis = unwrap_or_return!(
             guild_id.unwrap().emojis(ctx).await,
             "can't get emojis from guild"
@@ -151,7 +151,7 @@ pub async fn message_update(
 
     if new.id.created_at().timestamp() < cache.timestamp_unix {
         // Store possible modifications to the users emojis
-        let mut emoji_cache = EmojiCache::new(&*data.pool);
+        let mut emoji_cache = EmojiCache::new(&data.pool);
         for emoji in &emoji_list {
             let emoji_pattern = format!("<:{}:", emoji.name);
             let new_contains = new.content.contains(&emoji_pattern);

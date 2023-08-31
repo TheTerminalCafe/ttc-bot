@@ -1,7 +1,8 @@
-use crate::utils::bee_script;
 use lazy_static::lazy_static;
 use poise::serenity_prelude::Timestamp;
 use rand::Rng;
+
+const BEE_SCRIPT: &str = include_str!("../../res/bee_script.txt");
 
 lazy_static! {
     static ref BEE_LINE_VEC: Vec<String> = bee_lines();
@@ -32,10 +33,7 @@ impl BeezoneChannel {
 }
 
 fn bee_lines() -> Vec<String> {
-    bee_script::BEE_SCRIPT
-        .lines()
-        .map(|line| line.to_string())
-        .collect()
+    BEE_SCRIPT.lines().map(|line| line.to_string()).collect()
 }
 
 pub fn beelate(string: &str) -> String {

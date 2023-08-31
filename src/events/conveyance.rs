@@ -235,7 +235,7 @@ pub async fn message_update(
     {
         Ok(msg) => match msg.content {
             Some(content) => {
-                if content.len() > 0 {
+                if !content.is_empty() {
                     content
                 } else {
                     "None".to_string()
@@ -268,7 +268,7 @@ pub async fn message_update(
 
                     let mut content_safe = new.content_safe(ctx);
                     content_safe.truncate(1024);
-                    if content_safe == "" {
+                    if content_safe.is_empty() {
                         content_safe = "None".to_string();
                     }
                     content_safe
@@ -280,7 +280,7 @@ pub async fn message_update(
 
                         let mut content_safe = new.content_safe(ctx);
                         content_safe.truncate(1024);
-                        if content_safe == "" {
+                        if content_safe.is_empty() {
                             content_safe = "None".to_string();
                         }
                         content_safe
@@ -290,9 +290,9 @@ pub async fn message_update(
                         log::warn!("Error getting message: {}", why);
 
                         let mut content_safe =
-                            content_safe(ctx, &content, &ContentSafeOptions::default(), &[]);
+                            content_safe(ctx, content, &ContentSafeOptions::default(), &[]);
                         content_safe.truncate(1024);
-                        if content_safe == "" {
+                        if content_safe.is_empty() {
                             content_safe = "None".to_string();
                         }
                         content_safe
@@ -455,7 +455,7 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
                 Some(nick) => nick,
                 None => "None".to_string(),
             };
-            let old_timeouted = is_user_timed_out(&old);
+            let old_timeouted = is_user_timed_out(old);
             (old_nickname, old.roles.clone(), Some(old_timeouted))
         }
         None => ("N/A".to_string(), Vec::new(), None),
@@ -466,17 +466,13 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
         None => "None".to_string(),
     };
     let new_roles = new.roles.clone();
-    let new_timeouted = is_user_timed_out(&new);
+    let new_timeouted = is_user_timed_out(new);
     // Make sure it is only the values displayed that have changed
     if !(old_nickname != new_nickname
         || old_roles != new_roles
         || match old_timeouted {
             Some(old_timeouted) => {
-                if old_timeouted == new_timeouted {
-                    false
-                } else {
-                    true
-                }
+                old_timeouted != new_timeouted
             }
             None => false,
         })
@@ -491,7 +487,7 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
     for role in old_roles {
         old_roles_string.push_str(&format!("<@&{}>, ", role));
     }
-    if old_roles_string.len() == 0 {
+    if old_roles_string.is_empty() {
         old_roles_string = "None or N/A".to_string();
     } else {
         old_roles_string.pop();
@@ -501,7 +497,7 @@ pub async fn guild_member_update(ctx: &Context, old: &Option<Member>, new: &Memb
     for role in new_roles {
         new_roles_string.push_str(&format!("<@&{}>, ", role));
     }
-    if new_roles_string.len() == 0 {
+    if new_roles_string.is_empty() {
         new_roles_string = "None".to_string();
     } else {
         new_roles_string.pop();

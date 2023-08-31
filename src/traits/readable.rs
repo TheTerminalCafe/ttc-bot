@@ -55,8 +55,8 @@ fn format_from_seconds(mut raw: u64) -> String {
         1 => result.push_str(&format!("{} second ", seconds)),
         _ => result.push_str(&format!("{} seconds ", seconds)),
     }
-    if result.len() == 0 {
-        result = format!("0 Seconds");
+    if result.is_empty() {
+        result = "0 Seconds".to_string();
     }
     result.trim_end().to_owned()
 }

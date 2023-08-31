@@ -28,11 +28,7 @@ struct ThreadId {
 
 impl PartialEq for ThreadId {
     fn eq(&self, other: &Self) -> bool {
-        if self.thread_id == other.thread_id {
-            true
-        } else {
-            false
-        }
+        self.thread_id == other.thread_id
     }
 }
 
@@ -136,19 +132,13 @@ pub async fn search(
     // Let's keep count so we know if one of them was around
     let mut options_used = 0;
 
-    match id {
-        Some(id) => {
-            search_id(ctx, id).await?;
-            options_used += 1;
-        }
-        None => (),
+    if let Some(id) = id {
+        search_id(ctx, id).await?;
+        options_used += 1;
     }
-    match title {
-        Some(title) => {
-            search_title(ctx, title).await?;
-            options_used += 1;
-        }
-        None => (),
+    if let Some(title) = title {
+        search_title(ctx, title).await?;
+        options_used += 1;
     }
     if options_used == 0 {
         return Err(Error::from(
@@ -172,7 +162,7 @@ async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
     .fetch_all(pool)
     .await?;
 
-    let mut msg = if threads.len() != 0 {
+    let mut msg = if !threads.is_empty() {
         let color = ctx.data().colors.support_info().await;
         let mut msg = CreateReply::default();
         msg.embed(|e| e.title("List of support tickets found:").color(color));

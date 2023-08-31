@@ -53,11 +53,8 @@ impl<'a> ContextExt for Context<'a> {
         self.send(|m| {
             m.embed(|e| {
                 e.title(title).color(color);
-                match description {
-                    Some(description) => {
-                        e.description(description);
-                    }
-                    None => (),
+                if let Some(description) = description {
+                    e.description(description);
                 };
                 e
             })

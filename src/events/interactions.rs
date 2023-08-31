@@ -32,7 +32,7 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                     match &intr.data.custom_id[..] {
                         // The interaction for the verification button
                         "ttc-bot-verification-button" => {
-                            match interactions::verification_button(ctx, intr, data).await {
+                            match interaction_fns::verification_button(ctx, intr, data).await {
                                 Ok(_) => (),
                                 Err(why) => {
                                     log::error!(
@@ -44,7 +44,7 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                         }
                         // Self role menu interaction
                         "ttc-bot-self-role-menu" => {
-                            match interactions::self_role_menu(ctx, intr, data).await {
+                            match interaction_fns::self_role_menu(ctx, intr, data).await {
                                 Ok(_) => (),
                                 Err(why) => {
                                     log::error!(
@@ -55,7 +55,7 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                             }
                         }
                         "ttc-bot-ticket-button" => {
-                            match interactions::ticket_button(ctx, &intr).await {
+                            match interaction_fns::ticket_button(ctx, &intr).await {
                                 Ok(_) => (),
                                 Err(why) => {
                                     log::error!(
@@ -95,31 +95,27 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                 None => return,
             };
 
-            match &intr.data.custom_id[..] {
-                "ttc-bot-ticket-modal" => {
-                    match interactions::ticket_modal(ctx, &intr, data).await {
-                        Ok(_) => (),
-                        Err(why) => {
-                            let color = data.colors.input_error().await;
-                            match intr
-                                .edit_original_interaction_response(ctx, |m| {
-                                    m.embed(|e| {
-                                        e.title("An error occurred")
-                                            .description(format!("{}", why))
-                                            .color(color)
-                                    })
+            if let "ttc-bot-ticket-modal" = &intr.data.custom_id[..] {
+                match interaction_fns::ticket_modal(ctx, &intr, data).await {
+                    Ok(_) => (),
+                    Err(why) => {
+                        let color = data.colors.input_error().await;
+                        match intr
+                            .edit_original_interaction_response(ctx, |m| {
+                                m.embed(|e| {
+                                    e.title("An error occurred")
+                                        .description(format!("{}", why))
+                                        .color(color)
                                 })
-                                .await
-                            {
-                                Ok(_) => (),
-                                Err(why) => log::error!("Failed to send error message: {}", why),
-                            }
-                            log::warn!("Failed to complete support ticket creation: {}", why);
-                            return;
+                            })
+                            .await
+                        {
+                            Ok(_) => (),
+                            Err(why) => log::error!("Failed to send error message: {}", why),
                         }
+                        log::warn!("Failed to complete support ticket creation: {}", why);
                     }
                 }
-                _ => (),
             }
         }
         _ => (),
@@ -127,7 +123,7 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
 }
 
 // Module for the separate interaction functions, to keep the main interaction functions clean
-mod interactions {
+mod interaction_fns {
     use chrono::Utc;
     use poise::serenity_prelude::{
         ActionRowComponent, ChannelId, Context, CreateEmbed, InputTextStyle,
@@ -284,10 +280,10 @@ mod interactions {
                         roles_to_add.push(*role);
                     }
                 }
-                if roles_to_add.len() > 0 {
+                if !roles_to_add.is_empty() {
                     member.add_roles(ctx, &roles_to_add).await?;
                 }
-                if roles_to_remove.len() > 0 {
+                if !roles_to_remove.is_empty() {
                     member.remove_roles(ctx, &roles_to_remove).await?;
                 }
 

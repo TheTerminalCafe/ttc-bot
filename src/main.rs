@@ -12,7 +12,6 @@ mod commands {
 }
 mod utils {
     pub mod autocomplete_functions;
-    pub mod bee_script;
     pub mod bee_utils;
     pub mod emoji_cache;
     pub mod helper_functions;
@@ -111,7 +110,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
             (
                 ctx,
                 "Not an owner",
-                format!("This command is for owners only."),
+                "This command is for owners only.".to_string(),
             )
         }
         poise::FrameworkError::ArgumentParse { error, input, ctx } => {
@@ -287,11 +286,11 @@ async fn main() {
                     beeified_users: RwLock::new(HashMap::new()),
                     beezone_channels: RwLock::new(HashMap::new()),
                     webhooks: RwLock::new(webhooks),
-                    pool: pool,
+                    pool,
                     thread_name_regex: Regex::new("[^a-zA-Z0-9 ]").unwrap(),
                     startup_time: Instant::now(),
-                    config: config,
-                    colors: colors,
+                    config,
+                    colors,
                 })
             })
         })
@@ -335,7 +334,7 @@ async fn main() {
                 prefix: Some("ttc!".to_string()),
                 ..Default::default()
             },
-            owners: owners,
+            owners,
             event_handler: |ctx, event, framework, data| {
                 Box::pin(events::listener::listener(ctx, event, framework, data))
             },

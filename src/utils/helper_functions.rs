@@ -20,33 +20,21 @@ pub async fn embed_msg(
 ) -> Result<Message, Error> {
     let mut embed = CreateEmbed::default();
 
-    match title {
-        Some(title) => {
-            embed.title(title);
-        }
-        None => (),
+    if let Some(title) = title {
+        embed.title(title);
     }
-    match description {
-        Some(description) => {
-            embed.description(description);
-        }
-        None => (),
+    if let Some(description) = description {
+        embed.description(description);
     }
-    match color {
-        Some(color) => {
-            embed.color(color);
-        }
-        None => (),
+    if let Some(color) = color {
+        embed.color(color);
     }
 
     let msg = channel_id.send_message(ctx, |m| m.set_embed(embed)).await?;
 
-    match autodelete {
-        Some(duration) => {
-            tokio::time::sleep(duration).await;
-            msg.delete(ctx).await?;
-        }
-        None => (),
+    if let Some(duration) = autodelete {
+        tokio::time::sleep(duration).await;
+        msg.delete(ctx).await?;
     }
 
     Ok(msg)
@@ -82,7 +70,7 @@ pub async fn get_webhook(
             let webhook = channel_id
                 .create_webhook(ctx, format!("ttc-bot fancy webhook {}", channel_id))
                 .await?;
-            webhooks.insert(channel_id.clone(), webhook.clone());
+            webhooks.insert(*channel_id, webhook.clone());
             // Update the webhook URLs in the DB
             sqlx::query!(r#"DELETE FROM ttc_webhooks"#)
                 .execute(&*data.pool)
@@ -109,14 +97,8 @@ pub async fn get_webhook(
 }
 
 pub fn is_user_timed_out(member: &Member) -> bool {
-    return match member.communication_disabled_until {
-        Some(comm_disabled) => {
-            if comm_disabled.unix_timestamp() < Timestamp::now().unix_timestamp() {
-                false
-            } else {
-                true
-            }
-        }
+    match member.communication_disabled_until {
+        Some(comm_disabled) => comm_disabled.unix_timestamp() >= Timestamp::now().unix_timestamp(),
         None => false,
-    };
+    }
 }

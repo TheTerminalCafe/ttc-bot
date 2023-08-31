@@ -123,7 +123,7 @@ pub async fn create_selfroles(
 
     let raw_selfroles = ctx.data().config.selfroles().await?;
 
-    if raw_selfroles.len() == 0 {
+    if raw_selfroles.is_empty() {
         return Err(Error::from("No roles in the Database"));
     }
 

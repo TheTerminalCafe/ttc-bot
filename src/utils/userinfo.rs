@@ -39,7 +39,7 @@ pub async fn userinfo_fn<'a>(
     let mut embed = CreateEmbed::default();
     let color = ctx.data().colors.user_server_info().await;
 
-    if update_emojis && !emoji_stats.is_some() {
+    if update_emojis && emoji_stats.is_none() {
         ctx.send_simple(
             true,
             "Why would you want to update the Emojis without displaying the result?",
@@ -72,7 +72,7 @@ pub async fn userinfo_fn<'a>(
         return Ok(None);
     }
 
-    let mut emoji_data = EmojiCache::new(&*ctx.data().pool);
+    let mut emoji_data = EmojiCache::new(&ctx.data().pool);
     if update_emojis {
         ctx.send_simple(
             true,
@@ -106,7 +106,7 @@ pub async fn userinfo_fn<'a>(
                     roles.pop();
 
                     // Make sure it isn't empty
-                    if roles == "" {
+                    if roles.is_empty() {
                         roles = "None".to_string()
                     }
 
@@ -159,7 +159,7 @@ pub async fn userinfo_fn<'a>(
         let mut emoji_data = emoji_data.get_data().await?.user_emojis_vec();
         emoji_data.sort_by_key(|k| k.2);
         emoji_data.reverse();
-        match download_emojis(emojis, &*ctx.data().pool).await {
+        match download_emojis(emojis, &ctx.data().pool).await {
             Ok(_) => (),
             Err(why) => {
                 // Release lock in case of Error
@@ -172,9 +172,9 @@ pub async fn userinfo_fn<'a>(
             if userid != user.id.0 {
                 continue;
             }
-            data_vec.push((get_filepath(&emoji_name, &*ctx.data().pool).await?, num));
+            data_vec.push((get_filepath(&emoji_name, &ctx.data().pool).await?, num));
         }
-        if data_vec.len() == 0 {
+        if data_vec.is_empty() {
             embed.field("Emoji stats", "There are no Emojis stats since the user didn't send Emojis yet or the Cache is too old", false);
         } else {
             match generate_userinfo_emoji_image(data_vec).await {
@@ -385,7 +385,7 @@ async fn generate_userinfo_emoji_image(values: Vec<(String, u64)>) -> Result<(),
     match save_result {
         Ok(_) => Ok(()),
         Err(why) => {
-            return Err(format!("Couldn't save canvas to filesystem: {}", why).into());
+            Err(format!("Couldn't save canvas to filesystem: {}", why).into())
         }
     }
 }
