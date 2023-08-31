@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM ttc_emoji_cache",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "emoji_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "emoji_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d7d5b1ba4490d101fcbb78521a3640b44223bf72407feeeaa1b4094a98bc10a5"
+}

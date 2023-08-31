@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE ttc_support_tickets SET unarchivals = $1 WHERE incident_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int2",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5ee3be1b00cc258bda0c1bcd2df3fa4ce2a751d7bfa7c0b4546ca7cea985401f"
+}

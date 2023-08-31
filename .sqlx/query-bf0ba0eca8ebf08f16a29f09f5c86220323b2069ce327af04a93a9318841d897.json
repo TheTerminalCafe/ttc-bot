@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT current_message_id AS current_id FROM ttc_conveyance_state",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "current_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bf0ba0eca8ebf08f16a29f09f5c86220323b2069ce327af04a93a9318841d897"
+}

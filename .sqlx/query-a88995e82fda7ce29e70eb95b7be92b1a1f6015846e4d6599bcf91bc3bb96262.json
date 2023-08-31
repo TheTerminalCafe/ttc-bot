@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE ttc_emoji_cache_messages SET num_messages = num_messages - $2 WHERE user_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a88995e82fda7ce29e70eb95b7be92b1a1f6015846e4d6599bcf91bc3bb96262"
+}

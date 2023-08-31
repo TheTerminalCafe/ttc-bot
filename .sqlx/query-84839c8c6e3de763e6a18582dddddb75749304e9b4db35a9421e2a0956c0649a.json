@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved, unarchivals) VALUES($1, $2, $3, $4, $5, $6) RETURNING *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "incident_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "thread_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "user_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "incident_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "incident_title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "incident_solved",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "unarchivals",
+        "type_info": "Int2"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Timestamptz",
+        "Varchar",
+        "Bool",
+        "Int2"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "84839c8c6e3de763e6a18582dddddb75749304e9b4db35a9421e2a0956c0649a"
+}

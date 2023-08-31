@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select distinct\n        twm.id as welcome_message_id,\n        twm.welcome_message as welcome_message\n        from ttc_config tc\n        inner join ttc_welcome_message twm on tc.welcome_message_id = twm.id order by twm.id asc",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "welcome_message_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "welcome_message",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "2e25038525db3eede39e746c4ac0148de4f610fe15910ca92dd8368864ba2aff"
+}

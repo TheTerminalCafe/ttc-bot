@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM ttc_support_tickets WHERE incident_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "incident_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "thread_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "user_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "incident_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "incident_title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "incident_solved",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "unarchivals",
+        "type_info": "Int2"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ceef597842ec23e62bc8001213791dc426fea4a866c2ad30905a5804be88966b"
+}

@@ -9,17 +9,16 @@ edition = "2021"
 clap = "4.1.4"
 tokio = { version = "1.25", features = ["macros", "rt-multi-thread"] }
 regex = "1.7.1"
-sqlx = { version = "0.6.2", features = [
-    "runtime-tokio-rustls",
+sqlx = { version = "0.7.1", features = [
+    "runtime-tokio",
     "postgres",
     "chrono",
     "macros",
-    "offline",
 ] }
 serde = { version = "1.0.152", features = ["derive"] }
 serde_yaml = "0.9.17"
 serde_json = "1.0.93"
-chrono = "0.4.23"
+chrono = { version = "0.4.23", default-features = false, features = ["clock", "std"] }
 rand = "0.8.5"
 env_logger = "0.10.0"
 log = { version = "0.4.17", features = ["std"] }
@@ -27,7 +26,7 @@ signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"] }
 signal-hook = "0.3.15"
 futures = "0.3.26"
 humantime = "2.1.0"
-reqwest = { version = "0.11.14", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.11.14", default-features = false, features = ["rustls-tls-native-roots"] }
 poise = "0.5.2"
 lazy_static = "1.4.0"
 strsim = "0.10.0"

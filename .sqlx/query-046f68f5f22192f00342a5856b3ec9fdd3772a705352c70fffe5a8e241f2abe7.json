@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select distinct\n        tcp.id as config_properties_id,\n        tcp.welcome_channel as welcome_channel\n        from ttc_config tc\n        inner join ttc_config_properties tcp on tc.config_properties_id = tcp.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "config_properties_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "welcome_channel",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "046f68f5f22192f00342a5856b3ec9fdd3772a705352c70fffe5a8e241f2abe7"
+}

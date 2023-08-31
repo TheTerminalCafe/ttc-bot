@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE ttc_support_tickets SET incident_solved = 't' WHERE incident_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "207ec70e47bdd9274434173708d605ab0df4af6a6c9ce751cc0493f3f681f153"
+}
