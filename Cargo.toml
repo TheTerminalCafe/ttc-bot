@@ -33,6 +33,9 @@ strsim = "0.10.0"
 ril = { version = "0.9.0", features = ["all"] }
 urlencoding = "2.1.2"
 
+[patch.crates-io]
+serenity = { git = 'https://github.com/serenity-rs/serenity.git', rev = 'f103692' }
+
 [profile.release]
 lto = "fat"
 codegen-units = 1
