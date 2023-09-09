@@ -359,10 +359,17 @@ impl<'a> EmojiCache<'a> {
                                 }
                             }
                         }
-                        Err(why) => log::error!("error getting message for emoji cache: {}", why),
+                        Err(why) => {
+                            log::error!(
+                                "stopping emoji cache counting due to error while getting message in channel {}: {}",
+                                channel_id,
+                                why
+                            );
+                            return Err(why);
+                        }
                     }
                 }
-                (user_emoji_entries, newest_message, user_msg_count)
+                Ok((user_emoji_entries, newest_message, user_msg_count))
             });
             handles.push(handle);
         }
@@ -370,7 +377,7 @@ impl<'a> EmojiCache<'a> {
         // Tuple magic...
         let mut channel_progress = Vec::new();
         for handle in handles {
-            let (user_emojis, newest_message, message_counts) = handle.await?;
+            let (user_emojis, newest_message, message_counts) = handle.await??;
             for (k, v) in user_emojis {
                 data.increase_user_emojis(k.0, k.1, v);
             }
