@@ -89,14 +89,14 @@ pub async fn userinfo_fn<'a>(
         Some(guild) => {
             let member = guild.member(ctx, user.id).await;
             let status = if member.is_ok() {
-                "Banned".to_string()
+                "Member".to_string()
             } else if guild
                 .bans(ctx)
                 .await?
                 .iter()
                 .any(|ban| ban.user.id.0 == user.id.0)
             {
-                "Member".to_string()
+                "Banned".to_string()
             } else {
                 "Not a member".to_string()
             };
