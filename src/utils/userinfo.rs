@@ -85,9 +85,22 @@ pub async fn userinfo_fn<'a>(
         emoji_data.update_emoji_cache_poise(&ctx, false).await?;
     }
 
-    let (nickname, joined_at, roles) = match ctx.guild() {
+    let (nickname, joined_at, roles, status) = match ctx.guild() {
         Some(guild) => {
-            match guild.member(ctx, user.id).await {
+            let member = guild.member(ctx, user.id).await;
+            let status = if member.is_ok() {
+                "Banned".to_string()
+            } else if guild
+                .bans(ctx)
+                .await?
+                .iter()
+                .any(|ban| ban.user.id.0 == user.id.0)
+            {
+                "Member".to_string()
+            } else {
+                "Not a member".to_string()
+            };
+            match member {
                 Ok(member) => {
                     let nick = member.nick.clone().unwrap_or("None".to_string());
                     let joined_at = match member.joined_at {
@@ -110,12 +123,22 @@ pub async fn userinfo_fn<'a>(
                         roles = "None".to_string()
                     }
 
-                    (nick, joined_at, roles)
+                    (nick, joined_at, roles, status)
                 }
-                Err(_) => ("N/A".to_string(), "N/A".to_string(), "N/A".to_string()),
+                Err(_) => (
+                    "N/A".to_string(),
+                    "N/A".to_string(),
+                    "N/A".to_string(),
+                    status,
+                ),
             }
         }
-        None => ("N/A".to_string(), "N/A".to_string(), "N/A".to_string()),
+        None => (
+            "N/A".to_string(),
+            "N/A".to_string(),
+            "N/A".to_string(),
+            "N/A".to_string(),
+        ),
     };
 
     let mut easter_egg_fields = Vec::new();
@@ -132,6 +155,7 @@ pub async fn userinfo_fn<'a>(
         .author(|a| a.name(user.tag()).icon_url(user.face()))
         .field("User ID", user.id.0, true)
         .field("Nickname", nickname, true)
+        .field("Server relation", status, false)
         .field("Created At", user.id.created_at().readable(), false)
         .field("Joined At", joined_at, false)
         .field("Roles", roles, false)
