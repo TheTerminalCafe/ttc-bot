@@ -162,7 +162,7 @@ async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
     .fetch_all(pool)
     .await?;
 
-    let mut msg = if !threads.is_empty() {
+    let msg = if !threads.is_empty() {
         let color = ctx.data().colors.support_info().await;
         let mut msg = CreateReply::default();
         msg.embed(|e| e.title("List of support tickets found:").color(color));
@@ -178,7 +178,10 @@ async fn search_title(ctx: Context<'_>, title: String) -> Result<(), Error> {
         msg
     };
 
-    ctx.send(|_| &mut msg).await?;
+    ctx.send(|m| {
+        m.clone_from(&msg);
+        m
+    }).await?;
 
     Ok(())
 }
