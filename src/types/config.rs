@@ -45,15 +45,6 @@ impl Config {
     config_function!(
         r#"select distinct
         tcp.id as config_properties_id,
-        tcp.support_channel as support_channel
-        from ttc_config tc
-        inner join ttc_config_properties tcp on tc.config_properties_id = tcp.id"#,
-        i64,
-        support_channel
-    );
-    config_function!(
-        r#"select distinct
-        tcp.id as config_properties_id,
         tcp.welcome_channel as welcome_channel
         from ttc_config tc
         inner join ttc_config_properties tcp on tc.config_properties_id = tcp.id"#,
@@ -104,15 +95,6 @@ impl Config {
         inner join ttc_harold_emoji the on tc.harold_emoji_id = the.id order by the.id asc"#,
         Vec<String>,
         harold_emoji
-    );
-    config_function!(
-        r#"select distinct
-        twm.id as welcome_message_id,
-        twm.welcome_message as welcome_message
-        from ttc_config tc
-        inner join ttc_welcome_message twm on tc.welcome_message_id = twm.id order by twm.id asc"#,
-        Vec<String>,
-        welcome_message
     );
     config_function!(
         r#"select role_id as selfroles, emoji_name

@@ -54,67 +54,11 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
                                 }
                             }
                         }
-                        "ttc-bot-ticket-button" => {
-                            match interaction_fns::ticket_button(ctx, &intr).await {
-                                Ok(_) => (),
-                                Err(why) => {
-                                    log::error!(
-                                        "Error completing ticket button interaction: {}",
-                                        why
-                                    );
-                                    match intr
-                                        .edit_original_interaction_response(ctx, |i| {
-                                            i.embed(|e| {
-                                                e.title("Something went wrong.").description(why)
-                                            })
-                                        })
-                                        .await
-                                    {
-                                        Ok(_) => (),
-                                        Err(why) => {
-                                            log::error!(
-                                                "Error editing interaction response: {}",
-                                                why
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
                         _ => (),
                     }
                 }
                 None => {
                     log::warn!("Interaction created outside a server");
-                }
-            }
-        }
-        InteractionType::ModalSubmit => {
-            let intr = match intr.clone().modal_submit() {
-                Some(intr) => intr,
-                None => return,
-            };
-
-            if let "ttc-bot-ticket-modal" = &intr.data.custom_id[..] {
-                match interaction_fns::ticket_modal(ctx, &intr, data).await {
-                    Ok(_) => (),
-                    Err(why) => {
-                        let color = data.colors.input_error().await;
-                        match intr
-                            .edit_original_interaction_response(ctx, |m| {
-                                m.embed(|e| {
-                                    e.title("An error occurred")
-                                        .description(format!("{}", why))
-                                        .color(color)
-                                })
-                            })
-                            .await
-                        {
-                            Ok(_) => (),
-                            Err(why) => log::error!("Failed to send error message: {}", why),
-                        }
-                        log::warn!("Failed to complete support ticket creation: {}", why);
-                    }
                 }
             }
         }
@@ -126,14 +70,11 @@ pub async fn interaction_create(ctx: &Context, intr: &Interaction, data: &Data) 
 mod interaction_fns {
     use chrono::Utc;
     use poise::serenity_prelude::{
-        ActionRowComponent, ChannelId, Context, CreateEmbed, InputTextStyle,
-        InteractionResponseFlags, InteractionResponseType, Mentionable,
-        MessageComponentInteraction, ModalSubmitInteraction, RoleId,
+        ActionRowComponent, Context, CreateEmbed, InteractionResponseFlags,
+        InteractionResponseType, MessageComponentInteraction, RoleId,
     };
-    use rand::prelude::SliceRandom;
-    use std::time::Duration;
 
-    use crate::{command_error, commands::support::SupportThread, types::data::Data, Error};
+    use crate::{command_error, types::data::Data, Error};
 
     // Interaction for the verification button
     pub async fn verification_button(
@@ -189,7 +130,7 @@ mod interaction_fns {
             {
                 Ok(_) => {
                     // Send a message to the user to acknowledge the verification
-                    match intr
+                    if let Err(why) = intr
                         .edit_original_interaction_response(ctx, |i| {
                             i.embed(|e: &mut CreateEmbed| {
                                 e.title("Verified!")
@@ -199,22 +140,7 @@ mod interaction_fns {
                         })
                         .await
                     {
-                        Ok(_) => {
-                            tokio::time::sleep(Duration::from_secs(2)).await;
-
-                            let welcome_message = data.config.welcome_message().await?;
-                            let welcome_message =
-                                welcome_message.choose(&mut rand::thread_rng()).unwrap();
-                            let welcome_message =
-                                welcome_message.replace("%user%", &intr.user.mention().to_string());
-
-                            ChannelId(data.config.welcome_channel().await? as u64)
-                                .send_message(ctx, |m| m.content(welcome_message))
-                                .await?;
-                        }
-                        Err(why) => {
-                            log::error!("Unable to respond to interaction: {}", why);
-                        }
+                        log::error!("Unable to respond to interaction: {}", why);
                     }
                 }
                 Err(why) => {
@@ -304,169 +230,6 @@ mod interaction_fns {
                 log::warn!("Invalid component type for id \"ttc-bot-self-role-menu\"");
             }
         }
-        Ok(())
-    }
-
-    pub async fn ticket_button(
-        ctx: &Context,
-        intr: &MessageComponentInteraction,
-    ) -> Result<(), Error> {
-        intr.create_interaction_response(ctx, |i| {
-            i.kind(InteractionResponseType::Modal)
-                .interaction_response_data(|d| {
-                    d.custom_id("ttc-bot-ticket-modal")
-                        .title("Support ticket")
-                        .components(|c| {
-                            c.create_action_row(|a| {
-                                a.create_input_text(|t| {
-                                    t.label("Title for the support ticket")
-                                        .max_length(100)
-                                        .custom_id("ttc-bot-ticket-modal-title")
-                                        .placeholder("Computer does not turn on")
-                                        .required(true)
-                                        .style(InputTextStyle::Short)
-                                })
-                            }).create_action_row(|a| {
-                                a.create_input_text(|t| {
-                                    t.label("A longer description of the issue")
-                                        .max_length(1024)
-                                        .required(true)
-                                        .custom_id("ttc-bot-ticket-modal-description")
-                                        .placeholder("My computer suddenly does not boot up anymore, could be due to it being submerged in water.")
-                                        .style(InputTextStyle::Paragraph)
-                                })
-                            }).create_action_row(|a| {
-                                a.create_input_text(|t| {
-                                    t.label("System information")
-                                        .max_length(1024)
-                                        .custom_id("ttc-bot-ticket-modal-systeminfo")
-                                        .required(true)
-                                        .placeholder("OS: Cursed abomination\nCPU: Raisin 6 9000XT\nGPU: Radon G86\nDE: Elf 42")
-                                        .style(InputTextStyle::Paragraph)
-                                })
-                            })
-                        })
-                    })
-                }).await?;
-
-        Ok(())
-    }
-
-    pub async fn ticket_modal(
-        ctx: &Context,
-        intr: &ModalSubmitInteraction,
-        data: &Data,
-    ) -> Result<(), Error> {
-        // Defer the reply initially to avoid getting the interaction invalidated
-        intr.create_interaction_response(ctx, |i| {
-            i.kind(InteractionResponseType::DeferredChannelMessageWithSource)
-                .interaction_response_data(|d| d.flags(InteractionResponseFlags::EPHEMERAL))
-        })
-        .await?;
-
-        let mut title = String::new();
-        let mut description = String::new();
-        let mut system_info = String::new();
-
-        // Extract the data from the components of the modal
-        for row in intr.data.components.iter() {
-            match &row.components[0] {
-                ActionRowComponent::InputText(input) => match input.custom_id.as_str() {
-                    "ttc-bot-ticket-modal-title" => {
-                        title = data
-                            .thread_name_regex
-                            .replace_all(&input.value, "")
-                            .to_string();
-                        if title.trim().is_empty() {
-                            return Err(Error::from("The title can't be empty.".to_string()));
-                        }
-                    }
-                    "ttc-bot-ticket-modal-description" => {
-                        description = input.value.clone();
-                        if description.trim().is_empty() {
-                            return Err(Error::from("The description can't be empty.".to_string()));
-                        }
-                    }
-                    "ttc-bot-ticket-modal-systeminfo" => {
-                        system_info = input.value.clone();
-                        if system_info.trim().is_empty() {
-                            return Err(Error::from("The system info can't be empty.".to_string()));
-                        }
-                    }
-                    _ => log::warn!(
-                        "Invalid custom id for support ticket modal component: {}",
-                        input.custom_id
-                    ),
-                },
-                _ => log::warn!("Invalid component on support ticket modal."),
-            }
-        }
-
-        let support_channel = ChannelId(data.config.support_channel().await? as u64);
-        let color = data.colors.ticket_summary().await;
-
-        let user_name = match &intr.member {
-            Some(member) => member.nick.clone().unwrap_or(intr.user.name.clone()),
-            None => intr.user.name.clone(),
-        };
-
-        let thread_msg = support_channel
-            .send_message(ctx, |m| {
-                m.embed(|e| {
-                    e.title(&title)
-                        .field("Description", description, false)
-                        .field("System info", system_info, false)
-                        .author(|a| a.name(user_name).icon_url(intr.user.face()))
-                        .color(color)
-                })
-            })
-            .await?;
-
-        let thread = support_channel
-            .create_public_thread(ctx, thread_msg.id, |ct| ct.name(&title))
-            .await?;
-
-        // Insert the gathered information into the database and return the newly created database
-        // entry for it's primary key to be added to the support thread title
-
-        let pool = &*data.pool;
-
-        let db_thread = match sqlx::query_as!(
-            SupportThread,
-            r#"INSERT INTO ttc_support_tickets (thread_id, user_id, incident_time, incident_title, incident_solved, unarchivals) VALUES($1, $2, $3, $4, $5, $6) RETURNING *"#,
-            thread.id.0 as i64,
-            intr.user.id.0 as i64,
-            Utc::now(),
-            title,
-            false,
-            0,
-        )
-        .fetch_one(pool)
-        .await {
-            Ok(thread) => thread,
-            Err(why) => {
-                return command_error!(format!("Error writing into database: {}", why));
-            }
-        };
-
-        let mut new_title = format!("[{}] {}", db_thread.incident_id, title);
-        new_title.truncate(100);
-
-        thread.id.edit_thread(ctx, |t| t.name(&new_title)).await?;
-
-        intr.edit_original_interaction_response(ctx, |i| {
-            i.embed(|e| {
-                e.title("Support ticket created")
-                    .description(format!("Support ticket created in <#{}>", thread.id.0))
-            })
-        })
-        .await?;
-
-        thread
-            .id
-            .send_message(ctx, |m| m.content(format!("<@{}>", intr.user.id.0)))
-            .await?;
-
         Ok(())
     }
 }

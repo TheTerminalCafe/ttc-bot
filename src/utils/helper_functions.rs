@@ -10,6 +10,7 @@ use std::time::Duration;
 // ----------------
 
 // Helper function for fast and easy embed messages
+#[allow(dead_code)]
 pub async fn embed_msg(
     ctx: &Context,
     channel_id: &ChannelId,
