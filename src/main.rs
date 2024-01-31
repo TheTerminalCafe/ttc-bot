@@ -259,7 +259,7 @@ async fn main() {
         .setup(move |ctx, ready, _| {
             Box::pin(async move {
                 log::info!("Ready! Logged in as {}", ready.user.tag());
-                ctx.set_activity(Activity::listening("Kirottu's screaming"))
+                ctx.set_activity(Activity::watching("C take over Rust"))
                     .await;
 
                 let query = sqlx::query!(r#"SELECT * FROM ttc_webhooks"#)
