@@ -8,7 +8,6 @@ mod commands {
     pub mod general;
     pub mod localisation;
     pub mod moderation;
-    pub mod support;
 }
 mod utils {
     pub mod autocomplete_functions;
@@ -26,7 +25,6 @@ mod events {
     pub mod emoji_cache;
     pub mod interactions;
     pub mod listener;
-    pub mod support;
 }
 mod types {
     pub mod colors;
@@ -301,7 +299,6 @@ async fn main() {
                 commands::admin::shutdown(),
                 commands::admin::create_verification(),
                 commands::admin::create_selfroles(),
-                commands::admin::create_support_ticket_button(),
                 commands::admin::rebuild_emoji_cache(),
                 // General commands
                 commands::general::ping(),
@@ -326,9 +323,6 @@ async fn main() {
                 commands::moderation::beezone(),
                 commands::moderation::unbeezone(),
                 commands::moderation::idban(),
-                // Support commands
-                commands::support::solve(),
-                commands::support::search(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("ttc!".to_string()),

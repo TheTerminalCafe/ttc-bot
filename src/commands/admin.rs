@@ -188,60 +188,6 @@ pub async fn create_selfroles(
     Ok(())
 }
 
-/// Create support ticket button
-///
-/// Command to create the button for support tickets
-/// ``create_support_ticket_button [channel_id] [description]``
-///
-/// ``description`` is the description of the embed
-#[poise::command(
-    prefix_command,
-    slash_command,
-    owners_only,
-    hide_in_help,
-    category = "Admin"
-)]
-pub async fn create_support_ticket_button(
-    ctx: Context<'_>,
-    #[description = "Channel to send it in"] channel: GuildChannel,
-    #[description = "Description for the support system"] description: String,
-) -> Result<(), Error> {
-    let support_channel = ctx.data().config.support_channel().await?;
-    let color = ctx.data().colors.admin_success().await;
-    channel
-        .send_message(ctx, |m| {
-            m.embed(|e| {
-                e.color(color).title("Support tickets").description(format!(
-                    "{}\n\nAll support tickets are created in <#{}>",
-                    description, support_channel
-                ))
-            })
-            .components(|c| {
-                c.create_action_row(|a| {
-                    a.create_button(|b| {
-                        b.label("Click here to create a support ticket")
-                            .custom_id("ttc-bot-ticket-button")
-                            .style(ButtonStyle::Primary)
-                    })
-                })
-            })
-        })
-        .await?;
-
-    ctx.send_simple(
-        false,
-        "Support button created",
-        Some(&format!(
-            "Support ticket button created in <#{}>",
-            channel.id
-        )),
-        ctx.data().colors.admin_success().await,
-    )
-    .await?;
-
-    Ok(())
-}
-
 /// Rebuild the Emoji Cache
 ///
 /// Completly rebuild the Emoji cache. This will take some time

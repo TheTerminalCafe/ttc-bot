@@ -95,9 +95,6 @@ pub async fn listener(
         InteractionCreate { interaction } => {
             crate::events::interactions::interaction_create(ctx, interaction, data).await;
         }
-        ThreadUpdate { thread } => {
-            crate::events::support::thread_update(ctx, thread, data).await;
-        }
 
         _ => (),
     }

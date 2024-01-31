@@ -45,15 +45,6 @@ impl Config {
     config_function!(
         r#"select distinct
         tcp.id as config_properties_id,
-        tcp.support_channel as support_channel
-        from ttc_config tc
-        inner join ttc_config_properties tcp on tc.config_properties_id = tcp.id"#,
-        i64,
-        support_channel
-    );
-    config_function!(
-        r#"select distinct
-        tcp.id as config_properties_id,
         tcp.welcome_channel as welcome_channel
         from ttc_config tc
         inner join ttc_config_properties tcp on tc.config_properties_id = tcp.id"#,
