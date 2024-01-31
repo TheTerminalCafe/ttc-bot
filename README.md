@@ -1,3 +1,5 @@
+# DEPCRECATED! Only accepting important fixes
+
 # Welcome to The Terminal cafe Support Bot Repository
 
 Hello, hope you are having a nice day. This is the official repository for The Terminal Cafe Support bot. It was created the to manage the support questions in an automated and organized way. 
