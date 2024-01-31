@@ -127,11 +127,9 @@ mod interaction_fns {
     use chrono::Utc;
     use poise::serenity_prelude::{
         ActionRowComponent, ChannelId, Context, CreateEmbed, InputTextStyle,
-        InteractionResponseFlags, InteractionResponseType, Mentionable,
-        MessageComponentInteraction, ModalSubmitInteraction, RoleId,
+        InteractionResponseFlags, InteractionResponseType, MessageComponentInteraction,
+        ModalSubmitInteraction, RoleId,
     };
-    use rand::prelude::SliceRandom;
-    use std::time::Duration;
 
     use crate::{command_error, commands::support::SupportThread, types::data::Data, Error};
 
@@ -189,7 +187,7 @@ mod interaction_fns {
             {
                 Ok(_) => {
                     // Send a message to the user to acknowledge the verification
-                    match intr
+                    if let Err(why) = intr
                         .edit_original_interaction_response(ctx, |i| {
                             i.embed(|e: &mut CreateEmbed| {
                                 e.title("Verified!")
@@ -199,22 +197,7 @@ mod interaction_fns {
                         })
                         .await
                     {
-                        Ok(_) => {
-                            tokio::time::sleep(Duration::from_secs(2)).await;
-
-                            let welcome_message = data.config.welcome_message().await?;
-                            let welcome_message =
-                                welcome_message.choose(&mut rand::thread_rng()).unwrap();
-                            let welcome_message =
-                                welcome_message.replace("%user%", &intr.user.mention().to_string());
-
-                            ChannelId(data.config.welcome_channel().await? as u64)
-                                .send_message(ctx, |m| m.content(welcome_message))
-                                .await?;
-                        }
-                        Err(why) => {
-                            log::error!("Unable to respond to interaction: {}", why);
-                        }
+                        log::error!("Unable to respond to interaction: {}", why);
                     }
                 }
                 Err(why) => {
